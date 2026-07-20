@@ -1,0 +1,64 @@
+/*
+  Hermes UI — global foundation.
+  Achromatic by design: the only colour on this surface is light itself.
+*/
+
+:root {
+  /* Palette — greys carry a faint cool undertone, never a hue. */
+  --ink-black: #060708; /* page void */
+  --ink-deep: #0b0d0f; /* raised surfaces */
+  --ink-line: #1c1f24; /* hairlines */
+  --silver-dim: #8b8f98; /* secondary text */
+  --silver: #c6c9d0; /* primary muted */
+  --white: #f2f3f5; /* headline / light */
+
+  /* Type roles */
+  --font-display: "Marcellus", serif; /* lapidary caps — the wordmark */
+  --font-body: "Instrument Sans", system-ui, sans-serif;
+  --font-mono: "Fragment Mono", monospace;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--ink-black);
+  color: var(--silver);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--white);
+  color: var(--ink-black);
+}
+
+:focus-visible {
+  outline: 1px solid var(--white);
+  outline-offset: 3px;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+}
+
+/* App-level view switch (hero ↔ chat) — see App.jsx / ViewMode.jsx. The
+   two views stack during the AnimatePresence cross-fade. */
+#root,
+.view {
+  position: fixed;
+  inset: 0;
+}

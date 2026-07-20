@@ -1,0 +1,156 @@
+.chat-input-shell {
+  flex: none;
+  padding: 0.75rem clamp(1rem, 4vw, 3rem) 1.75rem;
+}
+
+.chat-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.chat-attach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  background: rgba(198, 201, 208, 0.08);
+  border: 1px solid rgba(198, 201, 208, 0.18);
+  border-radius: 8px;
+  color: var(--silver);
+  font-size: 0.62rem;
+  padding: 0.24rem 0.3rem 0.24rem 0.5rem;
+}
+
+.chat-attach-clip {
+  opacity: 0.6;
+}
+
+.chat-attach-x {
+  background: none;
+  border: none;
+  color: var(--silver-dim);
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.15rem;
+}
+
+.chat-attach-x:hover {
+  color: #e0a08c;
+}
+
+.chat-file-input {
+  display: none;
+}
+
+.chat-input {
+  position: relative;
+  display: flex;
+  align-items: flex-end; /* buttons stay pinned to the bottom as the textarea grows */
+  gap: 0.6rem;
+  padding: 0.6rem 0.6rem 0.6rem 1.1rem;
+  background: rgba(14, 16, 19, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: border-color 0.15s ease;
+}
+
+.chat-input:focus-within {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.chat-input-field {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  resize: none;
+  color: var(--white);
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  padding: 0.42rem 0;
+  max-height: 9.5rem; /* ~7 lines before it scrolls internally */
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(198, 201, 208, 0.2) transparent;
+}
+
+/* Higher specificity than the global :focus-visible rule (global.css) —
+   just the native blinking caret here, no outline "box" around the field. */
+.chat-input-field:focus,
+.chat-input-field:focus-visible {
+  outline: none;
+}
+
+.chat-input-field::placeholder {
+  color: var(--silver-dim);
+  opacity: 0.6;
+}
+
+.chat-clip,
+.chat-mic {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(198, 201, 208, 0.2);
+  background: none;
+  color: var(--silver-dim);
+  font-size: 0.6rem;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.chat-clip {
+  font-size: 0.85rem;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.chat-clip:hover {
+  color: var(--white);
+  border-color: rgba(198, 201, 208, 0.45);
+}
+
+.chat-mic:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.chat-mic--live {
+  color: #e0a08c;
+  border-color: rgba(224, 160, 140, 0.5);
+  box-shadow: 0 0 10px rgba(224, 160, 140, 0.35);
+}
+
+.chat-send {
+  flex: none;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(198, 201, 208, 0.2);
+  background: rgba(198, 201, 208, 0.08);
+  color: var(--white);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.chat-send:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.chat-send--stop {
+  border-color: rgba(224, 160, 140, 0.4);
+  background: rgba(224, 160, 140, 0.1);
+  color: #e0a08c;
+}
+
+.chat-send--stop:hover {
+  border-color: rgba(224, 160, 140, 0.7);
+}

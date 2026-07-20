@@ -1,0 +1,71 @@
+.thoughts {
+  margin-top: 0.5rem;
+}
+
+.thoughts-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  background: none;
+  border: none;
+  color: var(--silver-dim);
+  opacity: 0.55;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  padding: 0.15rem 0;
+}
+
+.thoughts-toggle:hover {
+  opacity: 0.85;
+}
+
+.thoughts-caret {
+  display: inline-block;
+  width: 0.8em;
+}
+
+.thoughts-live {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #bfe0ff;
+  box-shadow: 0 0 6px rgba(160, 210, 255, 0.9);
+  animation: thoughts-live-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes thoughts-live-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thoughts-live { animation: none; }
+}
+
+.thoughts-list {
+  margin-top: 0.35rem;
+  padding: 0.55rem 0.7rem;
+  border-left: 1px solid rgba(198, 201, 208, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+}
+
+.thoughts-item {
+  display: flex;
+  gap: 0.6em;
+  font-size: 0.68rem;
+  line-height: 1.5;
+  opacity: 0.65;
+}
+
+.thoughts-label {
+  flex: none;
+  color: var(--silver-dim);
+  min-width: 7.5em;
+}
+
+.thoughts-detail {
+  color: var(--silver);
+}

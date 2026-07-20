@@ -1,0 +1,19 @@
+.hud-waveform {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: clamp(4.4rem, 9vh, 6rem);
+  height: 34px;
+  width: 84%;
+  display: block;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+@media (max-width: 640px) {
+  .hud-waveform {
+    left: 4%;
+    width: 92%;
+    bottom: 7.2rem;
+  }
+}

@@ -1,0 +1,124 @@
+/*
+  Usage orbs — quiet hero telemetry, top-left area (below the BrandMark).
+  Two rings side by side. Achromatic base with a faint provider tint on
+  the active arc only.
+*/
+.usage-orbs {
+  position: absolute;
+  top: clamp(7rem, 15vh, 10rem);
+  left: clamp(0.75rem, 2vw, 1.5rem);
+  z-index: 3;
+  display: flex;
+  gap: clamp(0.75rem, 2vw, 1.4rem);
+  pointer-events: none;
+}
+
+.orb {
+  position: relative;
+  width: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.orb-svg {
+  width: 96px;
+  height: 96px;
+  display: block;
+}
+
+.orb-track {
+  stroke: rgba(198, 201, 208, 0.12);
+}
+
+.orb-arc {
+  transition: stroke-dashoffset 0.6s ease;
+}
+
+/* OpenAI — cool white/steel. Anthropic — warm copper (its brand feel)
+   kept muted to respect the achromatic surface. */
+.orb--openai .orb-arc--outer {
+  stroke: #cfe6ff;
+  filter: drop-shadow(0 0 5px rgba(160, 210, 255, 0.5));
+}
+
+.orb--anthropic .orb-arc--outer {
+  stroke: #e6b58f;
+  filter: drop-shadow(0 0 5px rgba(224, 160, 120, 0.45));
+}
+
+.orb--anthropic .orb-arc--inner {
+  stroke: #f2d9c2;
+  filter: drop-shadow(0 0 4px rgba(240, 210, 180, 0.5));
+}
+
+.orb-center {
+  position: absolute;
+  top: 48px;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+}
+
+.orb-pct {
+  color: var(--white);
+  font-family: var(--font-body);
+  font-size: 1.02rem;
+  font-weight: 500;
+}
+
+.orb-value {
+  color: var(--silver-dim);
+  font-size: 0.54rem;
+  letter-spacing: 0.04em;
+  margin-top: 1px;
+}
+
+.orb-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 0.3rem;
+  gap: 1px;
+}
+
+.orb-label {
+  color: var(--silver);
+  opacity: 0.7;
+  font-size: 0.56rem;
+  letter-spacing: 0.1em;
+}
+
+.orb-sub {
+  color: var(--silver-dim);
+  opacity: 0.55;
+  font-size: 0.54rem;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 640px) {
+  .usage-orbs {
+    gap: 0.5rem;
+    top: clamp(6rem, 13vh, 8rem);
+  }
+  .orb,
+  .orb-svg {
+    width: 74px;
+  }
+  .orb-svg {
+    height: 74px;
+  }
+  .orb-center {
+    top: 37px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb-arc {
+    transition: none;
+  }
+}

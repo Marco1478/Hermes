@@ -1,0 +1,55 @@
+.brandmark {
+  position: absolute;
+  top: clamp(0.75rem, 2vw, 1.25rem);
+  left: clamp(0.75rem, 2vw, 1.25rem);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.brandmark:disabled {
+  cursor: default;
+}
+
+.brandmark-img {
+  width: clamp(72px, 8vw, 104px);
+  height: clamp(72px, 8vw, 104px);
+  /* Source is pre-cropped/pre-downscaled (public/memory-portrait-small.png,
+     240x240, progressive-halving resample) — live browser downscaling of
+     the big source aliased the thin line art at these sizes. */
+  object-fit: cover;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 0 22px rgba(200, 220, 245, 0.16);
+  opacity: 1;
+  transition: opacity 0.2s ease, transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.brandmark:not(:disabled):hover .brandmark-img,
+.brandmark:not(:disabled):focus-visible .brandmark-img {
+  transform: scale(1.06);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 30px rgba(200, 220, 245, 0.3);
+}
+
+.brandmark-word {
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--silver);
+  opacity: 0.9;
+}
+
+.brandmark:not(:disabled):hover .brandmark-word,
+.brandmark:not(:disabled):focus-visible .brandmark-word {
+  color: var(--white);
+  opacity: 1;
+}

@@ -1,0 +1,75 @@
+/*
+  .command-bar is a `motion.form` with a shared layoutId — Framer Motion
+  owns its `transform` for the layout animation, so centering CANNOT use
+  transform: translateX(-50%) (it gets clobbered). The dock wrapper
+  centers it with flexbox instead.
+*/
+.command-bar-dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: clamp(2.2rem, 6vh, 3.4rem);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.command-bar {
+  pointer-events: auto;
+  width: min(92vw, 560px);
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.85rem 1.1rem;
+  background: rgba(14, 16, 19, 0.5);
+  border: 1px solid rgba(198, 201, 208, 0.14);
+  border-radius: 999px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.command-bar-glyph {
+  color: var(--silver-dim);
+  opacity: 0.55;
+  font-size: 0.85rem;
+  flex: none;
+}
+
+.command-bar-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--white);
+  font-family: var(--font-body);
+  font-size: 0.94rem;
+}
+
+/* Higher specificity than the global :focus-visible rule (global.css) —
+   just the native blinking caret here, no outline "box" around the field. */
+.command-bar-input:focus,
+.command-bar-input:focus-visible {
+  outline: none;
+}
+
+.command-bar-input::placeholder {
+  color: var(--silver-dim);
+  opacity: 0.65;
+}
+
+.command-bar-kbd {
+  flex: none;
+  color: var(--silver-dim);
+  opacity: 0.5;
+  font-size: 0.68rem;
+  border: 1px solid rgba(198, 201, 208, 0.2);
+  border-radius: 4px;
+  padding: 0.15rem 0.4rem;
+}
+
+@media (max-width: 640px) {
+  .command-bar-kbd {
+    display: none;
+  }
+}

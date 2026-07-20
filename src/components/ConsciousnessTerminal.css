@@ -1,0 +1,93 @@
+.terminal {
+  position: absolute;
+  left: clamp(1rem, 3vw, 2rem);
+  bottom: clamp(1rem, 3vw, 2rem);
+  width: min(280px, 34vw);
+  max-height: 108px;
+  overflow: hidden;
+  background: rgba(8, 9, 11, 0.28);
+  border: 1px solid rgba(198, 201, 208, 0.08);
+  border-radius: 3px;
+  padding: 0.5rem 0.65rem 0.4rem;
+  opacity: 0.42;
+  transition: opacity 0.35s ease, max-height 0.35s ease;
+  pointer-events: auto;
+}
+
+.terminal:hover {
+  opacity: 0.92;
+  max-height: 180px;
+}
+
+.terminal-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  color: var(--silver-dim);
+  margin-bottom: 0.3rem;
+}
+
+.terminal-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--silver-dim);
+}
+
+.terminal-dot--online {
+  background: #8fd6a8;
+  box-shadow: 0 0 6px rgba(143, 214, 168, 0.7);
+}
+
+.terminal-dot--unreachable {
+  background: #d98f7a;
+  box-shadow: 0 0 6px rgba(217, 143, 122, 0.6);
+}
+
+.terminal-dot--unauthorized {
+  background: #d9b46a;
+  box-shadow: 0 0 6px rgba(217, 180, 106, 0.6);
+}
+
+.terminal-body {
+  max-height: 128px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.terminal-body::-webkit-scrollbar {
+  display: none;
+}
+
+.terminal-line {
+  font-size: 0.62rem;
+  line-height: 1.55;
+  color: var(--silver-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.terminal-line--ok {
+  color: #9fd6b3;
+}
+
+.terminal-line--warn {
+  color: #e0c088;
+}
+
+.terminal-line--error {
+  color: #e0a08c;
+}
+
+.terminal-t {
+  opacity: 0.55;
+}
+
+@media (max-width: 640px) {
+  .terminal {
+    display: none;
+  }
+}
