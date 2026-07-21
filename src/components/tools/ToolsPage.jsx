@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchHermesToolsets, fetchHermesMcpServers } from "../../lib/hermesBridge.js";
 import { PageShell } from "../PageShell.jsx";
+import { DiagnosticCard } from "../DiagnosticCard.jsx";
 import "./ToolsPage.css";
 
 function ToolsetCard({ ts }) {
@@ -57,7 +58,13 @@ export function ToolsPage() {
 
   return (
     <PageShell title="Tools">
-      {error && <p className="panel-error">{error}</p>}
+      {error && (
+        <DiagnosticCard
+          title="Tools unavailable"
+          detail={error}
+          hint="Toolsets come from the gateway (:8642), MCP servers from the dashboard (:9119) — check VITE_GATEWAY_* and HERMES_DASHBOARD_* in .env.local."
+        />
+      )}
 
       <div className="panel-section">
         <p className="panel-section-title">Toolsets</p>

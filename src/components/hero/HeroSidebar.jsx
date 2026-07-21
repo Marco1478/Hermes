@@ -68,6 +68,7 @@ export function HeroSidebar() {
   const gateway = useGateway();
   const [stats, setStats] = useState(null);
   const [platforms, setPlatforms] = useState(null);
+  const [platformsError, setPlatformsError] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -76,7 +77,12 @@ export function HeroSidebar() {
       const [statsRes, platRes] = await Promise.allSettled([fetchSystemStats(), fetchMessagingPlatforms()]);
       if (!mounted) return;
       if (statsRes.status === "fulfilled") setStats(statsRes.value);
-      if (platRes.status === "fulfilled") setPlatforms(platRes.value.platforms || []);
+      if (platRes.status === "fulfilled") {
+        setPlatforms(platRes.value.platforms || []);
+        setPlatformsError(null);
+      } else {
+        setPlatformsError(platRes.reason?.message || "unavailable");
+      }
       timer = setTimeout(poll, POLL_MS);
     }
     poll();
@@ -145,8 +151,14 @@ export function HeroSidebar() {
                 {PLATFORM_LABELS[p.id] || p.name}
               </span>
             ))
+          ) : platformsError ? (
+            <span className="control-muted mono" title={platformsError}>
+              Dashboard bridge unreachable
+            </span>
+          ) : platforms === null ? (
+            <span className="control-muted mono">loading…</span>
           ) : (
-            <span className="control-muted mono">Gateway bridge not configured</span>
+            <span className="control-muted mono">No platforms enabled</span>
           )}
         </div>
       </section>

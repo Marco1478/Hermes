@@ -12,6 +12,7 @@ import {
 } from "../../lib/hermesBridge.js";
 import { useViewMode } from "../../state/ViewMode.jsx";
 import { PageShell } from "../PageShell.jsx";
+import { DiagnosticCard } from "../DiagnosticCard.jsx";
 import { MemoryGraph } from "./MemoryGraph.jsx";
 import { MemoryEntryCards } from "./MemoryEntryCards.jsx";
 import { MemoryDetailDrawer } from "./MemoryDetailDrawer.jsx";
@@ -151,6 +152,7 @@ export function HermesPage() {
   const [graph, setGraph] = useState(null);
   const [jobs, setJobs] = useState(null);
   const [error, setError] = useState(null);
+  const [loadError, setLoadError] = useState(null);
   const [restart, setRestart] = useState("idle"); // idle | busy | done | error
   const [selectedMemory, setSelectedMemory] = useState(null);
   const [busySkill, setBusySkill] = useState(null);
@@ -172,7 +174,7 @@ export function HermesPage() {
       if (graphRes.status === "fulfilled") setGraph(graphRes.value);
       if (jobsRes.status === "fulfilled") setJobs(jobsRes.value || []);
       if ([profRes, skillsRes, memRes, graphRes, jobsRes].every((r) => r.status === "rejected")) {
-        setError("Could not reach the dashboard.");
+        setLoadError(profRes.reason?.message || "Could not reach the dashboard.");
       }
     }
     load();
@@ -219,11 +221,18 @@ export function HermesPage() {
         </button>
       }
     >
+      {loadError && (
+        <DiagnosticCard
+          title="Hermes data unavailable"
+          detail={loadError}
+          hint="Check HERMES_DASHBOARD_BASE_URL/USERNAME/PASSWORD in .env.local, or that the dashboard container is reachable."
+        />
+      )}
       {error && <p className="panel-error">{error}</p>}
 
       <div className="panel-section">
         <p className="panel-section-title">Profile</p>
-        {!profiles && !error && <p className="panel-empty">Loading…</p>}
+        {!profiles && !loadError && <p className="panel-empty">Loading…</p>}
         {activeProfile && (
           <div className="panel-card profile-card">
             <div className="profile-head">
@@ -246,13 +255,13 @@ export function HermesPage() {
 
       <div className="panel-section">
         <p className="panel-section-title">Skills</p>
-        {!skills && !error && <p className="panel-empty">Loading…</p>}
+        {!skills && !loadError && <p className="panel-empty">Loading…</p>}
         {skills && <SkillsBrowser skills={skills} onToggle={onToggleSkill} busyName={busySkill} />}
       </div>
 
       <div className="panel-section">
         <p className="panel-section-title">Memory</p>
-        {!memory && !error && <p className="panel-empty">Loading…</p>}
+        {!memory && !loadError && <p className="panel-empty">Loading…</p>}
         {memory && (
           <div className="memory-providers">
             {memory.providers.map((p) => (
@@ -289,7 +298,7 @@ export function HermesPage() {
             manage in jobs →
           </button>
         </div>
-        {!jobs && !error && <p className="panel-empty">Loading…</p>}
+        {!jobs && !loadError && <p className="panel-empty">Loading…</p>}
         {jobs && jobs.length === 0 && <p className="panel-empty">No automations created yet.</p>}
         <div className="automations-list">
           {jobs?.map((j) => (

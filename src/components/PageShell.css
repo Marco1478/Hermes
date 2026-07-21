@@ -155,6 +155,40 @@
   font-size: 0.72rem;
 }
 
+/* ---- Diagnostic card — a named-and-explained empty/failed state ------ */
+
+.diagnostic-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border-style: dashed;
+}
+
+.diagnostic-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.diagnostic-card-title {
+  color: var(--white);
+  opacity: 0.85;
+  font-size: 0.74rem;
+}
+
+.diagnostic-card-detail {
+  color: var(--silver-dim);
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+.diagnostic-card-hint {
+  color: var(--silver-dim);
+  opacity: 0.55;
+  font-size: 0.6rem;
+  line-height: 1.5;
+}
+
 .btn-pill {
   flex: none;
   display: inline-flex;

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { fetchCronJobs, pauseCronJob, resumeCronJob, triggerCronJob, updateCronJob } from "../../lib/hermesBridge.js";
 import { PageShell } from "../PageShell.jsx";
+import { DiagnosticCard } from "../DiagnosticCard.jsx";
 import "./JobsPage.css";
 
 function relTime(iso) {
@@ -192,7 +193,14 @@ export function JobsPage() {
     <PageShell title="Jobs">
       <div className="panel-section">
         <p className="panel-section-title">Cron jobs</p>
-        {error && <p className="panel-error">{error}</p>}
+        {error && !jobs && (
+          <DiagnosticCard
+            title="Cron jobs unavailable"
+            detail={error}
+            hint="Check HERMES_DASHBOARD_BASE_URL/USERNAME/PASSWORD in .env.local, or that the dashboard container is reachable."
+          />
+        )}
+        {error && jobs && <p className="panel-error">{error}</p>}
         {!jobs && !error && <p className="panel-empty">Loading…</p>}
         {jobs && jobs.length === 0 && <p className="panel-empty">No cron jobs configured.</p>}
         <div className="job-grid">
