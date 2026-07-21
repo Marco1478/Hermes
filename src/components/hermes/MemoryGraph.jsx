@@ -41,6 +41,7 @@ export function MemoryGraph({ graph, skills, onSelect }) {
       const idx = Number(node.id.split(":").pop());
       const mem = graph.memory?.[idx];
       return {
+        id: node.id,
         kind: "memory",
         title: mem?.title || node.label,
         body: mem?.body || node.label,
@@ -51,6 +52,7 @@ export function MemoryGraph({ graph, skills, onSelect }) {
     }
     const skill = skillByName.get(node.label);
     return {
+      id: node.id,
       kind: "skill",
       title: node.label,
       body: skill?.description || "No description available.",

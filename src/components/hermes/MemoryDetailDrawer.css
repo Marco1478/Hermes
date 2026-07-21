@@ -82,6 +82,31 @@
   font-size: 0.6rem;
 }
 
+.memory-drawer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.memory-drawer-textarea {
+  flex: 1;
+  min-height: 220px;
+  resize: vertical;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  color: var(--silver);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.memory-drawer-textarea:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
 @media (max-width: 640px) {
   .memory-drawer {
     width: 100vw;

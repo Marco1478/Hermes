@@ -197,6 +197,12 @@ export function hermesBridgePlugin({
       use("/local/hermes/skills/full", dashGetRoute("/api/skills"));
       use("/local/hermes/skills/toggle", dashWriteRoute("/api/skills/toggle", "PUT"));
       use("/local/hermes/skills", gatewayGetRoute("skills", "/v1/skills"));
+      // Real endpoint verified: PUT /api/tools/toolsets/{name} body
+      // {enabled, profile?} — web_server.py's ToolsetToggle model.
+      use("/local/hermes/toolsets/toggle", async (req, res) => {
+        const name = new URL(req.url, "http://x").searchParams.get("name") || "";
+        return dashWriteRoute(`/api/tools/toolsets/${encodeURIComponent(name)}`, "PUT")(req, res);
+      });
       use("/local/hermes/toolsets", gatewayGetRoute("toolsets", "/v1/toolsets"));
       use("/local/hermes/sessions", gatewayGetRoute("sessions", "/api/sessions"));
 
@@ -214,10 +220,36 @@ export function hermesBridgePlugin({
       use("/local/hermes/profiles", dashGetRoute("/api/profiles"));
       use("/local/hermes/memory", dashGetRoute("/api/memory"));
       use("/local/hermes/learning/graph", dashGetRoute("/api/learning/graph"));
+      // Memory/skill node CRUD — real backend only supports GET (prefill),
+      // PUT (edit), DELETE (archive/remove). Verified against
+      // agent/learning_mutations.py: there is no create-node function, so
+      // "add a new memory" has no real endpoint yet (documented as a
+      // blocker rather than faked).
+      use("/local/hermes/learning/node", async (req, res) => {
+        if (!dashboardConfigured) {
+          sendJson(res, 501, { error: "Dashboard not configured (HERMES_DASHBOARD_* in .env.local)." });
+          return;
+        }
+        const id = new URL(req.url, "http://x").searchParams.get("id") || "";
+        if (req.method === "GET") return dashGetRoute(`/api/learning/node?id=${encodeURIComponent(id)}`)(req, res);
+        if (req.method === "PUT") return dashWriteRoute("/api/learning/node", "PUT")(req, res);
+        if (req.method === "DELETE") return dashWriteRoute("/api/learning/node", "DELETE")(req, res);
+        sendJson(res, 405, { error: "GET, PUT, or DELETE only" });
+      });
+      // Real endpoint verified: PUT /api/mcp/servers/{name}/enabled body
+      // {enabled, profile?} — web_server.py's MCPEnabledToggle model.
+      use("/local/hermes/mcp/servers/toggle", async (req, res) => {
+        const name = new URL(req.url, "http://x").searchParams.get("name") || "";
+        return dashWriteRoute(`/api/mcp/servers/${encodeURIComponent(name)}/enabled`, "PUT")(req, res);
+      });
       use("/local/hermes/mcp/servers", dashGetRoute("/api/mcp/servers"));
       // Cron jobs — the manageable ones live on the dashboard, not the gateway.
       use("/local/hermes/cron/jobs", dashGetRoute("/api/cron/jobs"));
       use("/local/hermes/jobs", dashGetRoute("/api/cron/jobs"));
+      // Real endpoint verified: POST /api/cron/jobs body {prompt, schedule
+      // (cron string), name, deliver, model?, provider?, enabled_toolsets?,
+      // ...} — web_server.py's CronJobCreate model.
+      use("/local/hermes/cron/create", dashWriteRoute("/api/cron/jobs", "POST"));
 
       // ---- Dashboard writes -------------------------------------------------
       use("/local/hermes/gateway/restart", dashWriteRoute("/api/gateway/restart", "POST"));

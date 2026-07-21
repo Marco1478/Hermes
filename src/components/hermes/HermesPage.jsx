@@ -157,6 +157,15 @@ export function HermesPage() {
   const [selectedMemory, setSelectedMemory] = useState(null);
   const [busySkill, setBusySkill] = useState(null);
 
+  const loadGraph = useCallback(async () => {
+    try {
+      const g = await fetchHermesLearningGraph();
+      setGraph(g);
+    } catch {
+      /* keep the last good graph rather than blanking it on a transient failure */
+    }
+  }, []);
+
   useEffect(() => {
     let mounted = true;
     async function load() {
@@ -287,7 +296,7 @@ export function HermesPage() {
         )}
       </div>
 
-      <MemoryDetailDrawer entry={selectedMemory} onClose={() => setSelectedMemory(null)} />
+      <MemoryDetailDrawer entry={selectedMemory} onClose={() => setSelectedMemory(null)} onChanged={loadGraph} />
 
       <div className="panel-section">
         <div className="automations-head">

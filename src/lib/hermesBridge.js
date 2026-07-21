@@ -33,6 +33,7 @@ export const fetchHermesMemory = () => getJson("/local/hermes/memory");
 export const fetchHermesLearningGraph = () => getJson("/local/hermes/learning/graph");
 export const fetchHermesMcpServers = () => getJson("/local/hermes/mcp/servers");
 export const fetchCronJobs = () => getJson("/local/hermes/cron/jobs");
+export const fetchLearningNode = (id) => getJson(`/local/hermes/learning/node?id=${encodeURIComponent(id)}`);
 export const fetchProfileSoul = (name = "default") => getJson(`/local/hermes/profiles/soul?name=${encodeURIComponent(name)}`);
 export const fetchSkillsFull = () => getJson("/local/hermes/skills/full");
 
@@ -90,6 +91,36 @@ async function putJson(path, body) {
 
 export const updateCronJob = (id, updates) => putJson(`/local/hermes/cron/update?id=${encodeURIComponent(id)}`, updates);
 export const toggleSkill = (name, enabled) => putJson("/local/hermes/skills/toggle", { name, enabled });
+
+async function requestJson(path, method, body) {
+  const res = await fetch(path, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body ?? {}),
+  });
+  const raw = await res.text();
+  let data = null;
+  try {
+    data = raw ? JSON.parse(raw) : null;
+  } catch {
+    /* non-JSON error body */
+  }
+  if (!res.ok) throw new Error(data?.error || data?.detail || `HTTP ${res.status}`);
+  return data;
+}
+
+const postJson = (path, body) => requestJson(path, "POST", body);
+const deleteJson = (path, body) => requestJson(path, "DELETE", body);
+
+/* Memory/skill node CRUD — real /api/learning/node has no create, only
+   edit + delete (verified against agent/learning_mutations.py). */
+export const updateLearningNode = (id, content) => putJson("/local/hermes/learning/node", { id, content });
+export const deleteLearningNode = (id) => deleteJson("/local/hermes/learning/node", { id });
+
+export const createCronJob = (job) => postJson("/local/hermes/cron/create", job);
+export const toggleToolset = (name, enabled) => putJson(`/local/hermes/toolsets/toggle?name=${encodeURIComponent(name)}`, { enabled });
+export const toggleMcpServer = (name, enabled) =>
+  putJson(`/local/hermes/mcp/servers/toggle?name=${encodeURIComponent(name)}`, { enabled });
 
 export async function setHermesModel({ provider, model }) {
   const res = await fetch("/local/hermes/model/set", {

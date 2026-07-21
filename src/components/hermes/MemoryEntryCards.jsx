@@ -24,6 +24,7 @@ export function MemoryEntryCards({ graph, onSelect }) {
           className="panel-card glass-card--interactive memory-entry-card"
           onClick={() =>
             onSelect?.({
+              id: `memory:${m.source}:${i}`,
               kind: "memory",
               title: m.title,
               body: m.body,
