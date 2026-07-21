@@ -3,7 +3,9 @@ import { motion } from "framer-motion";
 import { useChat } from "../../state/Chat.jsx";
 import { useSlashCommands } from "../../hooks/useSlashCommands.js";
 import { CommandPalette } from "./CommandPalette.jsx";
+import { FileVault } from "../files/FileVault.jsx";
 import "./ChatInput.css";
+import "../files/FileVault.css";
 
 const SpeechRecognitionAPI =
   typeof window !== "undefined"
@@ -60,6 +62,9 @@ export function ChatInput() {
   const recogRef = useRef(null);
   const [listening, setListening] = useState(false);
   const [files, setFiles] = useState([]); /* {name, size, content} */
+  const [rejections, setRejections] = useState([]); /* {name, reason} */
+  const [previewName, setPreviewName] = useState(null);
+  const [vaultOpen, setVaultOpen] = useState(false);
   const slash = useSlashCommands(draft, setDraft);
 
   useEffect(() => {
@@ -111,21 +116,29 @@ export function ChatInput() {
   const onPickFiles = async (e) => {
     const picked = Array.from(e.target.files || []);
     e.target.value = ""; /* allow re-picking the same file */
+    const newRejections = [];
     const read = await Promise.all(
       picked.map(async (f) => {
         if (f.type.startsWith("image/")) {
-          if (f.size > MAX_IMAGE_BYTES) return null;
+          if (f.size > MAX_IMAGE_BYTES) {
+            newRejections.push({ name: f.name, reason: `Size limit exceeded (${(f.size / 1024 / 1024).toFixed(1)}MB > 8MB).` });
+            return null;
+          }
           const dataUrl = await readAsDataUrl(f).catch(() => "");
+          if (!dataUrl) newRejections.push({ name: f.name, reason: "Could not read file." });
           return dataUrl ? { name: f.name, size: f.size, isImage: true, dataUrl } : null;
         }
         const content = await readAsText(f).catch(() => "");
+        if (!content) newRejections.push({ name: f.name, reason: "Could not read file as text." });
         return content ? { name: f.name, size: f.size, truncated: f.size > MAX_FILE_BYTES, content } : null;
       })
     );
     setFiles((prev) => [...prev, ...read.filter(Boolean)]);
+    if (newRejections.length) setRejections((prev) => [...prev, ...newRejections]);
   };
 
   const removeFile = (name) => setFiles((prev) => prev.filter((f) => f.name !== name));
+  const dismissRejection = (name) => setRejections((prev) => prev.filter((r) => r.name !== name));
 
   const submit = () => {
     if (thinking) return;
@@ -151,20 +164,36 @@ export function ChatInput() {
 
   return (
     <div className="chat-input-shell">
-      {files.length > 0 && (
+      {(files.length > 0 || rejections.length > 0) && (
         <div className="chat-attachments">
           {files.map((f) => (
             <span key={f.name} className="chat-attach-chip mono">
-              <span className="chat-attach-clip" aria-hidden="true">
+              <button
+                type="button"
+                className="chat-attach-clip"
+                onClick={() => !f.isImage && setPreviewName((p) => (p === f.name ? null : f.name))}
+                aria-label={f.isImage ? f.name : `Preview ${f.name}`}
+                title={f.isImage ? f.name : "Click to preview"}
+              >
                 ⎘
-              </span>
+              </button>
               {f.name}
+              {f.truncated && <span className="tag-badge">truncated</span>}
               <button
                 type="button"
                 className="chat-attach-x"
                 onClick={() => removeFile(f.name)}
                 aria-label={`Remove ${f.name}`}
               >
+                ×
+              </button>
+              {!f.isImage && previewName === f.name && <pre className="chat-attach-preview">{f.content.slice(0, 500)}</pre>}
+            </span>
+          ))}
+          {rejections.map((r) => (
+            <span key={r.name} className="chat-attach-chip mono chat-attach-rejection">
+              {r.name}: {r.reason}
+              <button type="button" className="chat-attach-x" onClick={() => dismissRejection(r.name)} aria-label={`Dismiss ${r.name}`}>
                 ×
               </button>
             </span>
@@ -192,15 +221,27 @@ export function ChatInput() {
           tabIndex={-1}
           aria-hidden="true"
         />
-        <button
-          type="button"
-          className="chat-clip"
-          onClick={() => fileRef.current?.click()}
-          title="Attach files — text/code as context, images sent directly to the model"
-          aria-label="Attach files"
-        >
-          ⎘
-        </button>
+        <div className="chat-clip-group">
+          <button
+            type="button"
+            className="chat-clip"
+            onClick={() => fileRef.current?.click()}
+            title="Attach files — text/code as context, images sent directly to the model"
+            aria-label="Attach files"
+          >
+            ⎘
+          </button>
+          <button
+            type="button"
+            className="chat-clip-info"
+            onClick={() => setVaultOpen((v) => !v)}
+            title="What file types are supported?"
+            aria-label="File support info"
+          >
+            ⓘ
+          </button>
+          {vaultOpen && <FileVault onClose={() => setVaultOpen(false)} />}
+        </div>
         <textarea
           ref={inputRef}
           className="chat-input-field"
