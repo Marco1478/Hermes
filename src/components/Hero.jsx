@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { BrandMark } from "./BrandMark.jsx";
+import { HeroUsageWidget } from "./hero/HeroUsageWidget.jsx";
 import { ParallaxGrid } from "./ParallaxGrid.jsx";
 import { Waveform } from "./Waveform.jsx";
 import { SwarmCanvas } from "./SwarmCanvas.jsx";
@@ -78,7 +79,8 @@ export function Hero() {
 
       {/* The rich operational dashboard lives on its own tab now (open it
           from BrandMark while already on the hero) — the hero stays
-          cinematic. A compact usage widget lands here next. */}
+          cinematic, keeping only a compact usage widget under watch. */}
+      <HeroUsageWidget />
 
       {/* Identity block — stronger, left aligned, no longer competing with random telemetry. */}
       <header className="hero-id">
