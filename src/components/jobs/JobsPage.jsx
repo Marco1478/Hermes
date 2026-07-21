@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { fetchCronJobs, pauseCronJob, resumeCronJob, triggerCronJob, updateCronJob } from "../../lib/hermesBridge.js";
+import {
+  fetchCronJobs,
+  pauseCronJob,
+  resumeCronJob,
+  triggerCronJob,
+  updateCronJob,
+  createCronJob,
+  deleteCronJob,
+} from "../../lib/hermesBridge.js";
 import { PageShell } from "../PageShell.jsx";
 import { DiagnosticCard } from "../DiagnosticCard.jsx";
 import "./JobsPage.css";
@@ -28,6 +36,16 @@ function EditIcon() {
     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
       <path d="M12 20h9" />
       <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 6h18" />
+      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
     </svg>
   );
 }
@@ -104,7 +122,90 @@ function EditJobModal({ job, onClose, onSaved }) {
   );
 }
 
-function JobCard({ job, onAction, onEdit, busy }) {
+function NewJobModal({ onClose, onCreated }) {
+  const [name, setName] = useState("");
+  const [prompt, setPrompt] = useState("");
+  const [expr, setExpr] = useState("0 9 * * *");
+  const [deliver, setDeliver] = useState("local");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const onCreate = async () => {
+    if (!prompt.trim() || !expr.trim()) {
+      setError("Prompt and cron expression are both required.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await createCronJob({ name, prompt, schedule: expr, deliver });
+      onCreated();
+    } catch (err) {
+      setError(err.message || String(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <motion.div className="job-modal-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+      <motion.div
+        className="glass-card job-modal"
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        transition={{ duration: 0.16 }}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="New job"
+      >
+        <p className="panel-section-title">New job</p>
+
+        <label className="job-modal-label mono">
+          Name
+          <input className="job-modal-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Optional" />
+        </label>
+
+        <label className="job-modal-label mono">
+          Cron expression
+          <input className="job-modal-input mono" value={expr} onChange={(e) => setExpr(e.target.value)} placeholder="0 9 * * *" />
+        </label>
+
+        <label className="job-modal-label mono">
+          Deliver
+          <select className="job-modal-input" value={deliver} onChange={(e) => setDeliver(e.target.value)}>
+            <option value="local">local (dashboard only)</option>
+            <option value="origin">origin (reply to originating platform)</option>
+          </select>
+        </label>
+
+        <label className="job-modal-label mono">
+          Prompt
+          <textarea
+            className="job-modal-textarea mono"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            rows={8}
+            placeholder="What should Hermes do when this fires?"
+          />
+        </label>
+
+        {error && <p className="panel-error">{error}</p>}
+
+        <div className="job-modal-actions">
+          <button type="button" className="btn-pill" onClick={onClose} disabled={saving}>
+            cancel
+          </button>
+          <button type="button" className="btn-pill" onClick={onCreate} disabled={saving}>
+            {saving ? "creating…" : "create"}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function JobCard({ job, onAction, onEdit, onDelete, busy }) {
   return (
     <div className="glass-card job-card">
       <div className="job-card-head">
@@ -140,6 +241,9 @@ function JobCard({ job, onAction, onEdit, busy }) {
         <button type="button" className="btn-pill btn-pill--icon" title="Edit" onClick={() => onEdit(job)}>
           <EditIcon />
         </button>
+        <button type="button" className="btn-pill btn-pill--icon btn-pill--danger" title="Delete" onClick={() => onDelete(job)}>
+          <TrashIcon />
+        </button>
       </div>
     </div>
   );
@@ -155,6 +259,7 @@ export function JobsPage() {
   const [error, setError] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [editingJob, setEditingJob] = useState(null);
+  const [creating, setCreating] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -189,8 +294,31 @@ export function JobsPage() {
     [load]
   );
 
+  const onDelete = useCallback(
+    async (job) => {
+      if (!window.confirm(`Delete "${job.name || job.id}"? This cannot be undone.`)) return;
+      setBusyId(job.id);
+      try {
+        await deleteCronJob(job.id);
+        await load();
+      } catch (err) {
+        setError(err.message || String(err));
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [load]
+  );
+
   return (
-    <PageShell title="Jobs">
+    <PageShell
+      title="Jobs"
+      headerExtra={
+        <button type="button" className="btn-pill" onClick={() => setCreating(true)}>
+          + new job
+        </button>
+      }
+    >
       <div className="panel-section">
         <p className="panel-section-title">Cron jobs</p>
         {error && !jobs && (
@@ -205,7 +333,7 @@ export function JobsPage() {
         {jobs && jobs.length === 0 && <p className="panel-empty">No cron jobs configured.</p>}
         <div className="job-grid">
           {jobs?.map((job) => (
-            <JobCard key={job.id} job={job} onAction={onAction} onEdit={setEditingJob} busy={busyId === job.id} />
+            <JobCard key={job.id} job={job} onAction={onAction} onEdit={setEditingJob} onDelete={onDelete} busy={busyId === job.id} />
           ))}
         </div>
       </div>
@@ -217,6 +345,15 @@ export function JobsPage() {
             onClose={() => setEditingJob(null)}
             onSaved={() => {
               setEditingJob(null);
+              load();
+            }}
+          />
+        )}
+        {creating && (
+          <NewJobModal
+            onClose={() => setCreating(false)}
+            onCreated={() => {
+              setCreating(false);
               load();
             }}
           />

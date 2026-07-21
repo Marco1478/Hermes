@@ -118,6 +118,7 @@ export const updateLearningNode = (id, content) => putJson("/local/hermes/learni
 export const deleteLearningNode = (id) => deleteJson("/local/hermes/learning/node", { id });
 
 export const createCronJob = (job) => postJson("/local/hermes/cron/create", job);
+export const deleteCronJob = (id) => deleteJson(`/local/hermes/cron/delete?id=${encodeURIComponent(id)}`);
 export const toggleToolset = (name, enabled) => putJson(`/local/hermes/toolsets/toggle?name=${encodeURIComponent(name)}`, { enabled });
 export const toggleMcpServer = (name, enabled) =>
   putJson(`/local/hermes/mcp/servers/toggle?name=${encodeURIComponent(name)}`, { enabled });

@@ -250,6 +250,13 @@ export function hermesBridgePlugin({
       // (cron string), name, deliver, model?, provider?, enabled_toolsets?,
       // ...} — web_server.py's CronJobCreate model.
       use("/local/hermes/cron/create", dashWriteRoute("/api/cron/jobs", "POST"));
+      // Real endpoint verified: DELETE /api/cron/jobs/{job_id} (route table
+      // dump from web_server.py) — used to clean up a test job after
+      // create-flow verification.
+      use("/local/hermes/cron/delete", async (req, res) => {
+        const id = new URL(req.url, "http://x").searchParams.get("id") || "";
+        return dashWriteRoute(`/api/cron/jobs/${encodeURIComponent(id)}`, "DELETE")(req, res);
+      });
 
       // ---- Dashboard writes -------------------------------------------------
       use("/local/hermes/gateway/restart", dashWriteRoute("/api/gateway/restart", "POST"));
