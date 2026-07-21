@@ -35,6 +35,8 @@
   whichever provider matched first, which was the whole earlier saga.
 */
 
+import { createKanbanExec } from "./kanbanBridge.js";
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let data = "";
@@ -57,9 +59,12 @@ export function hermesBridgePlugin({
   dashboardBaseUrl,
   dashboardUsername,
   dashboardPassword,
+  sshHost,
+  sshKeyPath,
 }) {
   const gatewayConfigured = Boolean(gatewayBaseUrl && gatewayApiKey);
   const dashboardConfigured = Boolean(dashboardBaseUrl && dashboardUsername && dashboardPassword);
+  const kanban = createKanbanExec({ sshHost, sshKeyPath });
 
   // ---- Gateway (bearer token, stateless) ---------------------------------
   async function gatewayFetch(path, init = {}) {
@@ -380,6 +385,250 @@ export function hermesBridgePlugin({
 
       use("/local/hermes/dashboard/status", (req, res) => {
         sendJson(res, 200, { configured: dashboardConfigured, baseUrl: dashboardConfigured ? dashboardBaseUrl : null });
+      });
+
+      // ---- Kanban: no HTTP surface exists (verified against web_server.py) —
+      // every verb below shells out to the real `hermes kanban ...` CLI
+      // inside the container over the SSH bridge. See kanbanBridge.js for
+      // the sanitization contract.
+      use("/local/kanban/status", (req, res) => {
+        sendJson(res, 200, { configured: kanban.configured });
+      });
+
+      use("/local/kanban/stats", async (req, res) => {
+        const result = await kanban.runJson(["stats", "--json"]);
+        sendJson(res, result.ok ? 200 : 502, result);
+      });
+
+      use("/local/kanban/boards", async (req, res) => {
+        const result = await kanban.runJson(["boards", "list", "--json"]);
+        sendJson(res, result.ok ? 200 : 502, result);
+      });
+
+      use("/local/kanban/assignees", async (req, res) => {
+        const result = await kanban.runJson(["assignees", "--json"]);
+        sendJson(res, result.ok ? 200 : 502, result);
+      });
+
+      use("/local/kanban/list", async (req, res) => {
+        const q = new URL(req.url, "http://x").searchParams;
+        const args = ["list", "--json"];
+        if (q.get("status")) args.push("--status", q.get("status"));
+        if (q.get("assignee")) args.push("--assignee", q.get("assignee"));
+        if (q.get("archived") === "1") args.push("--archived");
+        if (q.get("sort")) args.push("--sort", q.get("sort"));
+        const result = await kanban.runJson(args);
+        sendJson(res, result.ok ? 200 : 502, result);
+      });
+
+      use("/local/kanban/show", async (req, res) => {
+        const id = new URL(req.url, "http://x").searchParams.get("id") || "";
+        if (!id) {
+          sendJson(res, 400, { ok: false, error: "id is required" });
+          return;
+        }
+        const result = await kanban.runJson(["show", id, "--json"]);
+        sendJson(res, result.ok ? 200 : 502, result);
+      });
+
+      use("/local/kanban/create", async (req, res) => {
+        if (req.method !== "POST") {
+          sendJson(res, 405, { ok: false, error: "POST only" });
+          return;
+        }
+        let body;
+        try {
+          body = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid JSON body" });
+          return;
+        }
+        const { title, body: openingPost, assignee, priority, parent, triage } = body;
+        if (!title) {
+          sendJson(res, 400, { ok: false, error: "title is required" });
+          return;
+        }
+        const args = ["create", title, "--json"];
+        if (openingPost) args.push("--body", openingPost);
+        if (assignee) args.push("--assignee", assignee);
+        if (priority != null) args.push("--priority", String(priority));
+        if (parent) args.push("--parent", parent);
+        if (triage) args.push("--triage");
+        const result = await kanban.runJson(args);
+        sendJson(res, result.ok ? 200 : 502, result);
+      });
+
+      use("/local/kanban/assign", async (req, res) => {
+        if (req.method !== "PUT") {
+          sendJson(res, 405, { ok: false, error: "PUT only" });
+          return;
+        }
+        let body;
+        try {
+          body = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid JSON body" });
+          return;
+        }
+        if (!body.id || !body.profile) {
+          sendJson(res, 400, { ok: false, error: "id and profile are required" });
+          return;
+        }
+        const result = await kanban.runText(["assign", body.id, body.profile]);
+        sendJson(res, result.ok ? 200 : 502, result);
+      });
+
+      use("/local/kanban/comment", async (req, res) => {
+        if (req.method !== "POST") {
+          sendJson(res, 405, { ok: false, error: "POST only" });
+          return;
+        }
+        let body;
+        try {
+          body = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid JSON body" });
+          return;
+        }
+        if (!body.id || !body.text) {
+          sendJson(res, 400, { ok: false, error: "id and text are required" });
+          return;
+        }
+        const args = ["comment", body.id, body.text];
+        if (body.author) args.push("--author", body.author);
+        const result = await kanban.runText(args);
+        sendJson(res, result.ok ? 200 : 502, result);
+      });
+
+      use("/local/kanban/block", async (req, res) => {
+        if (req.method !== "POST") {
+          sendJson(res, 405, { ok: false, error: "POST only" });
+          return;
+        }
+        let body;
+        try {
+          body = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid JSON body" });
+          return;
+        }
+        if (!body.id) {
+          sendJson(res, 400, { ok: false, error: "id is required" });
+          return;
+        }
+        const args = ["block", body.id];
+        if (body.reason) args.push(body.reason);
+        if (body.kind) args.push("--kind", body.kind);
+        const result = await kanban.runText(args);
+        sendJson(res, result.ok ? 200 : 502, result);
+      });
+
+      use("/local/kanban/unblock", async (req, res) => {
+        if (req.method !== "POST") {
+          sendJson(res, 405, { ok: false, error: "POST only" });
+          return;
+        }
+        let body;
+        try {
+          body = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid JSON body" });
+          return;
+        }
+        const ids = Array.isArray(body.ids) ? body.ids : body.id ? [body.id] : [];
+        if (ids.length === 0) {
+          sendJson(res, 400, { ok: false, error: "ids (or id) is required" });
+          return;
+        }
+        const args = ["unblock", ...ids];
+        if (body.reason) args.push("--reason", body.reason);
+        const result = await kanban.runText(args);
+        sendJson(res, result.ok ? 200 : 502, result);
+      });
+
+      use("/local/kanban/complete", async (req, res) => {
+        if (req.method !== "POST") {
+          sendJson(res, 405, { ok: false, error: "POST only" });
+          return;
+        }
+        let body;
+        try {
+          body = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid JSON body" });
+          return;
+        }
+        const ids = Array.isArray(body.ids) ? body.ids : body.id ? [body.id] : [];
+        if (ids.length === 0) {
+          sendJson(res, 400, { ok: false, error: "ids (or id) is required" });
+          return;
+        }
+        const args = ["complete", ...ids];
+        if (body.result) args.push("--result", body.result);
+        if (body.summary) args.push("--summary", body.summary);
+        const result = await kanban.runText(args);
+        sendJson(res, result.ok ? 200 : 502, result);
+      });
+
+      use("/local/kanban/archive", async (req, res) => {
+        if (req.method !== "POST") {
+          sendJson(res, 405, { ok: false, error: "POST only" });
+          return;
+        }
+        let body;
+        try {
+          body = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid JSON body" });
+          return;
+        }
+        const ids = Array.isArray(body.ids) ? body.ids : body.id ? [body.id] : [];
+        if (ids.length === 0) {
+          sendJson(res, 400, { ok: false, error: "ids (or id) is required" });
+          return;
+        }
+        const result = await kanban.runText(["archive", ...ids]);
+        sendJson(res, result.ok ? 200 : 502, result);
+      });
+
+      use("/local/kanban/link", async (req, res) => {
+        if (req.method !== "POST") {
+          sendJson(res, 405, { ok: false, error: "POST only" });
+          return;
+        }
+        let body;
+        try {
+          body = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid JSON body" });
+          return;
+        }
+        if (!body.parentId || !body.childId) {
+          sendJson(res, 400, { ok: false, error: "parentId and childId are required" });
+          return;
+        }
+        const result = await kanban.runText(["link", body.parentId, body.childId]);
+        sendJson(res, result.ok ? 200 : 502, result);
+      });
+
+      use("/local/kanban/unlink", async (req, res) => {
+        if (req.method !== "POST") {
+          sendJson(res, 405, { ok: false, error: "POST only" });
+          return;
+        }
+        let body;
+        try {
+          body = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid JSON body" });
+          return;
+        }
+        if (!body.parentId || !body.childId) {
+          sendJson(res, 400, { ok: false, error: "parentId and childId are required" });
+          return;
+        }
+        const result = await kanban.runText(["unlink", body.parentId, body.childId]);
+        sendJson(res, result.ok ? 200 : 502, result);
       });
     },
   };

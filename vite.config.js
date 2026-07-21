@@ -17,6 +17,14 @@ export default defineConfig(({ mode }) => {
   const dashboardBaseUrl = env.HERMES_DASHBOARD_BASE_URL || "http://192.168.2.11:9119";
   const dashboardUsername = env.HERMES_DASHBOARD_USERNAME || "";
   const dashboardPassword = env.HERMES_DASHBOARD_PASSWORD || "";
+  /*
+    Kanban has no HTTP surface (see vite-plugins/kanbanBridge.js) — it's
+    reached by SSH-exec'ing the real `hermes kanban` CLI inside the
+    container, over the same bridge documented in this repo's CLAUDE.md.
+    Server-only (not VITE_-prefixed): never sent to the client bundle.
+  */
+  const sshHost = env.HERMES_SSH_HOST || "root@192.168.2.11";
+  const sshKeyPath = env.HERMES_SSH_KEY_PATH || "";
 
   return {
     plugins: [
@@ -28,6 +36,8 @@ export default defineConfig(({ mode }) => {
         dashboardBaseUrl,
         dashboardUsername,
         dashboardPassword,
+        sshHost,
+        sshKeyPath,
       }),
     ],
     server: {
