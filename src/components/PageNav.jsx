@@ -7,6 +7,7 @@ const TABS = [
   { id: "jobs", label: "jobs" },
   { id: "tools", label: "tools" },
   { id: "kanban", label: "kanban" },
+  { id: "safety", label: "safety" },
   { id: "system", label: "system" },
 ];
 

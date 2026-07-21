@@ -23,6 +23,7 @@ export const fetchHermesSessions = () => getJson("/local/hermes/sessions");
 export const fetchHermesJobs = () => getJson("/local/hermes/jobs");
 export const fetchHermesModels = () => getJson("/local/hermes/models");
 export const fetchDashboardStatus = () => getJson("/local/hermes/dashboard/status");
+export const fetchPairing = () => getJson("/local/hermes/pairing");
 export const fetchAnalyticsUsage = () => getJson("/local/hermes/analytics/usage");
 export const fetchAnalyticsModels = () => getJson("/local/hermes/analytics/models");
 export const fetchSystemStats = () => getJson("/local/hermes/system/stats");
@@ -122,6 +123,10 @@ export const deleteCronJob = (id) => deleteJson(`/local/hermes/cron/delete?id=${
 export const toggleToolset = (name, enabled) => putJson(`/local/hermes/toolsets/toggle?name=${encodeURIComponent(name)}`, { enabled });
 export const toggleMcpServer = (name, enabled) =>
   putJson(`/local/hermes/mcp/servers/toggle?name=${encodeURIComponent(name)}`, { enabled });
+
+export const approvePairing = (platform, code) => postJson("/local/hermes/pairing/approve", { platform, code });
+export const revokePairing = (platform, userId) => postJson("/local/hermes/pairing/revoke", { platform, user_id: userId });
+export const clearPendingPairing = () => postJson("/local/hermes/pairing/clear-pending", {});
 
 export async function setHermesModel({ provider, model }) {
   const res = await fetch("/local/hermes/model/set", {

@@ -11,6 +11,7 @@ import {
 } from "../../lib/hermesBridge.js";
 import { PageShell } from "../PageShell.jsx";
 import { DiagnosticCard } from "../DiagnosticCard.jsx";
+import { ConfirmModal } from "../ConfirmModal.jsx";
 import "./JobsPage.css";
 
 function relTime(iso) {
@@ -260,6 +261,7 @@ export function JobsPage() {
   const [busyId, setBusyId] = useState(null);
   const [editingJob, setEditingJob] = useState(null);
   const [creating, setCreating] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -294,21 +296,20 @@ export function JobsPage() {
     [load]
   );
 
-  const onDelete = useCallback(
-    async (job) => {
-      if (!window.confirm(`Delete "${job.name || job.id}"? This cannot be undone.`)) return;
-      setBusyId(job.id);
-      try {
-        await deleteCronJob(job.id);
-        await load();
-      } catch (err) {
-        setError(err.message || String(err));
-      } finally {
-        setBusyId(null);
-      }
-    },
-    [load]
-  );
+  const confirmDelete = useCallback(async () => {
+    const job = deleteTarget;
+    if (!job) return;
+    setBusyId(job.id);
+    try {
+      await deleteCronJob(job.id);
+      setDeleteTarget(null);
+      await load();
+    } catch (err) {
+      setError(err.message || String(err));
+    } finally {
+      setBusyId(null);
+    }
+  }, [deleteTarget, load]);
 
   return (
     <PageShell
@@ -333,7 +334,7 @@ export function JobsPage() {
         {jobs && jobs.length === 0 && <p className="panel-empty">No cron jobs configured.</p>}
         <div className="job-grid">
           {jobs?.map((job) => (
-            <JobCard key={job.id} job={job} onAction={onAction} onEdit={setEditingJob} onDelete={onDelete} busy={busyId === job.id} />
+            <JobCard key={job.id} job={job} onAction={onAction} onEdit={setEditingJob} onDelete={setDeleteTarget} busy={busyId === job.id} />
           ))}
         </div>
       </div>
@@ -356,6 +357,16 @@ export function JobsPage() {
               setCreating(false);
               load();
             }}
+          />
+        )}
+        {deleteTarget && (
+          <ConfirmModal
+            title="Delete job?"
+            detail={`"${deleteTarget.name || deleteTarget.id}" will be permanently deleted. This cannot be undone.`}
+            confirmLabel="delete"
+            busy={busyId === deleteTarget.id}
+            onCancel={() => setDeleteTarget(null)}
+            onConfirm={confirmDelete}
           />
         )}
       </AnimatePresence>

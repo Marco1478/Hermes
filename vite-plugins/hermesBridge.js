@@ -383,6 +383,14 @@ export function hermesBridgePlugin({
         }
       });
 
+      // ---- Pairing (DM onboarding approvals) — real dashboard endpoints ----
+      // GET /api/pairing -> {pending, approved}; verified against
+      // web_server.py's PairingApprove/PairingRevoke models.
+      use("/local/hermes/pairing/approve", dashWriteRoute("/api/pairing/approve", "POST"));
+      use("/local/hermes/pairing/revoke", dashWriteRoute("/api/pairing/revoke", "POST"));
+      use("/local/hermes/pairing/clear-pending", dashWriteRoute("/api/pairing/clear-pending", "POST"));
+      use("/local/hermes/pairing", dashGetRoute("/api/pairing"));
+
       use("/local/hermes/dashboard/status", (req, res) => {
         sendJson(res, 200, { configured: dashboardConfigured, baseUrl: dashboardConfigured ? dashboardBaseUrl : null });
       });

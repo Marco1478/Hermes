@@ -12,6 +12,7 @@ import { SystemOverviewPage } from "./components/system/SystemOverviewPage.jsx";
 import { KanbanPage } from "./components/kanban/KanbanPage.jsx";
 import { CommandPaletteModeProvider } from "./state/CommandPaletteMode.jsx";
 import { CommandPalette } from "./components/commands/CommandPalette.jsx";
+import { SafetyCenter } from "./components/safety/SafetyCenter.jsx";
 
 const VIEWS = {
   hero: Hero,
@@ -21,6 +22,7 @@ const VIEWS = {
   tools: ToolsPage,
   system: SystemOverviewPage,
   kanban: KanbanPage,
+  safety: SafetyCenter,
 };
 
 function Stage() {
