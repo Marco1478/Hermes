@@ -13,9 +13,9 @@
   border: none;
   border-radius: 999px;
   color: var(--silver-dim);
-  font-size: 0.62rem;
+  font-size: 0.7rem;
   letter-spacing: 0.08em;
-  padding: 0.32rem 0.75rem;
+  padding: 0.36rem 0.85rem;
   cursor: pointer;
   transition: color 0.15s ease, background 0.15s ease;
 }
