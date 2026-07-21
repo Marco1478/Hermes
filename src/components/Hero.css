@@ -106,17 +106,6 @@
   font-size: 0.78rem;
 }
 
-/* --- Node address, bottom-right -------------------------------------- */
-
-.hero-node {
-  position: absolute;
-  right: clamp(1.25rem, 4vw, 3rem);
-  bottom: clamp(1.25rem, 4vw, 2.75rem);
-  color: var(--silver-dim);
-  opacity: 0.55;
-  user-select: none;
-}
-
 /* --- Status LED — white light, like everything here ------------------ */
 
 .led {
@@ -152,9 +141,6 @@
 /* --- Mobile ----------------------------------------------------------- */
 
 @media (max-width: 640px) {
-  .hero-node {
-    display: none;
-  }
   .hero-id {
     left: 50%;
     bottom: 6.8rem;

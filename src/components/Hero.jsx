@@ -7,7 +7,6 @@ import { SwarmCanvas } from "./SwarmCanvas.jsx";
 import { ConsciousnessTerminal } from "./ConsciousnessTerminal.jsx";
 import { CommandBar } from "./CommandBar.jsx";
 import { useGateway } from "../state/GatewayHealth.jsx";
-import { GATEWAY_BASE_URL } from "../config.js";
 import "./Hero.css";
 
 export function Hero() {
@@ -92,10 +91,8 @@ export function Hero() {
         </p>
       </header>
 
-      {/* Node address — quiet, bottom-right */}
-      <p className="hero-node mono" aria-hidden="true">
-        GATEWAY {GATEWAY_BASE_URL.replace(/^https?:\/\//, "")} · {gateway.status.toUpperCase()}
-      </p>
+      {/* Gateway host/status already lives in the control-center's "Gateway"
+          strip — no need to repeat it as separate floating telemetry. */}
 
       <ConsciousnessTerminal lines={gateway.lines} status={gateway.status} />
       <CommandBar />

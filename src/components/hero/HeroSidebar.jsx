@@ -67,6 +67,7 @@ export function HeroSidebar() {
   const { enterChat, goTo } = useViewMode();
   const gateway = useGateway();
   const [stats, setStats] = useState(null);
+  const [statsError, setStatsError] = useState(null);
   const [platforms, setPlatforms] = useState(null);
   const [platformsError, setPlatformsError] = useState(null);
 
@@ -76,7 +77,12 @@ export function HeroSidebar() {
     async function poll() {
       const [statsRes, platRes] = await Promise.allSettled([fetchSystemStats(), fetchMessagingPlatforms()]);
       if (!mounted) return;
-      if (statsRes.status === "fulfilled") setStats(statsRes.value);
+      if (statsRes.status === "fulfilled") {
+        setStats(statsRes.value);
+        setStatsError(null);
+      } else {
+        setStatsError(statsRes.reason?.message || "unavailable");
+      }
       if (platRes.status === "fulfilled") {
         setPlatforms(platRes.value.platforms || []);
         setPlatformsError(null);
@@ -128,7 +134,11 @@ export function HeroSidebar() {
       <section className="control-section">
         <div className="control-section-head">
           <p className="panel-section-title">Machine</p>
-          {!stats && <span className="control-muted mono">waiting</span>}
+          {!stats && (
+            <span className="control-muted mono" title={statsError || undefined}>
+              {statsError ? "unreachable" : "loading…"}
+            </span>
+          )}
         </div>
         <div className="control-metric-grid">
           <MetricTile label="CPU" value={stats ? `${Math.round(stats.cpu_percent)}%` : "—"} />
