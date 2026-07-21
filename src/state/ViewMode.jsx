@@ -22,6 +22,7 @@ export function ViewModeProvider({ children }) {
       isHermes: mode === "hermes",
       isTools: mode === "tools",
       isSystem: mode === "system",
+      isKanban: mode === "kanban",
       goTo: (m) => setMode(m),
       enterChat: () => setMode("chat"),
       enterHero: () => setMode("hero"),

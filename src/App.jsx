@@ -9,6 +9,7 @@ import { JobsPage } from "./components/jobs/JobsPage.jsx";
 import { HermesPage } from "./components/hermes/HermesPage.jsx";
 import { ToolsPage } from "./components/tools/ToolsPage.jsx";
 import { SystemOverviewPage } from "./components/system/SystemOverviewPage.jsx";
+import { KanbanPage } from "./components/kanban/KanbanPage.jsx";
 
 const VIEWS = {
   hero: Hero,
@@ -17,6 +18,7 @@ const VIEWS = {
   hermes: HermesPage,
   tools: ToolsPage,
   system: SystemOverviewPage,
+  kanban: KanbanPage,
 };
 
 function Stage() {

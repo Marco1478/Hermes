@@ -6,6 +6,7 @@ const TABS = [
   { id: "hermes", label: "hermes" },
   { id: "jobs", label: "jobs" },
   { id: "tools", label: "tools" },
+  { id: "kanban", label: "kanban" },
   { id: "system", label: "system" },
 ];
 
