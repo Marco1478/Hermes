@@ -86,7 +86,7 @@ function EditJobModal({ job, onClose, onSaved }) {
         initial={{ opacity: 0, scale: 0.96, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 8 }}
-        transition={{ duration: 0.16 }}
+        transition={{ type: "spring", stiffness: 460, damping: 30 }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-label="Edit job"
@@ -155,7 +155,7 @@ function NewJobModal({ onClose, onCreated }) {
         initial={{ opacity: 0, scale: 0.96, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 8 }}
-        transition={{ duration: 0.16 }}
+        transition={{ type: "spring", stiffness: 460, damping: 30 }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-label="New job"

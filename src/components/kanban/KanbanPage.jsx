@@ -40,7 +40,7 @@ function NewTaskModal({ onClose, onCreated }) {
         initial={{ opacity: 0, scale: 0.96, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 8 }}
-        transition={{ duration: 0.16 }}
+        transition={{ type: "spring", stiffness: 460, damping: 30 }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-label="New task"
@@ -83,12 +83,12 @@ function NewTaskModal({ onClose, onCreated }) {
 }
 
 const COLUMNS = [
-  { key: "backlog", label: "Backlog", statuses: ["triage", "todo"] },
-  { key: "ready", label: "Ready", statuses: ["ready"] },
-  { key: "in_progress", label: "In progress", statuses: ["running"] },
-  { key: "blocked", label: "Blocked", statuses: ["blocked", "scheduled"] },
-  { key: "review", label: "Review", statuses: ["review"] },
-  { key: "done", label: "Done", statuses: ["done"] },
+  { key: "backlog", label: "Backlog", statuses: ["triage", "todo"], dot: "" },
+  { key: "ready", label: "Ready", statuses: ["ready"], dot: "on" },
+  { key: "in_progress", label: "In progress", statuses: ["running"], dot: "info" },
+  { key: "blocked", label: "Blocked", statuses: ["blocked", "scheduled"], dot: "bad" },
+  { key: "review", label: "Review", statuses: ["review"], dot: "warn" },
+  { key: "done", label: "Done", statuses: ["done"], dot: "on" },
 ];
 
 /*
@@ -199,14 +199,19 @@ export function KanbanPage() {
           {COLUMNS.map((col) => (
             <div key={col.key} className="kanban-column">
               <div className="kanban-column-head">
-                <span className="panel-section-title">{col.label}</span>
+                <span className="kanban-column-label">
+                  {col.dot && <span className={`led-dot led-dot--${col.dot}${col.key === "in_progress" ? " led-dot--pulse" : ""}`} />}
+                  {col.label}
+                </span>
                 <span className="kanban-column-count mono">{columns[col.key]?.length || 0}</span>
               </div>
               <div className="kanban-column-body">
-                {columns[col.key]?.length === 0 && <p className="panel-empty">Empty.</p>}
-                {columns[col.key]?.map((t) => (
-                  <KanbanCard key={t.id} task={t} onOpen={openTask} />
-                ))}
+                {columns[col.key]?.length === 0 && <p className="panel-empty kanban-column-empty">Nothing here.</p>}
+                <AnimatePresence mode="popLayout">
+                  {columns[col.key]?.map((t) => (
+                    <KanbanCard key={t.id} task={t} onOpen={openTask} />
+                  ))}
+                </AnimatePresence>
               </div>
             </div>
           ))}

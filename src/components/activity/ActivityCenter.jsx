@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import { fetchCronJobs } from "../../lib/hermesBridge.js";
 import { fetchKanbanList } from "../../lib/kanbanBridge.js";
 import { fetchRecentCommits, fetchClaudeStatusDocs } from "../../lib/activityBridge.js";
@@ -137,7 +138,13 @@ export function ActivityCenter({ compact = false }) {
         {!hasAnySource && <p className="panel-empty">Loading…</p>}
         {hasAnySource && visible.length === 0 && <p className="panel-empty">No activity.</p>}
         {visible.map((e, i) => (
-          <div key={i} className="panel-card activity-row">
+          <motion.div
+            key={i}
+            className="panel-card activity-row"
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: Math.min(i, 8) * 0.035, duration: 0.25, ease: "easeOut" }}
+          >
             <span className={`led-dot led-dot--${e.status === "success" ? "on" : e.status === "blocked" || e.status === "failed" ? "bad" : e.status === "running" ? "warn led-dot--pulse" : ""}`} />
             <div className="activity-row-body">
               <span className="activity-row-title">{e.title}</span>
@@ -145,7 +152,7 @@ export function ActivityCenter({ compact = false }) {
                 {e.source} · {e.actor} · {relTimeAgo(e.ts)}
               </span>
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
     </div>

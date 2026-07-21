@@ -158,7 +158,7 @@ export function CommandPalette() {
         initial={{ opacity: 0, scale: 0.97, y: -8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.97, y: -8 }}
-        transition={{ duration: 0.15 }}
+        transition={{ type: "spring", stiffness: 460, damping: 32 }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-label="Command palette"

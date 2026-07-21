@@ -8,6 +8,16 @@
   cursor: pointer;
   border: none;
   font-family: var(--font-mono);
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.activity-filter:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--silver);
+}
+
+.activity-filter:active {
+  transform: scale(0.95);
 }
 
 .activity-filter--active {
@@ -51,5 +61,5 @@
 .activity-row-meta {
   color: var(--silver-dim);
   opacity: 0.55;
-  font-size: 0.6rem;
+  font-size: 0.66rem;
 }

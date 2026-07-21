@@ -29,14 +29,14 @@
 
 .mission-chunk-objective {
   color: var(--silver-dim);
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   line-height: 1.5;
 }
 
 .mission-chunk-report {
-  color: var(--teal);
-  opacity: 0.75;
-  font-size: 0.6rem;
+  color: var(--silver-dim);
+  opacity: 0.85;
+  font-size: 0.66rem;
 }
 
 .mission-report-list {
@@ -63,5 +63,5 @@
 .mission-report-meta {
   color: var(--silver-dim);
   opacity: 0.55;
-  font-size: 0.6rem;
+  font-size: 0.66rem;
 }

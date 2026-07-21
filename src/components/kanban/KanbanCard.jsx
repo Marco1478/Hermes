@@ -1,3 +1,5 @@
+import { motion } from "framer-motion";
+
 /*
   KanbanCard — one task tile on the mission board. Only ever shows fields
   the CLI actually returned (assignee, branch_name, priority, timestamps) —
@@ -18,7 +20,18 @@ function relTimeAgo(sec) {
 export function KanbanCard({ task, onOpen }) {
   const lastEventAt = task.completed_at || task.started_at || task.created_at;
   return (
-    <button type="button" className="glass-card glass-card--interactive kanban-card" onClick={() => onOpen(task.id)}>
+    <motion.button
+      type="button"
+      className="glass-card glass-card--interactive kanban-card"
+      onClick={() => onOpen(task.id)}
+      layout
+      initial={{ opacity: 0, y: 10, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      whileHover={{ y: -4, transition: { duration: 0.15 } }}
+      whileTap={{ scale: 0.97 }}
+      transition={{ type: "spring", stiffness: 420, damping: 32 }}
+    >
       <div className="kanban-card-head">
         <span className="kanban-card-id mono">{task.id}</span>
         {task.priority > 0 && <span className="tag-badge">P{task.priority}</span>}
@@ -30,6 +43,6 @@ export function KanbanCard({ task, onOpen }) {
       </div>
       {task.branch_name && <span className="kanban-card-branch mono">⎇ {task.branch_name}</span>}
       {task.status === "blocked" && task.block_reason && <p className="kanban-card-blocked">{task.block_reason}</p>}
-    </button>
+    </motion.button>
   );
 }

@@ -31,10 +31,10 @@ export function KanbanDetailDrawer({ detail, loading, error, onClose, actions })
     >
       <motion.div
         className="glass-card kanban-drawer"
-        initial={{ opacity: 0, x: 24 }}
+        initial={{ opacity: 0, x: 36 }}
         animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: 24 }}
-        transition={{ duration: 0.18 }}
+        exit={{ opacity: 0, x: 36 }}
+        transition={{ type: "spring", stiffness: 380, damping: 34 }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-label="Task detail"
