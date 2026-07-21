@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useUsage } from "../../state/Usage.jsx";
 import { useChat } from "../../state/Chat.jsx";
 import { useViewMode } from "../../state/ViewMode.jsx";
+import { useGateway } from "../../state/GatewayHealth.jsx";
 import { fetchSystemStats, fetchMessagingPlatforms } from "../../lib/hermesBridge.js";
+import { GATEWAY_BASE_URL } from "../../config.js";
 import "./HeroSidebar.css";
 
 const POLL_MS = 30000;
@@ -40,71 +42,30 @@ function relTime(ts) {
   return `${Math.round(h / 24)}d`;
 }
 
-/* A single SVG usage ring. `pct` in [0,1]; optional `innerPct` draws a
-   second, inner ring (the "5-hour crown") inside the main one. */
-function Ring({ pct, innerPct, label, value, sub, tone }) {
-  const size = 84;
-  const c = size / 2;
-  const rOuter = 36;
-  const rInner = 28;
-  const circOuter = 2 * Math.PI * rOuter;
-  const circInner = 2 * Math.PI * rInner;
-  const pctText = `${Math.round(pct * 100)}%`;
+function pctLabel(value) {
+  return `${Math.round((value || 0) * 100)}%`;
+}
 
+function MetricTile({ label, value, sub, tone = "" }) {
   return (
-    <div className={`orb orb--${tone}`}>
-      <svg className="orb-svg" viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`${label}: ${pctText}`}>
-        <circle className="orb-track" cx={c} cy={c} r={rOuter} strokeWidth="5" fill="none" />
-        {innerPct != null && <circle className="orb-track" cx={c} cy={c} r={rInner} strokeWidth="4" fill="none" />}
-        <circle
-          className="orb-arc orb-arc--outer"
-          cx={c}
-          cy={c}
-          r={rOuter}
-          strokeWidth="5"
-          fill="none"
-          strokeLinecap="round"
-          strokeDasharray={circOuter}
-          strokeDashoffset={circOuter * (1 - pct)}
-          transform={`rotate(-90 ${c} ${c})`}
-        />
-        {innerPct != null && (
-          <circle
-            className="orb-arc orb-arc--inner"
-            cx={c}
-            cy={c}
-            r={rInner}
-            strokeWidth="4"
-            fill="none"
-            strokeLinecap="round"
-            strokeDasharray={circInner}
-            strokeDashoffset={circInner * (1 - innerPct)}
-            transform={`rotate(-90 ${c} ${c})`}
-          />
-        )}
-      </svg>
-      <div className="orb-center">
-        <span className="orb-pct">{pctText}</span>
-        <span className="orb-value mono">{value}</span>
-      </div>
-      <div className="orb-caption">
-        <span className="orb-label mono">{label}</span>
-        {sub && <span className="orb-sub mono">{sub}</span>}
-      </div>
+    <div className={`control-metric${tone ? ` control-metric--${tone}` : ""}`}>
+      <span className="control-metric-label mono">{label}</span>
+      <span className="control-metric-value">{value}</span>
+      {sub && <span className="control-metric-sub mono">{sub}</span>}
     </div>
   );
 }
 
 /*
-  HeroSidebar — the left column of the hero: three glass cards (usage,
-  system, sessions) distributed across the full height instead of a
-  cluster of floating text at the top. Replaces the old UsageOrbs +
-  SystemPanel overlay pair; same data sources, one coherent surface.
+  HeroSidebar — now a real control-center deck. The previous implementation
+  scattered usage, system and sessions as three floating cards; this wraps
+  them into one readable command surface with clear groups and hierarchy.
 */
 export function HeroSidebar() {
   const { openai, anthropic } = useUsage();
   const { chatList, activeId, runningChatId, switchChat } = useChat();
-  const { enterChat } = useViewMode();
+  const { enterChat, goTo } = useViewMode();
+  const gateway = useGateway();
   const [stats, setStats] = useState(null);
   const [platforms, setPlatforms] = useState(null);
 
@@ -125,72 +86,77 @@ export function HeroSidebar() {
     };
   }, []);
 
-  const recentChats = chatList.slice(0, 5);
+  const recentChats = chatList.slice(0, 4);
+  const enabledPlatforms = useMemo(() => (platforms || []).filter((p) => p.enabled), [platforms]);
+  const gatewayHost = GATEWAY_BASE_URL.replace(/^https?:\/\//, "");
 
   return (
-    <div className="hero-sidebar">
-      <div className="glass-card hero-card hero-card--usage">
-        <p className="panel-section-title hero-card-title">Usage</p>
-        <div className="usage-orbs">
-          <Ring
-            tone="openai"
-            pct={openai.pct}
-            label="OPENAI · WK"
-            value={`${fmt(openai.tokens)} tok`}
-            sub={`of ${fmt(openai.budget)}`}
-          />
-          <Ring
-            tone="anthropic"
-            pct={anthropic.pctWeek}
-            innerPct={anthropic.pct5h}
-            label="CLAUDE"
-            value={`${fmt(anthropic.tokens7d)} tok`}
-            sub={anthropic.status === "error" ? "offline" : `5h ${fmt(anthropic.tokens5h)}`}
-          />
+    <aside className="control-center" aria-label="Hermes control center">
+      <div className="control-center-head">
+        <div>
+          <p className="control-eyebrow mono">CONTROL CENTER</p>
+          <h2 className="control-title">System overview</h2>
         </div>
+        <span className={`status-badge status-badge--${gateway.status === "online" ? "ok" : gateway.status === "unauthorized" ? "warn" : "bad"}`}>
+          {gateway.status}
+        </span>
       </div>
 
-      {(stats || platforms) && (
-        <div className="glass-card hero-card hero-card--system">
-          <p className="panel-section-title hero-card-title">System</p>
-          {stats && (
-            <div className="hero-system-row mono">
-              <span className="hero-system-item">
-                <span className="hero-system-label">CPU</span>
-                <span className="hero-system-value">{Math.round(stats.cpu_percent)}%</span>
+      <div className="control-strip mono" title={gatewayHost}>
+        <span className={`led-dot led-dot--${gateway.status === "online" ? "on" : gateway.status === "unauthorized" ? "warn" : "bad"}`} />
+        <span>Gateway</span>
+        <strong>{gateway.latencyMs != null ? `${gateway.latencyMs}ms` : gatewayHost}</strong>
+      </div>
+
+      <section className="control-section">
+        <div className="control-section-head">
+          <p className="panel-section-title">Usage</p>
+          <button type="button" className="control-link mono" onClick={() => goTo("hermes")}>details →</button>
+        </div>
+        <div className="control-metric-grid control-metric-grid--usage">
+          <MetricTile label="OpenAI week" value={pctLabel(openai.pct)} sub={`${fmt(openai.tokens)} / ${fmt(openai.budget)} tok`} tone="blue" />
+          <MetricTile label="Claude week" value={pctLabel(anthropic.pctWeek)} sub={`${fmt(anthropic.tokens7d)} tok · 5h ${fmt(anthropic.tokens5h)}`} tone="warm" />
+        </div>
+      </section>
+
+      <section className="control-section">
+        <div className="control-section-head">
+          <p className="panel-section-title">Machine</p>
+          {!stats && <span className="control-muted mono">waiting</span>}
+        </div>
+        <div className="control-metric-grid">
+          <MetricTile label="CPU" value={stats ? `${Math.round(stats.cpu_percent)}%` : "—"} />
+          <MetricTile label="MEM" value={stats ? `${Math.round(stats.memory?.percent ?? 0)}%` : "—"} />
+          <MetricTile label="DISK" value={stats ? `${Math.round(stats.disk?.percent ?? 0)}%` : "—"} />
+          <MetricTile label="UPTIME" value={stats ? formatUptime(stats.uptime_seconds) : "—"} />
+        </div>
+      </section>
+
+      <section className="control-section">
+        <div className="control-section-head">
+          <p className="panel-section-title">Platforms</p>
+          <button type="button" className="control-link mono" onClick={() => goTo("tools")}>tools →</button>
+        </div>
+        <div className="control-platforms">
+          {enabledPlatforms.length > 0 ? (
+            enabledPlatforms.map((p) => (
+              <span key={p.id} className="control-platform mono" title={p.error_message || p.state}>
+                <span className={`led-dot led-dot--${platformTone(p.state)}${p.state === "connected" ? " led-dot--pulse" : ""}`} />
+                {PLATFORM_LABELS[p.id] || p.name}
               </span>
-              <span className="hero-system-item">
-                <span className="hero-system-label">MEM</span>
-                <span className="hero-system-value">{Math.round(stats.memory?.percent ?? 0)}%</span>
-              </span>
-              <span className="hero-system-item">
-                <span className="hero-system-label">DISK</span>
-                <span className="hero-system-value">{Math.round(stats.disk?.percent ?? 0)}%</span>
-              </span>
-              <span className="hero-system-item">
-                <span className="hero-system-label">UP</span>
-                <span className="hero-system-value">{formatUptime(stats.uptime_seconds)}</span>
-              </span>
-            </div>
-          )}
-          {platforms && platforms.length > 0 && (
-            <div className="hero-platforms">
-              {platforms
-                .filter((p) => p.enabled)
-                .map((p) => (
-                  <span key={p.id} className="hero-platform mono" title={p.error_message || p.state}>
-                    <span className={`led-dot led-dot--${platformTone(p.state)}${p.state === "connected" ? " led-dot--pulse" : ""}`} />
-                    {PLATFORM_LABELS[p.id] || p.name}
-                  </span>
-                ))}
-            </div>
+            ))
+          ) : (
+            <span className="control-muted mono">Gateway bridge not configured</span>
           )}
         </div>
-      )}
+      </section>
 
-      <div className="glass-card hero-card hero-card--sessions">
-        <p className="panel-section-title hero-card-title">Sessions</p>
-        <ul className="hero-sessions-list">
+      <section className="control-section control-section--sessions">
+        <div className="control-section-head">
+          <p className="panel-section-title">Recent sessions</p>
+          <button type="button" className="control-link mono" onClick={enterChat}>chat →</button>
+        </div>
+        <ul className="control-sessions-list">
           {recentChats.map((c) => {
             const isActive = c.id === activeId;
             const isLive = c.id === runningChatId;
@@ -198,22 +164,22 @@ export function HeroSidebar() {
               <li key={c.id}>
                 <button
                   type="button"
-                  className={`hero-session-row${isActive ? " hero-session-row--active" : ""}`}
+                  className={`control-session-row${isActive ? " control-session-row--active" : ""}`}
                   onClick={() => {
                     switchChat(c.id);
                     enterChat();
                   }}
                 >
                   <span className={`led-dot${isLive ? " led-dot--on led-dot--pulse" : isActive ? " led-dot--on" : ""}`} />
-                  <span className="hero-session-title">{c.title}</span>
-                  <span className="hero-session-meta mono">{c.empty ? "empty" : relTime(c.updatedAt)}</span>
+                  <span className="control-session-title">{c.title}</span>
+                  <span className="control-session-meta mono">{c.empty ? "empty" : relTime(c.updatedAt)}</span>
                 </button>
               </li>
             );
           })}
-          {recentChats.length === 0 && <li className="hero-session-empty mono">No chats yet.</li>}
+          {recentChats.length === 0 && <li className="control-session-empty mono">No chats yet.</li>}
         </ul>
-      </div>
-    </div>
+      </section>
+    </aside>
   );
 }

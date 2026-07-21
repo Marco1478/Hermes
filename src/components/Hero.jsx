@@ -78,15 +78,14 @@ export function Hero() {
       {/* Logo / home button, top-left */}
       <BrandMark />
 
-      {/* Left column: usage rings, system/messaging stats, sessions —
-          three glass cards distributed down the height instead of a
-          cluster of floating text. */}
+      {/* Right-side command surface: real operational data in one coherent deck. */}
       <HeroSidebar />
 
-      {/* Identity block — quiet, bottom-left */}
+      {/* Identity block — stronger, left aligned, no longer competing with random telemetry. */}
       <header className="hero-id">
+        <p className="hero-kicker mono">PRIVATE AGENT OS</p>
         <h1 className="hero-wordmark">Hermes</h1>
-        <p className="hero-sub">The agent at home. Always on.</p>
+        <p className="hero-sub">Command center for agents, tools, jobs and memory.</p>
         <p className="hero-status mono" role="status">
           <span className="led led--pulse" aria-hidden="true" />
           AGENT · LISTENING

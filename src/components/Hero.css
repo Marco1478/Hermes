@@ -41,6 +41,12 @@
   pointer-events: none;
   background:
     linear-gradient(
+      to right,
+      rgba(0, 0, 0, 0.48) 0%,
+      rgba(0, 0, 0, 0.18) 34%,
+      rgba(0, 0, 0, 0.62) 100%
+    ),
+    linear-gradient(
       to top,
       rgba(4, 5, 6, 0.82) 0%,
       rgba(4, 5, 6, 0.32) 22%,
@@ -57,17 +63,26 @@
 
 .hero-id {
   position: absolute;
-  left: clamp(1.25rem, 4vw, 3rem);
-  bottom: clamp(8.5rem, 15vh, 10rem);
+  left: clamp(1.35rem, 4vw, 3.25rem);
+  bottom: clamp(8.4rem, 15vh, 10.6rem);
+  width: min(50vw, 760px);
   user-select: none;
   z-index: 2;
+}
+
+.hero-kicker {
+  color: var(--silver-dim);
+  opacity: 0.62;
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  margin-bottom: 0.85rem;
 }
 
 .hero-wordmark {
   font-family: var(--font-display);
   font-weight: 400;
-  font-size: clamp(1.6rem, 3.2vw, 2.4rem);
-  letter-spacing: 0.34em;
+  font-size: clamp(3.2rem, 8vw, 7.8rem);
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--white);
   /* The wordmark catches the same light as the sculpture. */
@@ -75,8 +90,9 @@
 }
 
 .hero-sub {
-  margin-top: 0.3rem;
-  font-size: 0.86rem;
+  max-width: 35rem;
+  margin-top: 0.35rem;
+  font-size: clamp(1rem, 1.35vw, 1.25rem);
   color: var(--silver-dim);
   letter-spacing: 0.01em;
 }
@@ -85,8 +101,9 @@
   display: flex;
   align-items: center;
   gap: 0.55em;
-  margin-top: 1.1rem;
+  margin-top: 1.35rem;
   color: var(--silver-dim);
+  font-size: 0.78rem;
 }
 
 /* --- Node address, bottom-right -------------------------------------- */
@@ -140,9 +157,14 @@
   }
   .hero-id {
     left: 50%;
-    bottom: 6.4rem;
+    bottom: 6.8rem;
     transform: translateX(-50%);
     text-align: center;
+    width: min(92vw, 34rem);
+  }
+  .hero-wordmark {
+    font-size: clamp(2.7rem, 15vw, 4rem);
+    letter-spacing: 0.14em;
   }
   .hero-status {
     justify-content: center;

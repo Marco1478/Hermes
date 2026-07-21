@@ -47,14 +47,14 @@
 
 .soul-textarea {
   width: 100%;
-  min-height: 260px;
+  min-height: 340px;
   resize: vertical;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   padding: 0.85rem 1rem;
   color: var(--silver);
-  font-size: 0.74rem;
+  font-size: 0.8rem;
   line-height: 1.6;
 }
 

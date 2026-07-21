@@ -1,265 +1,303 @@
 /*
-  HeroSidebar — three glass cards (usage / system / sessions) distributed
-  down the left column, clearing BrandMark at the top and hero-id at the
-  bottom. Replaces the old floating-text UsageOrbs + SystemPanel pair.
+  HeroSidebar — one coherent command deck. Data no longer floats in random
+  corners: gateway, usage, machine, platforms and sessions live in a single
+  control surface anchored to the right side of the hero.
 */
-.hero-sidebar {
+.control-center {
   position: absolute;
-  top: clamp(9rem, 18vh, 11.5rem);
-  bottom: clamp(15.5rem, 28vh, 18.5rem);
-  left: clamp(0.9rem, 2.4vw, 1.75rem);
-  width: clamp(210px, 21vw, 268px);
+  top: clamp(5.9rem, 9vh, 7.2rem);
+  right: clamp(1rem, 3.4vw, 3rem);
+  bottom: clamp(3.2rem, 6vh, 4.2rem);
+  width: clamp(320px, 29vw, 430px);
   z-index: 3;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   gap: 0.9rem;
-}
-
-.hero-card {
-  padding: 0.9rem 1rem;
+  padding: clamp(1rem, 1.5vw, 1.25rem);
   pointer-events: auto;
-  flex: none;
+  background:
+    linear-gradient(145deg, rgba(17, 20, 24, 0.78), rgba(6, 7, 8, 0.52)),
+    radial-gradient(circle at 20% 0%, rgba(207, 230, 255, 0.1), transparent 34%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 24px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48), 0 0 34px rgba(215, 225, 245, 0.08);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(198, 201, 208, 0.18) transparent;
 }
 
-.hero-card-title {
-  margin-bottom: 0.65rem;
-  font-size: 0.6rem;
-}
-
-/* ---- Usage rings ------------------------------------------------------ */
-
-.hero-card--usage .usage-orbs {
-  display: flex;
-  gap: clamp(0.5rem, 1.4vw, 0.9rem);
-}
-
-.orb {
-  position: relative;
-  width: 84px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.orb-svg {
-  width: 84px;
-  height: 84px;
-  display: block;
-}
-
-.orb-track {
-  stroke: rgba(198, 201, 208, 0.14);
-}
-
-.orb-arc {
-  transition: stroke-dashoffset 0.6s ease;
-}
-
-.orb--openai .orb-arc--outer {
-  stroke: #cfe6ff;
-  filter: drop-shadow(0 0 5px rgba(160, 210, 255, 0.5));
-}
-
-.orb--anthropic .orb-arc--outer {
-  stroke: #e6b58f;
-  filter: drop-shadow(0 0 5px rgba(224, 160, 120, 0.45));
-}
-
-.orb--anthropic .orb-arc--inner {
-  stroke: #f2d9c2;
-  filter: drop-shadow(0 0 4px rgba(240, 210, 180, 0.5));
-}
-
-.orb-center {
+.control-center::before {
+  content: "";
   position: absolute;
-  top: 42px;
-  left: 0;
-  right: 0;
-  transform: translateY(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1.1;
-}
-
-.orb-pct {
-  color: var(--white);
-  font-family: var(--font-body);
-  font-size: 0.94rem;
-  font-weight: 500;
-}
-
-.orb-value {
-  color: var(--silver-dim);
-  font-size: 0.52rem;
-  letter-spacing: 0.04em;
-  margin-top: 1px;
-}
-
-.orb-caption {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 0.3rem;
-  gap: 1px;
-}
-
-.orb-label {
-  color: var(--silver);
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.08), transparent 28%, transparent 72%, rgba(255, 255, 255, 0.04));
   opacity: 0.75;
-  font-size: 0.53rem;
-  letter-spacing: 0.09em;
 }
 
-.orb-sub {
+.control-center > * {
+  position: relative;
+  z-index: 1;
+}
+
+.control-center-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.1rem;
+}
+
+.control-eyebrow {
+  color: var(--silver-dim);
+  opacity: 0.58;
+  font-size: 0.58rem;
+  letter-spacing: 0.18em;
+}
+
+.control-title {
+  margin-top: 0.22rem;
+  color: var(--white);
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 2vw, 1.8rem);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.control-strip {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.25rem;
+  padding: 0.55rem 0.7rem;
+  color: var(--silver-dim);
+  font-size: 0.62rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.control-strip strong {
+  min-width: 0;
+  color: var(--silver);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.control-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.58rem;
+  padding-top: 0.72rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.control-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.control-link {
+  background: none;
+  border: none;
   color: var(--silver-dim);
   opacity: 0.55;
-  font-size: 0.51rem;
-  letter-spacing: 0.04em;
+  font-size: 0.58rem;
+  cursor: pointer;
+  transition: opacity 0.15s ease, color 0.15s ease;
 }
 
-/* ---- System stats ------------------------------------------------------ */
-
-.hero-system-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem 0.65rem;
-  margin-bottom: 0.55rem;
+.control-link:hover,
+.control-link:focus-visible {
+  color: var(--white);
+  opacity: 0.95;
 }
 
-.hero-system-item {
-  display: flex;
-  align-items: baseline;
-  gap: 0.35em;
+.control-muted {
+  color: var(--silver-dim);
+  opacity: 0.45;
+  font-size: 0.58rem;
 }
 
-.hero-system-label {
+.control-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.control-metric-grid--usage {
+  grid-template-columns: 1fr 1fr;
+}
+
+.control-metric {
+  min-width: 0;
+  padding: 0.58rem 0.62rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.control-metric--blue {
+  border-color: rgba(160, 210, 255, 0.22);
+  background: rgba(160, 210, 255, 0.055);
+}
+
+.control-metric--warm {
+  border-color: rgba(224, 160, 120, 0.2);
+  background: rgba(224, 160, 120, 0.052);
+}
+
+.control-metric-label,
+.control-metric-sub {
+  display: block;
   color: var(--silver-dim);
   opacity: 0.55;
   font-size: 0.54rem;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.hero-system-value {
+.control-metric-value {
+  display: block;
+  margin-top: 0.18rem;
   color: var(--white);
-  opacity: 0.9;
-  font-size: 0.6rem;
+  font-size: clamp(1rem, 1.5vw, 1.25rem);
+  line-height: 1.1;
 }
 
-.hero-platforms {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem 0.7rem;
-}
-
-.hero-platform {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4em;
-  color: var(--silver-dim);
-  opacity: 0.75;
-  font-size: 0.56rem;
+.control-metric-sub {
+  margin-top: 0.32rem;
   letter-spacing: 0.03em;
 }
 
-/* ---- Sessions ----------------------------------------------------------- */
+.control-platforms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
 
-.hero-sessions-list {
+.control-platform {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  min-height: 1.65rem;
+  padding: 0.32rem 0.58rem;
+  color: var(--silver-dim);
+  font-size: 0.58rem;
+  letter-spacing: 0.04em;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.control-section--sessions {
+  min-height: 0;
+}
+
+.control-sessions-list {
+  min-height: 0;
+  overflow: auto;
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.22rem;
+  padding-right: 0.1rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(198, 201, 208, 0.18) transparent;
 }
 
-.hero-session-row {
+.control-session-row {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 0.5em;
+  gap: 0.55em;
+  min-height: 1.95rem;
   background: none;
-  border: none;
-  border-radius: 8px;
-  padding: 0.4rem 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 0.46rem 0.55rem;
   cursor: pointer;
   text-align: left;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.hero-session-row:hover {
+.control-session-row:hover {
   background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
-.hero-session-row--active .hero-session-title {
-  color: var(--white);
+.control-session-row--active {
+  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(255, 255, 255, 0.11);
 }
 
-.hero-session-title {
+.control-session-title {
   flex: 1;
   min-width: 0;
   color: var(--silver-dim);
-  font-size: 0.66rem;
+  font-size: 0.72rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.hero-session-meta {
+.control-session-row--active .control-session-title {
+  color: var(--white);
+}
+
+.control-session-meta {
   flex: none;
   color: var(--silver-dim);
   opacity: 0.45;
   font-size: 0.54rem;
 }
 
-.hero-session-empty {
+.control-session-empty {
   color: var(--silver-dim);
   opacity: 0.5;
   font-size: 0.62rem;
   padding: 0.3rem 0.45rem;
 }
 
-@media (max-width: 640px) {
-  .hero-sidebar {
-    top: clamp(6.5rem, 15vh, 8.5rem);
-    bottom: auto;
-    left: clamp(0.6rem, 3vw, 1rem);
-    right: clamp(0.6rem, 3vw, 1rem);
-    width: auto;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+@media (max-width: 1180px) {
+  .control-center {
+    width: clamp(300px, 34vw, 380px);
   }
 
-  .hero-card {
-    flex: 1 1 auto;
-    min-width: 132px;
-    padding: 0.6rem 0.7rem;
-  }
-
-  .hero-card--sessions {
-    display: none;
-  }
-
-  .orb,
-  .orb-svg {
-    width: 62px;
-  }
-
-  .orb-svg {
-    height: 62px;
-  }
-
-  .orb-center {
-    top: 31px;
-  }
-
-  .orb-pct {
-    font-size: 0.76rem;
+  .control-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .orb-arc {
-    transition: none;
+@media (max-width: 860px) {
+  .control-center {
+    left: clamp(0.8rem, 3vw, 1.25rem);
+    right: clamp(0.8rem, 3vw, 1.25rem);
+    top: auto;
+    bottom: clamp(6.2rem, 13vh, 7.6rem);
+    width: auto;
+    max-height: 38vh;
+    overflow: auto;
+  }
+
+  .control-section--sessions {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .control-center {
+    display: none;
   }
 }

@@ -74,7 +74,7 @@ function SoulEditor({ profileName }) {
         value={content}
         onChange={(e) => setContent(e.target.value)}
         spellCheck="false"
-        placeholder="SOUL.md is empty."
+        placeholder="SOUL.md unavailable from the dashboard bridge. If the file is full in Hermes, check the profile/path exposed by the bridge."
       />
       <div className="soul-editor-bar">
         {error && <span className="panel-error">{error}</span>}

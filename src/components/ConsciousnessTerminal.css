@@ -1,17 +1,5 @@
 .terminal {
-  position: absolute;
-  left: clamp(1rem, 3vw, 2rem);
-  bottom: clamp(1rem, 3vw, 2rem);
-  width: min(280px, 34vw);
-  max-height: 108px;
-  overflow: hidden;
-  background: rgba(8, 9, 11, 0.28);
-  border: 1px solid rgba(198, 201, 208, 0.08);
-  border-radius: 3px;
-  padding: 0.5rem 0.65rem 0.4rem;
-  opacity: 0.42;
-  transition: opacity 0.35s ease, max-height 0.35s ease;
-  pointer-events: auto;
+  display: none;
 }
 
 .terminal:hover {
