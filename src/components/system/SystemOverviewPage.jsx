@@ -17,6 +17,7 @@ import { PageShell } from "../PageShell.jsx";
 import { DiagnosticCard } from "../DiagnosticCard.jsx";
 import { UsageRing } from "../UsageRing.jsx";
 import { ActivityCenter } from "../activity/ActivityCenter.jsx";
+import { BackendTestCenter } from "../testing/BackendTestCenter.jsx";
 import "./SystemOverviewPage.css";
 
 const PLATFORM_LABELS = { telegram: "Telegram", discord: "Discord", whatsapp: "WhatsApp", slack: "Slack", signal: "Signal" };
@@ -354,6 +355,9 @@ export function SystemOverviewPage() {
 
       {/* ---- Activity (full, filterable) ------------------------------------ */}
       <ActivityCenter />
+
+      {/* ---- Backend Test Center --------------------------------------------- */}
+      <BackendTestCenter />
     </PageShell>
   );
 }

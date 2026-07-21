@@ -4,6 +4,7 @@ import { claudeUsagePlugin } from "./vite-plugins/claudeUsage.js";
 import { hermesBridgePlugin } from "./vite-plugins/hermesBridge.js";
 import { activityBridgePlugin } from "./vite-plugins/activityBridge.js";
 import { missionBridgePlugin } from "./vite-plugins/missionBridge.js";
+import { smokeBridgePlugin } from "./vite-plugins/smokeBridge.js";
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -43,6 +44,7 @@ export default defineConfig(({ mode }) => {
       }),
       activityBridgePlugin({ projectRoot: process.cwd() }),
       missionBridgePlugin({ projectRoot: process.cwd() }),
+      smokeBridgePlugin({ projectRoot: process.cwd() }),
     ],
     server: {
       proxy: {

@@ -1,0 +1,51 @@
+.smoke-summary {
+  font-size: 0.72rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  width: fit-content;
+}
+
+.smoke-summary--ok {
+  color: var(--ok);
+}
+
+.smoke-summary--bad {
+  color: var(--bad);
+}
+
+.smoke-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.smoke-group-title {
+  color: var(--teal);
+  opacity: 0.7;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 0.4rem;
+}
+
+.smoke-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.15rem 0;
+}
+
+.smoke-row-name {
+  color: var(--silver);
+  font-size: 0.7rem;
+}
+
+.smoke-row-detail {
+  color: var(--silver-dim);
+  opacity: 0.5;
+  font-size: 0.6rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
