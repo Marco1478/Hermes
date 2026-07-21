@@ -192,6 +192,31 @@
   text-transform: uppercase;
 }
 
+.memory-studio {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.memory-studio-stats {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.memory-studio-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.memory-studio-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .memory-graph-wrap {
   position: relative;
   display: flex;

@@ -16,6 +16,7 @@ import { DiagnosticCard } from "../DiagnosticCard.jsx";
 import { MemoryGraph } from "./MemoryGraph.jsx";
 import { MemoryEntryCards } from "./MemoryEntryCards.jsx";
 import { MemoryDetailDrawer } from "./MemoryDetailDrawer.jsx";
+import { MemoryStudio } from "../memory/MemoryStudio.jsx";
 import "./HermesPage.css";
 
 function memoryTone(status) {
@@ -271,6 +272,7 @@ export function HermesPage() {
       <div className="panel-section">
         <p className="panel-section-title">Memory</p>
         {!memory && !loadError && <p className="panel-empty">Loading…</p>}
+        {memory && graph && <MemoryStudio memory={memory} graph={graph} />}
         {memory && (
           <div className="memory-providers">
             {memory.providers.map((p) => (
