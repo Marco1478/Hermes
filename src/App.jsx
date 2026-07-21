@@ -13,6 +13,7 @@ import { KanbanPage } from "./components/kanban/KanbanPage.jsx";
 import { CommandPaletteModeProvider } from "./state/CommandPaletteMode.jsx";
 import { CommandPalette } from "./components/commands/CommandPalette.jsx";
 import { SafetyCenter } from "./components/safety/SafetyCenter.jsx";
+import { MissionPipeline } from "./components/missions/MissionPipeline.jsx";
 
 const VIEWS = {
   hero: Hero,
@@ -23,6 +24,7 @@ const VIEWS = {
   system: SystemOverviewPage,
   kanban: KanbanPage,
   safety: SafetyCenter,
+  missions: MissionPipeline,
 };
 
 function Stage() {

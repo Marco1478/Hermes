@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import { claudeUsagePlugin } from "./vite-plugins/claudeUsage.js";
 import { hermesBridgePlugin } from "./vite-plugins/hermesBridge.js";
 import { activityBridgePlugin } from "./vite-plugins/activityBridge.js";
+import { missionBridgePlugin } from "./vite-plugins/missionBridge.js";
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -41,6 +42,7 @@ export default defineConfig(({ mode }) => {
         sshKeyPath,
       }),
       activityBridgePlugin({ projectRoot: process.cwd() }),
+      missionBridgePlugin({ projectRoot: process.cwd() }),
     ],
     server: {
       proxy: {

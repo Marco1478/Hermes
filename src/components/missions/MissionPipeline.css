@@ -1,0 +1,67 @@
+.mission-file-title {
+  color: var(--white);
+  font-size: 0.85rem;
+  margin-bottom: 0.4rem;
+}
+
+.mission-chunk-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.75rem;
+}
+
+.mission-chunk {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mission-chunk-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mission-chunk-title {
+  color: var(--white);
+  font-size: 0.78rem;
+}
+
+.mission-chunk-objective {
+  color: var(--silver-dim);
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+
+.mission-chunk-report {
+  color: var(--teal);
+  opacity: 0.75;
+  font-size: 0.6rem;
+}
+
+.mission-report-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mission-report {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.mission-report--blocker {
+  border-left: 3px solid rgba(217, 143, 122, 0.6);
+}
+
+.mission-report-title {
+  color: var(--white);
+  font-size: 0.76rem;
+}
+
+.mission-report-meta {
+  color: var(--silver-dim);
+  opacity: 0.55;
+  font-size: 0.6rem;
+}
