@@ -16,6 +16,7 @@ import { GATEWAY_BASE_URL } from "../../config.js";
 import { PageShell } from "../PageShell.jsx";
 import { DiagnosticCard } from "../DiagnosticCard.jsx";
 import { UsageRing } from "../UsageRing.jsx";
+import { ActivityCenter } from "../activity/ActivityCenter.jsx";
 import "./SystemOverviewPage.css";
 
 const PLATFORM_LABELS = { telegram: "Telegram", discord: "Discord", whatsapp: "WhatsApp", slack: "Slack", signal: "Signal" };
@@ -204,6 +205,9 @@ export function SystemOverviewPage() {
         </div>
       </div>
 
+      {/* ---- Activity (compact) --------------------------------------------- */}
+      <ActivityCenter compact />
+
       {/* ---- Usage -------------------------------------------------------- */}
       <div className="panel-section">
         <p className="panel-section-title">Usage</p>
@@ -347,6 +351,9 @@ export function SystemOverviewPage() {
           {recentChats.length === 0 && <p className="panel-empty">No chats yet.</p>}
         </div>
       </div>
+
+      {/* ---- Activity (full, filterable) ------------------------------------ */}
+      <ActivityCenter />
     </PageShell>
   );
 }

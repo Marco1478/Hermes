@@ -1,0 +1,55 @@
+.activity-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.activity-filter {
+  cursor: pointer;
+  border: none;
+  font-family: var(--font-mono);
+}
+
+.activity-filter--active {
+  background: rgba(110, 231, 223, 0.16);
+  color: var(--teal);
+  border: 1px solid rgba(110, 231, 223, 0.35);
+}
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.activity-list--compact {
+  gap: 0.4rem;
+}
+
+.activity-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.6rem 0.8rem;
+}
+
+.activity-row-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.activity-row-title {
+  color: var(--white);
+  font-size: 0.76rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-row-meta {
+  color: var(--silver-dim);
+  opacity: 0.55;
+  font-size: 0.6rem;
+}
