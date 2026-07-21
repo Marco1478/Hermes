@@ -1,7 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useViewMode } from "./ViewMode.jsx";
 import { useGateway } from "./GatewayHealth.jsx";
-import { useUsage } from "./Usage.jsx";
 import { createRun, stopRun, subscribeRunEvents } from "../lib/gatewayRuns.js";
 import { chatToMarkdown, downloadText, slugify } from "../lib/exportChat.js";
 import { DEFAULT_MODEL } from "../data/hermesModels.js";
@@ -71,7 +70,6 @@ function loadChats() {
 export function ChatProvider({ children }) {
   const { enterChat } = useViewMode();
   const gateway = useGateway();
-  const { addTokens } = useUsage();
   const [draft, setDraft] = useState("");
   const [chats, setChats] = useState(loadChats);
   const [activeId, setActiveId] = useState(() => {
@@ -167,7 +165,6 @@ export function ChatProvider({ children }) {
             },
             onDone: ({ status, output, usage }) => {
               activeRef.current = null;
-              if (usage?.total_tokens) addTokens(usage.total_tokens);
               if (status === "completed") {
                 gateway.log?.("ok", `[Chat]: run completed${usage ? ` — ${usage.total_tokens} tokens` : ""}`);
               } else if (status === "cancelled") {
@@ -206,7 +203,7 @@ export function ChatProvider({ children }) {
           });
         });
     },
-    [patchChat, patchMessage, addTokens, gateway.status, gateway.log]
+    [patchChat, patchMessage, gateway.status, gateway.log]
   );
 
   const send = useCallback(

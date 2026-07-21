@@ -1,0 +1,354 @@
+.page-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #000000;
+}
+
+.page-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem clamp(1rem, 4vw, 3rem);
+  padding-left: clamp(6rem, 14vw, 8.5rem);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  min-height: clamp(4rem, 9vw, 4.75rem);
+}
+
+.page-title {
+  flex: none;
+  color: var(--silver);
+  opacity: 0.7;
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.page-header-extra {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.page-back {
+  flex: none;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  color: var(--silver-dim);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.page-back:hover {
+  color: var(--white);
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.page-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(198, 201, 208, 0.2) transparent;
+}
+
+.page-constrain {
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+  /* Extra top padding: BrandMark is absolutely positioned and taller than
+     .page-header, so it still overhangs into this flow area on the left —
+     clear it fully rather than let the first section title collide with
+     the wordmark. */
+  padding: clamp(4.5rem, 9vw, 5.5rem) clamp(1rem, 4vw, 2rem) 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+@media (max-width: 640px) {
+  .page-header {
+    padding-left: clamp(4.25rem, 20vw, 5.5rem);
+    padding-right: clamp(0.6rem, 3vw, 1rem);
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .page-header::-webkit-scrollbar {
+    display: none;
+  }
+  .page-title {
+    display: none;
+  }
+}
+
+/* ---- Shared design-system primitives — reused across every page ----
+   (Jobs/Hermes/Tools panels, and the Hero sidebar). One glass/typography/
+   control language for the whole app instead of each page inventing its
+   own card. */
+
+.panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.panel-section-title {
+  color: var(--white);
+  opacity: 0.82;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.panel-card,
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, background 0.2s ease;
+}
+
+/* Interactive variant: anything the user can click or inspect gets a
+   pointer cursor + a lift/glow on hover — never a passive-looking
+   surface for a surface that actually does something. */
+.panel-card--interactive,
+.glass-card--interactive {
+  cursor: pointer;
+}
+
+.panel-card--interactive:hover,
+.glass-card--interactive:hover {
+  border-color: var(--glass-border-hover);
+  box-shadow: var(--glow-strong);
+  background: var(--glass-bg-raised);
+  transform: translateY(-2px);
+}
+
+.panel-empty {
+  color: var(--silver-dim);
+  opacity: 0.5;
+  font-size: 0.75rem;
+}
+
+.panel-error {
+  color: #d9a68f;
+  opacity: 0.85;
+  font-size: 0.72rem;
+}
+
+.btn-pill {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  color: var(--silver-dim);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  padding: 0.32rem 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-pill:hover:not(:disabled) {
+  color: var(--white);
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: var(--glow-soft);
+}
+
+.btn-pill:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btn-pill--danger:hover:not(:disabled) {
+  color: #e0a08c;
+  border-color: rgba(224, 160, 140, 0.5);
+}
+
+.btn-pill--icon {
+  padding: 0.32rem 0.5rem;
+}
+
+/* ---- LED status dot — neon when live, dim grey when not ------------- */
+
+.led-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--silver-dim);
+  opacity: 0.4;
+  flex: none;
+}
+
+.led-dot--on {
+  background: var(--ok);
+  opacity: 1;
+  box-shadow: 0 0 7px rgba(143, 214, 168, 0.85), 0 0 14px rgba(143, 214, 168, 0.4);
+}
+
+.led-dot--warn {
+  background: var(--warn);
+  opacity: 1;
+  box-shadow: 0 0 7px rgba(217, 180, 106, 0.8);
+}
+
+.led-dot--bad {
+  background: var(--bad);
+  opacity: 1;
+  box-shadow: 0 0 7px rgba(217, 143, 122, 0.8);
+}
+
+.led-dot--pulse {
+  animation: led-dot-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes led-dot-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ---- Toggle switch — real control, not decoration ------------------- */
+
+.toggle-switch {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  width: 34px;
+  height: 19px;
+  cursor: pointer;
+}
+
+.toggle-switch input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.toggle-switch-track {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.toggle-switch-track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--silver);
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.toggle-switch input:checked + .toggle-switch-track {
+  background: rgba(143, 214, 168, 0.18);
+  border-color: rgba(143, 214, 168, 0.5);
+}
+
+.toggle-switch input:checked + .toggle-switch-track::after {
+  transform: translateX(15px);
+  background: var(--ok);
+  box-shadow: 0 0 8px rgba(143, 214, 168, 0.7);
+}
+
+.toggle-switch input:disabled + .toggle-switch-track {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.toggle-switch input:focus-visible + .toggle-switch-track {
+  outline: 1px solid var(--white);
+  outline-offset: 2px;
+}
+
+/* ---- Status badge — Success/Running/Failed style pills --------------- */
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--silver-dim);
+}
+
+.status-badge--ok {
+  color: var(--ok);
+  border-color: rgba(143, 214, 168, 0.35);
+  background: rgba(143, 214, 168, 0.08);
+}
+
+.status-badge--warn {
+  color: var(--warn);
+  border-color: rgba(217, 180, 106, 0.35);
+  background: rgba(217, 180, 106, 0.08);
+}
+
+.status-badge--bad {
+  color: var(--bad);
+  border-color: rgba(217, 143, 122, 0.35);
+  background: rgba(217, 143, 122, 0.08);
+}
+
+/* "Running" — the same cool steel-blue already used for the OpenAI ring
+   (hero/HeroSidebar.css), reused here instead of inventing a new hue. */
+.status-badge--info {
+  color: #cfe6ff;
+  border-color: rgba(160, 210, 255, 0.4);
+  background: rgba(160, 210, 255, 0.1);
+  animation: led-dot-pulse 1.6s ease-in-out infinite;
+}
+
+/* ---- Category badge — #tech / #strategy style tags ------------------- */
+
+.tag-badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--silver-dim);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}

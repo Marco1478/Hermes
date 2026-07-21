@@ -1,0 +1,265 @@
+/*
+  HeroSidebar — three glass cards (usage / system / sessions) distributed
+  down the left column, clearing BrandMark at the top and hero-id at the
+  bottom. Replaces the old floating-text UsageOrbs + SystemPanel pair.
+*/
+.hero-sidebar {
+  position: absolute;
+  top: clamp(9rem, 18vh, 11.5rem);
+  bottom: clamp(15.5rem, 28vh, 18.5rem);
+  left: clamp(0.9rem, 2.4vw, 1.75rem);
+  width: clamp(210px, 21vw, 268px);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.9rem;
+}
+
+.hero-card {
+  padding: 0.9rem 1rem;
+  pointer-events: auto;
+  flex: none;
+}
+
+.hero-card-title {
+  margin-bottom: 0.65rem;
+  font-size: 0.6rem;
+}
+
+/* ---- Usage rings ------------------------------------------------------ */
+
+.hero-card--usage .usage-orbs {
+  display: flex;
+  gap: clamp(0.5rem, 1.4vw, 0.9rem);
+}
+
+.orb {
+  position: relative;
+  width: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.orb-svg {
+  width: 84px;
+  height: 84px;
+  display: block;
+}
+
+.orb-track {
+  stroke: rgba(198, 201, 208, 0.14);
+}
+
+.orb-arc {
+  transition: stroke-dashoffset 0.6s ease;
+}
+
+.orb--openai .orb-arc--outer {
+  stroke: #cfe6ff;
+  filter: drop-shadow(0 0 5px rgba(160, 210, 255, 0.5));
+}
+
+.orb--anthropic .orb-arc--outer {
+  stroke: #e6b58f;
+  filter: drop-shadow(0 0 5px rgba(224, 160, 120, 0.45));
+}
+
+.orb--anthropic .orb-arc--inner {
+  stroke: #f2d9c2;
+  filter: drop-shadow(0 0 4px rgba(240, 210, 180, 0.5));
+}
+
+.orb-center {
+  position: absolute;
+  top: 42px;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+}
+
+.orb-pct {
+  color: var(--white);
+  font-family: var(--font-body);
+  font-size: 0.94rem;
+  font-weight: 500;
+}
+
+.orb-value {
+  color: var(--silver-dim);
+  font-size: 0.52rem;
+  letter-spacing: 0.04em;
+  margin-top: 1px;
+}
+
+.orb-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 0.3rem;
+  gap: 1px;
+}
+
+.orb-label {
+  color: var(--silver);
+  opacity: 0.75;
+  font-size: 0.53rem;
+  letter-spacing: 0.09em;
+}
+
+.orb-sub {
+  color: var(--silver-dim);
+  opacity: 0.55;
+  font-size: 0.51rem;
+  letter-spacing: 0.04em;
+}
+
+/* ---- System stats ------------------------------------------------------ */
+
+.hero-system-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.65rem;
+  margin-bottom: 0.55rem;
+}
+
+.hero-system-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35em;
+}
+
+.hero-system-label {
+  color: var(--silver-dim);
+  opacity: 0.55;
+  font-size: 0.54rem;
+  letter-spacing: 0.06em;
+}
+
+.hero-system-value {
+  color: var(--white);
+  opacity: 0.9;
+  font-size: 0.6rem;
+}
+
+.hero-platforms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.7rem;
+}
+
+.hero-platform {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  color: var(--silver-dim);
+  opacity: 0.75;
+  font-size: 0.56rem;
+  letter-spacing: 0.03em;
+}
+
+/* ---- Sessions ----------------------------------------------------------- */
+
+.hero-sessions-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.hero-session-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 0.4rem 0.45rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.hero-session-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.hero-session-row--active .hero-session-title {
+  color: var(--white);
+}
+
+.hero-session-title {
+  flex: 1;
+  min-width: 0;
+  color: var(--silver-dim);
+  font-size: 0.66rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hero-session-meta {
+  flex: none;
+  color: var(--silver-dim);
+  opacity: 0.45;
+  font-size: 0.54rem;
+}
+
+.hero-session-empty {
+  color: var(--silver-dim);
+  opacity: 0.5;
+  font-size: 0.62rem;
+  padding: 0.3rem 0.45rem;
+}
+
+@media (max-width: 640px) {
+  .hero-sidebar {
+    top: clamp(6.5rem, 15vh, 8.5rem);
+    bottom: auto;
+    left: clamp(0.6rem, 3vw, 1rem);
+    right: clamp(0.6rem, 3vw, 1rem);
+    width: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .hero-card {
+    flex: 1 1 auto;
+    min-width: 132px;
+    padding: 0.6rem 0.7rem;
+  }
+
+  .hero-card--sessions {
+    display: none;
+  }
+
+  .orb,
+  .orb-svg {
+    width: 62px;
+  }
+
+  .orb-svg {
+    height: 62px;
+  }
+
+  .orb-center {
+    top: 31px;
+  }
+
+  .orb-pct {
+    font-size: 0.76rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb-arc {
+    transition: none;
+  }
+}

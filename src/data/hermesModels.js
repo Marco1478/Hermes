@@ -1,10 +1,12 @@
 /*
-  The OpenAI models Marco has configured on his Hermes box. `gpt-5.5` is
-  the current gateway default. These are passed as the `model` field in the
-  run payload (see lib/gatewayRuns.js). NOTE: at the time of writing the
-  gateway echoes this field but routes to its configured default regardless
-  — kept here so the UI is ready the moment per-run model routing is
-  enabled server-side.
+  Real openai-codex catalog ids (confirmed against provider_models_cache.json
+  on the box, and by actually switching live and having Hermes self-report
+  the new model — see ModelSelector.jsx). This is the static fallback shown
+  before/if the bridge's live dashboard fetch (GET /local/hermes/models)
+  succeeds; the gateway's own /v1/runs ignores a bare `model` field
+  (confirmed live) — the real switch path is the dashboard's
+  POST /api/model/set with an explicit provider, wired through
+  vite-plugins/hermesBridge.js.
 */
 export const HERMES_MODELS = [
   { id: "gpt-5.5", label: "5.5", note: "default" },

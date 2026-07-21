@@ -16,6 +16,20 @@
   --font-display: "Marcellus", serif; /* lapidary caps — the wordmark */
   --font-body: "Instrument Sans", system-ui, sans-serif;
   --font-mono: "Fragment Mono", monospace;
+
+  /* Glass surfaces + luminous edges. Still achromatic by design (see
+     class comment above) — "glow" here is white light at low opacity,
+     never a hue, so the glassmorphism pass reads as an intensity of the
+     existing system rather than a competing colour language. */
+  --glass-bg: rgba(9, 10, 12, 0.55);
+  --glass-bg-raised: rgba(14, 16, 19, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-border-hover: rgba(255, 255, 255, 0.26);
+  --glow-soft: 0 0 22px rgba(210, 220, 240, 0.1);
+  --glow-strong: 0 8px 34px rgba(0, 0, 0, 0.45), 0 0 26px rgba(215, 225, 245, 0.16);
+  --ok: #8fd6a8;
+  --warn: #d9b46a;
+  --bad: #d98f7a;
 }
 
 * {

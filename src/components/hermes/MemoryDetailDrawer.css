@@ -1,0 +1,89 @@
+.memory-drawer-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 40;
+}
+
+.memory-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(90vw, 420px);
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.5rem 1.5rem 2rem;
+  background: rgba(8, 9, 11, 0.9);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-left: 1px solid var(--glass-border-hover);
+  box-shadow: -18px 0 44px rgba(0, 0, 0, 0.5);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(198, 201, 208, 0.2) transparent;
+}
+
+.memory-drawer-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.memory-drawer-kind {
+  color: var(--white);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.memory-drawer-close {
+  margin-left: auto;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  width: 26px;
+  height: 26px;
+  color: var(--silver-dim);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.memory-drawer-close:hover {
+  color: var(--white);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.memory-drawer-title {
+  color: var(--white);
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.memory-drawer-body {
+  color: var(--silver);
+  font-size: 0.82rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.memory-drawer-meta {
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  gap: 1rem;
+  color: var(--silver-dim);
+  opacity: 0.55;
+  font-size: 0.6rem;
+}
+
+@media (max-width: 640px) {
+  .memory-drawer {
+    width: 100vw;
+  }
+}

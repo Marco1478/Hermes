@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { BrandMark } from "./BrandMark.jsx";
-import { UsageOrbs } from "./UsageOrbs.jsx";
+import { HeroSidebar } from "./hero/HeroSidebar.jsx";
 import { ParallaxGrid } from "./ParallaxGrid.jsx";
 import { Waveform } from "./Waveform.jsx";
 import { SwarmCanvas } from "./SwarmCanvas.jsx";
@@ -78,8 +78,10 @@ export function Hero() {
       {/* Logo / home button, top-left */}
       <BrandMark />
 
-      {/* Token-usage telemetry — real counts, quiet rings */}
-      <UsageOrbs />
+      {/* Left column: usage rings, system/messaging stats, sessions —
+          three glass cards distributed down the height instead of a
+          cluster of floating text. */}
+      <HeroSidebar />
 
       {/* Identity block — quiet, bottom-left */}
       <header className="hero-id">

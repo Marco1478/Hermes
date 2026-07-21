@@ -1,45 +1,43 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   OPENAI_WEEKLY_TOKEN_BUDGET,
   ANTHROPIC_5H_TOKEN_BUDGET,
   ANTHROPIC_WEEKLY_TOKEN_BUDGET,
 } from "../config.js";
-import { getOpenAiUsage, addOpenAiTokens, fetchAnthropicUsage } from "../lib/usage.js";
+import { fetchAnthropicUsage } from "../lib/usage.js";
+import { fetchAnalyticsUsage } from "../lib/hermesBridge.js";
 
 const UsageContext = createContext(null);
 
-const ANTHROPIC_POLL_MS = 60000;
+const POLL_MS = 60000;
 
 function clampPct(used, budget) {
   if (!budget || budget <= 0) return 0;
   return Math.max(0, Math.min(1, used / budget));
 }
 
+/* Sum input+output tokens over the last 7 daily analytics entries (cache
+   reads excluded — same reasoning as the Claude side: they dwarf real
+   consumption). The dashboard's /api/analytics/usage is REAL total Hermes
+   usage across every platform (Telegram/Discord/UI), which is exactly what
+   this orb was always trying to approximate — now it's the real number, not
+   a UI-only localStorage tally. */
+function weeklyFromAnalytics(daily) {
+  if (!Array.isArray(daily)) return 0;
+  const last7 = daily.slice(-7);
+  return last7.reduce((sum, d) => sum + (d.input_tokens || 0) + (d.output_tokens || 0), 0);
+}
+
 /*
-  UsageProvider — the shared source for the hero usage rings. OpenAI usage
-  is a local weekly accumulator fed by Chat (addTokens on each completed
-  run); Anthropic usage is polled from the dev endpoint that reads local
-  Claude Code transcripts. Both token counts are real; the percentages are
-  against the configurable budgets in config.js.
+  UsageProvider — shared source for the hero usage orbs. OpenAI/Hermes usage
+  is now REAL, polled from the dashboard's token analytics (see
+  lib/hermesBridge.js); Anthropic usage is Marco's own local Claude Code
+  transcripts (a different machine, dev usage — kept separate on purpose).
+  Percentages are against the configurable budgets in config.js.
 */
 export function UsageProvider({ children }) {
-  const [openai, setOpenai] = useState(() => getOpenAiUsage());
-  const [anthropic, setAnthropic] = useState({
-    status: "checking",
-    tokens5h: 0,
-    tokens7d: 0,
-    lastActivity: null,
-  });
-
-  const addTokens = useCallback((tokens) => {
-    setOpenai(addOpenAiTokens(tokens));
-  }, []);
-
-  /* Roll the OpenAI bucket over if the week elapses while the tab is open. */
-  useEffect(() => {
-    const id = setInterval(() => setOpenai(getOpenAiUsage()), 60000);
-    return () => clearInterval(id);
-  }, []);
+  const [openai, setOpenai] = useState({ status: "checking", tokens: 0 });
+  const [anthropic, setAnthropic] = useState({ status: "checking", tokens5h: 0, tokens7d: 0, lastActivity: null });
 
   const mounted = useRef(true);
   useEffect(() => {
@@ -48,20 +46,26 @@ export function UsageProvider({ children }) {
     const controller = new AbortController();
 
     async function poll() {
-      try {
-        const data = await fetchAnthropicUsage(controller.signal);
-        if (!mounted.current) return;
-        setAnthropic({
-          status: "ok",
-          tokens5h: data.tokens5h || 0,
-          tokens7d: data.tokens7d || 0,
-          lastActivity: data.lastActivity || null,
-        });
-      } catch (err) {
-        if (!mounted.current || err?.name === "AbortError") return;
+      const [openaiRes, anthropicRes] = await Promise.allSettled([
+        fetchAnalyticsUsage(),
+        fetchAnthropicUsage(controller.signal),
+      ]);
+      if (!mounted.current) return;
+
+      if (openaiRes.status === "fulfilled") {
+        setOpenai({ status: "ok", tokens: weeklyFromAnalytics(openaiRes.value?.daily) });
+      } else {
+        setOpenai((prev) => ({ ...prev, status: "error" }));
+      }
+
+      if (anthropicRes.status === "fulfilled") {
+        const d = anthropicRes.value;
+        setAnthropic({ status: "ok", tokens5h: d.tokens5h || 0, tokens7d: d.tokens7d || 0, lastActivity: d.lastActivity || null });
+      } else if (anthropicRes.reason?.name !== "AbortError") {
         setAnthropic((prev) => ({ ...prev, status: "error" }));
       }
-      if (mounted.current) timer = setTimeout(poll, ANTHROPIC_POLL_MS);
+
+      if (mounted.current) timer = setTimeout(poll, POLL_MS);
     }
     poll();
 
@@ -74,10 +78,9 @@ export function UsageProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      addTokens,
       openai: {
+        status: openai.status,
         tokens: openai.tokens,
-        weekStart: openai.weekStart,
         budget: OPENAI_WEEKLY_TOKEN_BUDGET,
         pct: clampPct(openai.tokens, OPENAI_WEEKLY_TOKEN_BUDGET),
       },
@@ -92,7 +95,7 @@ export function UsageProvider({ children }) {
         pctWeek: clampPct(anthropic.tokens7d, ANTHROPIC_WEEKLY_TOKEN_BUDGET),
       },
     }),
-    [openai, anthropic, addTokens]
+    [openai, anthropic]
   );
 
   return <UsageContext.Provider value={value}>{children}</UsageContext.Provider>;

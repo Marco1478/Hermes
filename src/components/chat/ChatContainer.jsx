@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useChat } from "../../state/Chat.jsx";
 import { useViewMode } from "../../state/ViewMode.jsx";
 import { BrandMark } from "../BrandMark.jsx";
+import { PageNav } from "../PageNav.jsx";
 import { MessageList } from "./MessageList.jsx";
 import { ChatInput } from "./ChatInput.jsx";
 import { ModelSelector } from "./ModelSelector.jsx";
@@ -57,6 +58,8 @@ export function ChatContainer() {
           </span>
           <span className="chat-btn-label">chats</span>
         </button>
+
+        <PageNav />
 
         <div className="chat-hud-anchor" ref={hudRef}>
           <button

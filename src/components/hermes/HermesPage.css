@@ -1,0 +1,342 @@
+/* ---- Profile ------------------------------------------------------- */
+
+.profile-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.profile-name {
+  color: var(--white);
+  font-size: 0.85rem;
+}
+
+.profile-badge {
+  color: var(--silver-dim);
+  opacity: 0.6;
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+}
+
+.profile-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  color: var(--silver-dim);
+  opacity: 0.6;
+  font-size: 0.62rem;
+}
+
+/* ---- SOUL.md editor -------------------------------------------------- */
+
+.soul-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.soul-textarea {
+  width: 100%;
+  min-height: 260px;
+  resize: vertical;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  color: var(--silver);
+  font-size: 0.74rem;
+  line-height: 1.6;
+}
+
+.soul-textarea:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.soul-editor-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.soul-saved {
+  color: #8fd6a8;
+  opacity: 0.85;
+  font-size: 0.62rem;
+}
+
+.soul-dirty {
+  color: var(--silver-dim);
+  opacity: 0.5;
+  font-size: 0.6rem;
+  margin-right: auto;
+}
+
+/* ---- Skills browser --------------------------------------------------- */
+
+.skills-browser {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.skills-search {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  color: var(--silver);
+  font-size: 0.68rem;
+}
+
+.skills-search:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.skills-grid {
+  max-height: 480px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 0.65rem;
+  padding-right: 0.3rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(198, 201, 208, 0.2) transparent;
+}
+
+.skill-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.8rem 0.9rem;
+}
+
+.skill-card-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.skill-name {
+  flex: 1;
+  min-width: 0;
+  color: var(--white);
+  font-size: 0.66rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skill-toggle {
+  flex: none;
+}
+
+.skill-desc {
+  color: var(--silver-dim);
+  opacity: 0.65;
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+
+.skill-usage {
+  color: var(--silver-dim);
+  opacity: 0.4;
+  font-size: 0.56rem;
+}
+
+/* ---- Memory ------------------------------------------------------------ */
+
+.memory-providers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.memory-provider {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.memory-provider-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.memory-provider-name {
+  color: var(--white);
+  font-size: 0.72rem;
+}
+
+.memory-provider-status {
+  margin-left: auto;
+  color: var(--silver-dim);
+  opacity: 0.5;
+  font-size: 0.56rem;
+  text-transform: uppercase;
+}
+
+.memory-graph-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.memory-graph-svg {
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+  overflow: visible;
+}
+
+.memory-graph-tooltip {
+  position: absolute;
+  transform: translate(-50%, -140%);
+  background: var(--glass-bg-raised);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border-hover);
+  border-radius: 10px;
+  padding: 0.5rem 0.65rem;
+  max-width: 220px;
+  box-shadow: var(--glow-strong);
+  pointer-events: none;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.memory-graph-tooltip-title {
+  color: var(--white);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.memory-graph-edge {
+  stroke: rgba(198, 201, 208, 0.15);
+  stroke-width: 1;
+}
+
+.memory-graph-node circle {
+  fill: var(--silver-dim);
+  opacity: 0.7;
+}
+
+.memory-graph-node--skill circle {
+  fill: #cfe6ff;
+  filter: drop-shadow(0 0 4px rgba(160, 210, 255, 0.5));
+}
+
+.memory-graph-node--memory circle {
+  fill: #e6b58f;
+  opacity: 0.75;
+}
+
+.memory-graph-legend {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: var(--silver-dim);
+  opacity: 0.55;
+  font-size: 0.58rem;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 0.35em;
+}
+
+.legend-dot--skill {
+  background: #cfe6ff;
+}
+
+.legend-dot--memory {
+  background: #e6b58f;
+}
+
+.memory-graph-count {
+  margin-left: auto;
+}
+
+/* ---- Memory entry cards ---------------------------------------------- */
+
+.memory-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.memory-entry-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.55rem;
+  text-align: left;
+  font-family: var(--font-body);
+}
+
+.memory-entry-tag {
+  color: #cfe6ff;
+  border-color: rgba(160, 210, 255, 0.3);
+  background: rgba(160, 210, 255, 0.07);
+}
+
+.memory-entry-body {
+  color: var(--silver-dim);
+  font-size: 0.72rem;
+  line-height: 1.55;
+}
+
+/* ---- Automations --------------------------------------------------- */
+
+.automations-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.automations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.automations-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.4rem 0.2rem;
+  font-size: 0.66rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.automations-name {
+  color: var(--silver);
+}
+
+.automations-schedule {
+  margin-left: auto;
+  color: var(--silver-dim);
+  opacity: 0.5;
+}

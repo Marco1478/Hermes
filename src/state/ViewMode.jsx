@@ -3,11 +3,12 @@ import { createContext, useContext, useMemo, useState } from "react";
 const ViewModeContext = createContext(null);
 
 /*
-  ViewMode — the single switch between the two faces of this app:
-  'hero' (idle portrait + command bar) and 'chat' (conversation). Every
-  layout/morph decision reads from here instead of local component state,
-  so the Hero, the command bar, and the chat shell all agree on which
-  world they're in.
+  ViewMode — the single switch between every face of this app: 'hero'
+  (idle portrait + command bar), 'chat' (conversation), 'jobs' (cron job
+  management), 'hermes' (soul.md, profiles, skills, memory), and 'tools'
+  (toolsets + MCP servers). Every layout/morph decision reads from here
+  instead of local component state, so Hero, the command bar, the chat
+  shell, and the new pages all agree on which world they're in.
 */
 export function ViewModeProvider({ children }) {
   const [mode, setMode] = useState("hero");
@@ -17,6 +18,10 @@ export function ViewModeProvider({ children }) {
       mode,
       isHero: mode === "hero",
       isChat: mode === "chat",
+      isJobs: mode === "jobs",
+      isHermes: mode === "hermes",
+      isTools: mode === "tools",
+      goTo: (m) => setMode(m),
       enterChat: () => setMode("chat"),
       enterHero: () => setMode("hero"),
       toggle: () => setMode((m) => (m === "hero" ? "chat" : "hero")),
