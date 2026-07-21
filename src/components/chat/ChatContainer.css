@@ -11,11 +11,16 @@
 
 .chat-header {
   flex: none;
-  display: flex;
+  display: grid;
+  /* minmax(0, 1fr), not bare 1fr: a bare fr track's minimum is its
+     content's min-content width, which let the right group (hud + model
+     + new chat) push the header wider than the viewport and clip "new
+     chat" off-screen. minmax(0, …) lets it actually shrink down to the
+     hud's ellipsis instead. */
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: flex-start;
   gap: 0.75rem;
-  width: min(calc(100% - 2rem), 1120px);
+  width: min(calc(100% - 2rem), 1240px);
   margin: 0 auto;
   padding: 1rem clamp(1rem, 2.8vw, 2rem);
   /* BrandMark floats on top, absolutely positioned, up to ~104px + its
@@ -25,6 +30,20 @@
   min-height: clamp(5rem, 9vw, 5.85rem);
 }
 
+.chat-header-left {
+  justify-self: start;
+  min-width: 0;
+}
+
+.chat-header-right {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
 /* Compact monospace micro-HUD, left of the action buttons — now a button
    that opens the Stato Hermes panel (StatusPanel.jsx). */
 .chat-hud-anchor {
@@ -32,7 +51,6 @@
   flex: 1 1 auto;
   min-width: 0;
   max-width: 100%;
-  margin-right: auto;
 }
 
 .chat-hud {
@@ -84,8 +102,7 @@
 }
 
 .chat-chats,
-.chat-newsession,
-.chat-back {
+.chat-newsession {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -102,8 +119,7 @@
 }
 
 .chat-chats:hover,
-.chat-newsession:hover:not(:disabled),
-.chat-back:hover {
+.chat-newsession:hover:not(:disabled) {
   color: var(--white);
   border-color: rgba(255, 255, 255, 0.24);
 }
@@ -114,24 +130,42 @@
   line-height: 1;
 }
 
-.model-selector {
-  margin-left: auto;
-}
-
 .chat-newsession:disabled {
   opacity: 0.3;
   cursor: not-allowed;
+}
+
+/* --- Mid-width desktop: 5 nav tabs + chats/hud/model/new-chat is more
+   than fits comfortably below ~1080px even with the grid free to shrink
+   the flanking columns — drop the text labels (icon/dot-only) same as
+   mobile, but keep the centered-grid layout instead of mobile's
+   horizontal-scroll fallback. ------------------------------------- */
+
+@media (max-width: 1080px) {
+  .chat-hud-label {
+    display: none;
+  }
+
+  .chat-btn-label {
+    display: none;
+  }
+
+  .chat-chats,
+  .chat-newsession {
+    padding: 0.42rem 0.55rem;
+  }
 }
 
 /* --- Narrow viewports: same controls, less chrome ------------------ */
 
 @media (max-width: 640px) {
   .chat-header {
+    display: flex;
     padding-left: clamp(4.25rem, 20vw, 5.5rem);
     padding-right: clamp(0.6rem, 3vw, 1rem);
     gap: 0.35rem;
     /* More controls than fit a phone width (chats/nav tabs/HUD/model/new
-       chat/esc) — scroll the row instead of clipping items off-screen
+       chat) — scroll the row instead of clipping items off-screen
        (justify-content: flex-end would otherwise hide the leftmost ones
        under BrandMark with no way back to them). */
     flex-wrap: nowrap;
@@ -146,30 +180,30 @@
     display: none;
   }
 
-  .chat-hud-anchor {
-    margin-right: 0;
+  .chat-header-left,
+  .chat-header-right {
+    flex: none;
+  }
+
+  .chat-header-right {
+    margin-left: auto;
   }
 
   /* Keep just the status dot — "gateway online 17ms" has nowhere to go
-     once the chats/model/new-chat/esc controls are all fighting for the
+     once the chats/model/new-chat controls are all fighting for the
      same row on a phone. */
   .chat-hud-label {
     display: none;
   }
 
-  .chat-hud {
-    margin-right: auto;
-  }
-
-  /* Icon-only chats/new-chat buttons; esc and the model selector stay as
-     they are (esc is already minimal, the model label is the point). */
+  /* Icon-only chats/new-chat buttons; the model selector stays as-is
+     (already minimal, the model label is the point). */
   .chat-btn-label {
     display: none;
   }
 
   .chat-chats,
-  .chat-newsession,
-  .chat-back {
+  .chat-newsession {
     padding: 0.32rem 0.5rem;
   }
 }

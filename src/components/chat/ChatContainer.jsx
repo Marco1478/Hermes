@@ -13,8 +13,9 @@ import "./ChatContainer.css";
 /*
   ChatContainer — the chat-mode shell. BrandMark (top-left, shared with
   the Hero) doubles as the way back; Escape does the same (unless the
-  drawer is open, where Escape just closes it). The header carries the
-  chats toggle, gateway HUD, per-chat model selector, new-chat, and esc.
+  drawer is open, where Escape just closes it) — no visible "esc" pill,
+  the header carries the chats toggle, centered tab nav, gateway HUD,
+  per-chat model selector, and new-chat instead.
 */
 export function ChatContainer() {
   const { messages, thinking, send, retry, newChat, gatewayStatus, gatewayLatency } = useChat();
@@ -46,54 +47,55 @@ export function ChatContainer() {
       <SessionDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
       <header className="chat-header">
-        <button
-          type="button"
-          className="chat-chats mono"
-          onClick={() => setDrawerOpen((o) => !o)}
-          title="Your chats"
-          aria-label="Open chats"
-        >
-          <span className="chat-chats-lines" aria-hidden="true">
-            ☰
-          </span>
-          <span className="chat-btn-label">chats</span>
-        </button>
+        <div className="chat-header-left">
+          <button
+            type="button"
+            className="chat-chats mono"
+            onClick={() => setDrawerOpen((o) => !o)}
+            title="Your chats"
+            aria-label="Open chats"
+          >
+            <span className="chat-chats-lines" aria-hidden="true">
+              ☰
+            </span>
+            <span className="chat-btn-label">chats</span>
+          </button>
+        </div>
 
         <PageNav />
 
-        <div className="chat-hud-anchor" ref={hudRef}>
+        <div className="chat-header-right">
+          <div className="chat-hud-anchor" ref={hudRef}>
+            <button
+              type="button"
+              className="chat-hud mono"
+              onClick={() => setStatusOpen((o) => !o)}
+              aria-expanded={statusOpen}
+              title="Hermes status"
+            >
+              <span className={`chat-status-dot chat-status-dot--${gatewayStatus}`} />
+              <span className="chat-hud-label">
+                gateway {gatewayStatus}
+                {gatewayStatus === "online" && gatewayLatency != null ? ` ${gatewayLatency}ms` : ""}
+              </span>
+            </button>
+            <StatusPanel open={statusOpen} onClose={() => setStatusOpen(false)} anchorRef={hudRef} />
+          </div>
+
+          <ModelSelector />
+
           <button
             type="button"
-            className="chat-hud mono"
-            onClick={() => setStatusOpen((o) => !o)}
-            aria-expanded={statusOpen}
-            title="Hermes status"
+            className="chat-newsession mono"
+            onClick={newChat}
+            title="Start a new chat"
           >
-            <span className={`chat-status-dot chat-status-dot--${gatewayStatus}`} />
-            <span className="chat-hud-label">
-              gateway {gatewayStatus}
-              {gatewayStatus === "online" && gatewayLatency != null ? ` ${gatewayLatency}ms` : ""}
+            <span className="chat-newsession-plus" aria-hidden="true">
+              +
             </span>
+            <span className="chat-btn-label">new chat</span>
           </button>
-          <StatusPanel open={statusOpen} onClose={() => setStatusOpen(false)} anchorRef={hudRef} />
         </div>
-
-        <ModelSelector />
-
-        <button
-          type="button"
-          className="chat-newsession mono"
-          onClick={newChat}
-          title="Start a new chat"
-        >
-          <span className="chat-newsession-plus" aria-hidden="true">
-            +
-          </span>
-          <span className="chat-btn-label">new chat</span>
-        </button>
-        <button type="button" className="chat-back mono" onClick={enterHero}>
-          esc
-        </button>
       </header>
 
       <div className="chat-scroll">

@@ -6,12 +6,14 @@ const TABS = [
   { id: "hermes", label: "hermes" },
   { id: "jobs", label: "jobs" },
   { id: "tools", label: "tools" },
+  { id: "system", label: "system" },
 ];
 
 /*
   PageNav — the tab strip shared by every non-hero page (chat, hermes,
-  jobs, tools). BrandMark stays the single way back to the hero; this is
-  purely lateral movement between the working pages.
+  jobs, tools, system). BrandMark stays the way back to the hero (or, from
+  the hero itself, the way into System Overview); this is purely lateral
+  movement between the working pages.
 */
 export function PageNav() {
   const { mode, goTo } = useViewMode();

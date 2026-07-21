@@ -8,6 +8,7 @@ import { ChatContainer } from "./components/chat/ChatContainer.jsx";
 import { JobsPage } from "./components/jobs/JobsPage.jsx";
 import { HermesPage } from "./components/hermes/HermesPage.jsx";
 import { ToolsPage } from "./components/tools/ToolsPage.jsx";
+import { SystemOverviewPage } from "./components/system/SystemOverviewPage.jsx";
 
 const VIEWS = {
   hero: Hero,
@@ -15,6 +16,7 @@ const VIEWS = {
   jobs: JobsPage,
   hermes: HermesPage,
   tools: ToolsPage,
+  system: SystemOverviewPage,
 };
 
 function Stage() {

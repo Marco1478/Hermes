@@ -6,9 +6,9 @@ import "./PageShell.css";
 
 /*
   PageShell — the shared shell for every non-hero, non-chat page (Jobs,
-  Hermes, Tools). Same header language as ChatContainer (BrandMark, tab
-  nav, esc-to-hero) so the app reads as one system instead of bolted-on
-  screens.
+  Hermes, Tools, System). Same header language as ChatContainer (BrandMark,
+  centered tab nav) so the app reads as one system instead of bolted-on
+  screens. No visible "esc" pill — Escape still goes home from the keyboard.
 */
 export function PageShell({ title, headerExtra, children }) {
   const { enterHero } = useViewMode();
@@ -27,10 +27,7 @@ export function PageShell({ title, headerExtra, children }) {
       <header className="page-header">
         <h1 className="page-title mono">{title}</h1>
         <PageNav />
-        {headerExtra && <div className="page-header-extra">{headerExtra}</div>}
-        <button type="button" className="page-back mono" onClick={enterHero}>
-          esc
-        </button>
+        <div className="page-header-extra">{headerExtra}</div>
       </header>
       <div className="page-scroll">
         <div className="page-constrain">{children}</div>
