@@ -1,6 +1,6 @@
 .chat-input-shell {
   flex: none;
-  padding: 0.75rem clamp(1rem, 4vw, 3rem) 1.75rem;
+  padding: 0.9rem clamp(1rem, 4vw, 3rem) 1.95rem;
 }
 
 .chat-attachments {
@@ -48,18 +48,19 @@
   position: relative;
   display: flex;
   align-items: flex-end; /* buttons stay pinned to the bottom as the textarea grows */
-  gap: 0.6rem;
-  padding: 0.6rem 0.6rem 0.6rem 1.1rem;
-  background: rgba(14, 16, 19, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 16px;
+  gap: 0.75rem;
+  padding: 0.75rem 0.72rem 0.75rem 1.2rem;
+  background: rgba(14, 16, 19, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   transition: border-color 0.15s ease;
 }
 
 .chat-input:focus-within {
-  border-color: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.24);
+  box-shadow: 0 0 0 1px var(--teal-soft), 0 18px 50px rgba(0, 0, 0, 0.38);
 }
 
 .chat-input-field {
@@ -70,7 +71,7 @@
   resize: none;
   color: var(--white);
   font-family: var(--font-body);
-  font-size: 0.92rem;
+  font-size: 1rem;
   line-height: 1.5;
   padding: 0.42rem 0;
   max-height: 9.5rem; /* ~7 lines before it scrolls internally */
@@ -94,8 +95,8 @@
 .chat-clip,
 .chat-mic {
   flex: none;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   border: 1px solid rgba(198, 201, 208, 0.2);
   background: none;
@@ -129,12 +130,12 @@
 
 .chat-send {
   flex: none;
-  padding: 0.5rem 1rem;
+  padding: 0.62rem 1.15rem;
   border-radius: 999px;
   border: 1px solid rgba(198, 201, 208, 0.2);
   background: rgba(198, 201, 208, 0.08);
   color: var(--white);
-  font-size: 0.68rem;
+  font-size: 0.76rem;
   letter-spacing: 0.08em;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;

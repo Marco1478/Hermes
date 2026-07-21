@@ -11,6 +11,8 @@
   --silver-dim: #8b8f98; /* secondary text */
   --silver: #c6c9d0; /* primary muted */
   --white: #f2f3f5; /* headline / light */
+  --teal: #6ee7df; /* restrained Hermes accent */
+  --teal-soft: rgba(110, 231, 223, 0.18);
 
   /* Type roles */
   --font-display: "Marcellus", serif; /* lapidary caps — the wordmark */
@@ -47,7 +49,7 @@ body {
   background: var(--ink-black);
   color: var(--silver);
   font-family: var(--font-body);
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
