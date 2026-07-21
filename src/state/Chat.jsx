@@ -209,15 +209,32 @@ export function ChatProvider({ children }) {
   const send = useCallback(
     (overrideText, extra) => {
       const text = (overrideText ?? draft).trim();
-      if ((!text && !extra?.contextText) || activeRef.current) return;
+      if ((!text && !extra?.contextText && !extra?.images?.length) || activeRef.current) return;
       const cid = activeId || chatsRef.current[0]?.id;
       if (!cid) return;
       enterChat();
       if (overrideText == null) setDraft("");
       const files = extra?.files || null;
       /* File context is appended to what Hermes receives but kept out of the
-         visible bubble (which shows the typed text + file chips instead). */
-      const fullInput = extra?.contextText ? `${text}\n\n${extra.contextText}` : text;
+         visible bubble (which shows the typed text + file chips instead).
+         Images take a different real path: the gateway's Runs API accepts
+         an `input` array whose last message's content can be a list of
+         {type:"text"|"image_url"} parts (same vocabulary as its OpenAI-
+         compatible /v1/chat/completions endpoint) — so an attached image
+         becomes a real multimodal part, not text pretending to describe
+         itself. */
+      const textInput = extra?.contextText ? `${text}\n\n${extra.contextText}` : text;
+      const fullInput = extra?.images?.length
+        ? [
+            {
+              role: "user",
+              content: [
+                ...(textInput ? [{ type: "text", text: textInput }] : []),
+                ...extra.images.map((img) => ({ type: "image_url", image_url: { url: img.dataUrl } })),
+              ],
+            },
+          ]
+        : textInput;
       const userMsgId = uid();
       const hermesMsgId = uid();
       setChats((prev) =>

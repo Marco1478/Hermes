@@ -13,11 +13,20 @@ const SpeechRecognitionAPI =
 /* Dictation language — Marco speaks Italian, so en-US mangled everything. */
 const VOICE_LANG = "it-IT";
 
-/* Only text-like files make sense as inline context; cap size so a huge
-   file doesn't blow up the prompt. */
+/* Text-like files are read as inline context (appended to the prompt);
+   cap size so a huge file doesn't blow up the prompt. Images go through a
+   different, real path — sent as multimodal image_url content parts on
+   the Runs API, the same content-part vocabulary the gateway's OpenAI-
+   compatible endpoint accepts (confirmed against
+   gateway/platforms/api_server.py). PDFs/docs are deliberately excluded:
+   the gateway explicitly rejects file/input_file content parts
+   (unsupported_content_type) — there's no real backend path for them yet. */
 const MAX_FILE_BYTES = 100 * 1024;
-const ACCEPT =
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const TEXT_ACCEPT =
   ".txt,.md,.markdown,.js,.jsx,.ts,.tsx,.json,.csv,.tsv,.py,.rb,.go,.rs,.java,.c,.cpp,.h,.html,.css,.scss,.yml,.yaml,.toml,.ini,.log,.xml,.sh,.env,text/*";
+const IMAGE_ACCEPT = "image/png,image/jpeg,image/webp,image/gif";
+const ACCEPT = `${TEXT_ACCEPT},${IMAGE_ACCEPT}`;
 
 function readAsText(file) {
   return new Promise((resolve, reject) => {
@@ -25,6 +34,15 @@ function readAsText(file) {
     reader.onload = () => resolve(String(reader.result || ""));
     reader.onerror = () => reject(reader.error);
     reader.readAsText(file.slice(0, MAX_FILE_BYTES));
+  });
+}
+
+function readAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
   });
 }
 
@@ -94,14 +112,17 @@ export function ChatInput() {
     const picked = Array.from(e.target.files || []);
     e.target.value = ""; /* allow re-picking the same file */
     const read = await Promise.all(
-      picked.map(async (f) => ({
-        name: f.name,
-        size: f.size,
-        truncated: f.size > MAX_FILE_BYTES,
-        content: await readAsText(f).catch(() => ""),
-      }))
+      picked.map(async (f) => {
+        if (f.type.startsWith("image/")) {
+          if (f.size > MAX_IMAGE_BYTES) return null;
+          const dataUrl = await readAsDataUrl(f).catch(() => "");
+          return dataUrl ? { name: f.name, size: f.size, isImage: true, dataUrl } : null;
+        }
+        const content = await readAsText(f).catch(() => "");
+        return content ? { name: f.name, size: f.size, truncated: f.size > MAX_FILE_BYTES, content } : null;
+      })
     );
-    setFiles((prev) => [...prev, ...read.filter((f) => f.content)]);
+    setFiles((prev) => [...prev, ...read.filter(Boolean)]);
   };
 
   const removeFile = (name) => setFiles((prev) => prev.filter((f) => f.name !== name));
@@ -111,10 +132,16 @@ export function ChatInput() {
     const text = draft.trim();
     if (!text && files.length === 0) return;
     if (files.length) {
-      const contextText = files
-        .map((f) => `--- FILE: ${f.name}${f.truncated ? " (troncato)" : ""} ---\n${f.content}`)
-        .join("\n\n");
-      send(text, { contextText, files: files.map((f) => ({ name: f.name })) });
+      const textFiles = files.filter((f) => !f.isImage);
+      const images = files.filter((f) => f.isImage);
+      const contextText = textFiles.length
+        ? textFiles.map((f) => `--- FILE: ${f.name}${f.truncated ? " (troncato)" : ""} ---\n${f.content}`).join("\n\n")
+        : undefined;
+      send(text, {
+        contextText,
+        images: images.length ? images.map((f) => ({ dataUrl: f.dataUrl })) : undefined,
+        files: files.map((f) => ({ name: f.name })),
+      });
       setDraft("");
       setFiles([]);
     } else {
@@ -169,7 +196,7 @@ export function ChatInput() {
           type="button"
           className="chat-clip"
           onClick={() => fileRef.current?.click()}
-          title="Attach context files (text)"
+          title="Attach files — text/code as context, images sent directly to the model"
           aria-label="Attach files"
         >
           ⎘
