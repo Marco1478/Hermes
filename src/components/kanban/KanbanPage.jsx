@@ -1,11 +1,86 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AnimatePresence } from "framer-motion";
-import { fetchKanbanStatus, fetchKanbanList, fetchKanbanTask } from "../../lib/kanbanBridge.js";
+import { AnimatePresence, motion } from "framer-motion";
+import { fetchKanbanStatus, fetchKanbanList, fetchKanbanTask, createKanbanTask } from "../../lib/kanbanBridge.js";
 import { PageShell } from "../PageShell.jsx";
 import { DiagnosticCard } from "../DiagnosticCard.jsx";
 import { KanbanCard } from "./KanbanCard.jsx";
 import { KanbanDetailDrawer } from "./KanbanDetailDrawer.jsx";
+import { KanbanTaskActions } from "./KanbanTaskActions.jsx";
 import "./KanbanPage.css";
+
+function NewTaskModal({ onClose, onCreated }) {
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [assignee, setAssignee] = useState("");
+  const [triage, setTriage] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const onCreate = async () => {
+    if (!title.trim()) {
+      setError("Title is required.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await createKanbanTask({ title, body, assignee: assignee || undefined, triage });
+      onCreated();
+    } catch (err) {
+      setError(err.message || String(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <motion.div className="job-modal-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+      <motion.div
+        className="glass-card job-modal"
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        transition={{ duration: 0.16 }}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="New task"
+      >
+        <p className="panel-section-title">New task</p>
+
+        <label className="job-modal-label mono">
+          Title
+          <input className="job-modal-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Task title" />
+        </label>
+
+        <label className="job-modal-label mono">
+          Body
+          <textarea className="job-modal-textarea mono" value={body} onChange={(e) => setBody(e.target.value)} rows={5} placeholder="Optional opening post" />
+        </label>
+
+        <label className="job-modal-label mono">
+          Assignee
+          <input className="job-modal-input" value={assignee} onChange={(e) => setAssignee(e.target.value)} placeholder="Optional profile name" />
+        </label>
+
+        <label className="job-modal-label mono kanban-modal-checkbox">
+          <input type="checkbox" checked={triage} onChange={(e) => setTriage(e.target.checked)} />
+          Park in triage (specify later, instead of Ready now)
+        </label>
+
+        {error && <p className="panel-error">{error}</p>}
+
+        <div className="job-modal-actions">
+          <button type="button" className="btn-pill" onClick={onClose} disabled={saving}>
+            cancel
+          </button>
+          <button type="button" className="btn-pill" onClick={onCreate} disabled={saving}>
+            {saving ? "creating…" : "create"}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
 
 const COLUMNS = [
   { key: "backlog", label: "Backlog", statuses: ["triage", "todo"] },
@@ -32,6 +107,7 @@ export function KanbanPage() {
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(null);
+  const [creating, setCreating] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -85,8 +161,29 @@ export function KanbanPage() {
     setDetailError(null);
   }, []);
 
+  const onTaskChanged = useCallback(async () => {
+    await load();
+    if (openId) {
+      try {
+        const res = await fetchKanbanTask(openId);
+        setDetail(res.data);
+      } catch (err) {
+        setDetailError(err.message || String(err));
+      }
+    }
+  }, [load, openId]);
+
   return (
-    <PageShell title="Kanban">
+    <PageShell
+      title="Kanban"
+      headerExtra={
+        status?.configured && (
+          <button type="button" className="btn-pill" onClick={() => setCreating(true)}>
+            + new task
+          </button>
+        )
+      }
+    >
       {status && !status.configured && (
         <DiagnosticCard
           title="Kanban bridge not configured"
@@ -117,7 +214,24 @@ export function KanbanPage() {
       )}
 
       <AnimatePresence>
-        {openId && <KanbanDetailDrawer detail={detail} loading={detailLoading} error={detailError} onClose={closeDrawer} />}
+        {openId && (
+          <KanbanDetailDrawer
+            detail={detail}
+            loading={detailLoading}
+            error={detailError}
+            onClose={closeDrawer}
+            actions={detail && <KanbanTaskActions task={detail.task} onChanged={onTaskChanged} />}
+          />
+        )}
+        {creating && (
+          <NewTaskModal
+            onClose={() => setCreating(false)}
+            onCreated={() => {
+              setCreating(false);
+              load();
+            }}
+          />
+        )}
       </AnimatePresence>
     </PageShell>
   );

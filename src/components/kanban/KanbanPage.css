@@ -215,3 +215,55 @@
     width: 100%;
   }
 }
+
+/* ---- Task actions --------------------------------------------------------- */
+
+.kanban-actions {
+  gap: 0.6rem;
+  padding: 0.85rem;
+  border: 1px solid rgba(110, 231, 223, 0.18);
+  border-radius: 12px;
+  background: rgba(110, 231, 223, 0.03);
+}
+
+.kanban-action-row {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.kanban-action-row--stack {
+  align-items: flex-start;
+}
+
+.kanban-action-input,
+.kanban-action-textarea {
+  flex: 1;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+  color: var(--silver);
+  font-size: 0.7rem;
+  font-family: var(--font-body);
+}
+
+.kanban-action-textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.kanban-action-input:focus,
+.kanban-action-textarea:focus {
+  outline: none;
+  border-color: rgba(110, 231, 223, 0.4);
+}
+
+.kanban-modal-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
