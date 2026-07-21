@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useViewMode } from "../state/ViewMode.jsx";
+import { useCommandPaletteMode } from "../state/CommandPaletteMode.jsx";
 import { BrandMark } from "./BrandMark.jsx";
 import { PageNav } from "./PageNav.jsx";
 import "./PageShell.css";
@@ -12,6 +13,7 @@ import "./PageShell.css";
 */
 export function PageShell({ title, headerExtra, children }) {
   const { enterHero } = useViewMode();
+  const { openPalette } = useCommandPaletteMode();
 
   useEffect(() => {
     const onKey = (e) => {
@@ -27,7 +29,12 @@ export function PageShell({ title, headerExtra, children }) {
       <header className="page-header">
         <h1 className="page-title mono">{title}</h1>
         <PageNav />
-        <div className="page-header-extra">{headerExtra}</div>
+        <div className="page-header-extra">
+          {headerExtra}
+          <button type="button" className="btn-pill" title="Command palette (Ctrl/Cmd+K)" onClick={openPalette}>
+            ⌘K
+          </button>
+        </div>
       </header>
       <div className="page-scroll">
         <div className="page-constrain">{children}</div>

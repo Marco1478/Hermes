@@ -1,0 +1,138 @@
+.cmdpal-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: min(14vh, 6rem);
+}
+
+.cmdpal {
+  width: min(100%, 620px);
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-color: rgba(110, 231, 223, 0.3);
+}
+
+.cmdpal-search {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(110, 231, 223, 0.25);
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  color: var(--white);
+  font-size: 0.85rem;
+}
+
+.cmdpal-search:focus {
+  outline: none;
+  border-color: rgba(110, 231, 223, 0.55);
+}
+
+.cmdpal-output {
+  font-size: 0.68rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.cmdpal-output--ok {
+  color: var(--teal);
+}
+
+.cmdpal-output--warn {
+  color: var(--silver-dim);
+}
+
+.cmdpal-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.7rem;
+  border: 1px solid rgba(217, 143, 122, 0.35);
+  border-radius: 10px;
+}
+
+.cmdpal-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.cmdpal-list {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  scrollbar-width: thin;
+}
+
+.cmdpal-item {
+  display: grid;
+  grid-template-columns: 6rem 1fr auto auto auto;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 0.45rem 0.5rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.cmdpal-item:hover {
+  background: rgba(110, 231, 223, 0.07);
+}
+
+.cmdpal-item-name {
+  color: var(--teal);
+  font-size: 0.72rem;
+}
+
+.cmdpal-item-desc {
+  color: var(--silver-dim);
+  font-size: 0.7rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmdpal-item-status {
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.cmdpal-item-status--available {
+  color: var(--ok);
+  opacity: 0.9;
+}
+
+.cmdpal-item-status--requires_backend {
+  color: var(--warn);
+  opacity: 0.85;
+}
+
+.cmdpal-item-status--unsupported {
+  color: var(--silver-dim);
+}
+
+@media (max-width: 640px) {
+  .cmdpal-item {
+    grid-template-columns: 5rem 1fr;
+  }
+  .cmdpal-item .tag-badge,
+  .cmdpal-item .status-badge,
+  .cmdpal-item-status {
+    display: none;
+  }
+}

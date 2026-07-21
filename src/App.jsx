@@ -10,6 +10,8 @@ import { HermesPage } from "./components/hermes/HermesPage.jsx";
 import { ToolsPage } from "./components/tools/ToolsPage.jsx";
 import { SystemOverviewPage } from "./components/system/SystemOverviewPage.jsx";
 import { KanbanPage } from "./components/kanban/KanbanPage.jsx";
+import { CommandPaletteModeProvider } from "./state/CommandPaletteMode.jsx";
+import { CommandPalette } from "./components/commands/CommandPalette.jsx";
 
 const VIEWS = {
   hero: Hero,
@@ -48,7 +50,10 @@ export function App() {
       <UsageProvider>
         <ViewModeProvider>
           <ChatProvider>
-            <Stage />
+            <CommandPaletteModeProvider>
+              <Stage />
+              <CommandPalette />
+            </CommandPaletteModeProvider>
           </ChatProvider>
         </ViewModeProvider>
       </UsageProvider>
