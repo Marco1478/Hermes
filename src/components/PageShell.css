@@ -357,7 +357,7 @@
 }
 
 /* "Running" — the same cool steel-blue already used for the OpenAI ring
-   (hero/HeroSidebar.css), reused here instead of inventing a new hue. */
+   (UsageRing.css), reused here instead of inventing a new hue. */
 .status-badge--info {
   color: #cfe6ff;
   border-color: rgba(160, 210, 255, 0.4);

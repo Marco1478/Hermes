@@ -1,1 +1,182 @@
-/* Rich content styles land with CLAUDE-002. */
+/* ---- Gateway ---------------------------------------------------------- */
+
+.overview-gateway {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.overview-gateway-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  color: var(--silver-dim);
+  opacity: 0.7;
+  font-size: 0.68rem;
+}
+
+.overview-gateway .panel-error {
+  flex-basis: 100%;
+}
+
+/* ---- Usage -------------------------------------------------------------- */
+
+.overview-usage {
+  display: flex;
+  justify-content: center;
+  gap: clamp(1.5rem, 5vw, 3.5rem);
+  padding: 1.75rem 1.5rem;
+}
+
+/* ---- Two-column row ------------------------------------------------------ */
+
+.overview-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.overview-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.overview-summary {
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.overview-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.overview-tile {
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.overview-tile-label {
+  color: var(--silver-dim);
+  opacity: 0.55;
+  font-size: 0.54rem;
+  letter-spacing: 0.07em;
+}
+
+.overview-tile-value {
+  color: var(--white);
+  font-size: 0.92rem;
+}
+
+.overview-tile-sub {
+  color: var(--silver-dim);
+  opacity: 0.5;
+  font-size: 0.52rem;
+}
+
+.overview-tile--ok .overview-tile-value {
+  color: var(--ok);
+}
+
+.overview-tile--bad .overview-tile-value {
+  color: var(--bad);
+}
+
+/* ---- Platforms ------------------------------------------------------------ */
+
+.overview-platforms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.85rem;
+}
+
+.overview-platform {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  color: var(--silver-dim);
+  font-size: 0.68rem;
+}
+
+/* ---- Profile ---------------------------------------------------------------- */
+
+.overview-profile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.overview-profile-name {
+  color: var(--white);
+  font-size: 0.85rem;
+}
+
+.overview-profile-model,
+.overview-profile-meta {
+  color: var(--silver-dim);
+  opacity: 0.65;
+  font-size: 0.64rem;
+}
+
+/* ---- Sessions ----------------------------------------------------------------- */
+
+.overview-section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.overview-sessions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.6rem;
+}
+
+.overview-session {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.7rem 0.9rem;
+}
+
+.overview-session--active {
+  border-color: var(--glass-border-hover);
+}
+
+.overview-session-title {
+  flex: 1;
+  min-width: 0;
+  color: var(--silver-dim);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.overview-session--active .overview-session-title {
+  color: var(--white);
+}
+
+.overview-session-meta {
+  flex: none;
+  color: var(--silver-dim);
+  opacity: 0.45;
+  font-size: 0.58rem;
+}
+
+@media (max-width: 720px) {
+  .overview-row {
+    grid-template-columns: 1fr;
+  }
+}

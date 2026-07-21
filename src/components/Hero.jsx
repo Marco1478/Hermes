@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { BrandMark } from "./BrandMark.jsx";
-import { HeroSidebar } from "./hero/HeroSidebar.jsx";
 import { ParallaxGrid } from "./ParallaxGrid.jsx";
 import { Waveform } from "./Waveform.jsx";
 import { SwarmCanvas } from "./SwarmCanvas.jsx";
@@ -77,8 +76,9 @@ export function Hero() {
       {/* Logo / home button, top-left */}
       <BrandMark />
 
-      {/* Right-side command surface: real operational data in one coherent deck. */}
-      <HeroSidebar />
+      {/* The rich operational dashboard lives on its own tab now (open it
+          from BrandMark while already on the hero) — the hero stays
+          cinematic. A compact usage widget lands here next. */}
 
       {/* Identity block — stronger, left aligned, no longer competing with random telemetry. */}
       <header className="hero-id">
