@@ -638,6 +638,25 @@ export function hermesBridgePlugin({
         const result = await kanban.runText(["unlink", body.parentId, body.childId]);
         sendJson(res, result.ok ? 200 : 502, result);
       });
+
+      use("/local/kanban/dispatch", async (req, res) => {
+        if (req.method !== "POST") {
+          sendJson(res, 405, { ok: false, error: "POST only" });
+          return;
+        }
+        let body;
+        try {
+          body = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid JSON body" });
+          return;
+        }
+        const args = ["dispatch", "--json"];
+        if (body.dryRun) args.push("--dry-run");
+        if (body.max != null) args.push("--max", String(Math.max(1, Math.min(5, Number(body.max) || 1))));
+        const result = await kanban.runJson(args);
+        sendJson(res, result.ok ? 200 : 502, result);
+      });
     },
   };
 }

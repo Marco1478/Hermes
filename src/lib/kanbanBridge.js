@@ -55,3 +55,5 @@ export const completeKanbanTasks = (ids, result, summary) => sendJson("/local/ka
 export const archiveKanbanTasks = (ids) => sendJson("/local/kanban/archive", "POST", { ids });
 export const linkKanbanTasks = (parentId, childId) => sendJson("/local/kanban/link", "POST", { parentId, childId });
 export const unlinkKanbanTasks = (parentId, childId) => sendJson("/local/kanban/unlink", "POST", { parentId, childId });
+
+export const dispatchKanban = (max = 1, dryRun = false) => sendJson("/local/kanban/dispatch", "POST", { max, dryRun });

@@ -34,42 +34,33 @@ function buildRemoteCommand(args) {
 }
 
 export function createKanbanExec({ sshHost, sshKeyPath, timeoutMs = 15000 }) {
-  const configured = Boolean(sshHost && sshKeyPath);
+  const hasSsh = Boolean(sshHost && sshKeyPath);
+  const configured = true; // SSH if configured, otherwise local Docker CLI fallback in the Hermes container.
 
   function run(args) {
     return new Promise((resolve) => {
-      if (!configured) {
-        resolve({
-          ok: false,
-          stdout: "",
-          stderr: "Kanban SSH bridge not configured (set HERMES_SSH_HOST / HERMES_SSH_KEY_PATH in .env.local).",
-        });
-        return;
-      }
-      const remoteCommand = buildRemoteCommand(args);
-      execFile(
-        "ssh",
-        [
-          "-i",
-          sshKeyPath,
-          "-o",
-          "BatchMode=yes",
-          "-o",
-          "ConnectTimeout=8",
-          "-o",
-          "StrictHostKeyChecking=accept-new",
-          sshHost,
-          remoteCommand,
-        ],
-        { timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024 },
-        (err, stdout, stderr) => {
-          if (err) {
-            resolve({ ok: false, stdout: stdout || "", stderr: (stderr || err.message || "").trim() });
-            return;
-          }
-          resolve({ ok: true, stdout: stdout || "", stderr: (stderr || "").trim() });
+      const command = hasSsh ? "ssh" : "docker";
+      const argv = hasSsh
+        ? [
+            "-i",
+            sshKeyPath,
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "ConnectTimeout=8",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            sshHost,
+            buildRemoteCommand(args),
+          ]
+        : ["exec", "hermes", "hermes", "kanban", ...args];
+      execFile(command, argv, { timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024 }, (err, stdout, stderr) => {
+        if (err) {
+          resolve({ ok: false, stdout: stdout || "", stderr: (stderr || err.message || "").trim() });
+          return;
         }
-      );
+        resolve({ ok: true, stdout: stdout || "", stderr: (stderr || "").trim() });
+      });
     });
   }
 

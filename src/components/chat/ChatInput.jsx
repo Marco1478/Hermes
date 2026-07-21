@@ -1,9 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useChat } from "../../state/Chat.jsx";
+import { useViewMode } from "../../state/ViewMode.jsx";
+import { useCommandPaletteMode } from "../../state/CommandPaletteMode.jsx";
 import { useSlashCommands } from "../../hooks/useSlashCommands.js";
+import { COMMANDS } from "../../data/commandRegistry.js";
 import { CommandPalette } from "./CommandPalette.jsx";
 import { FileVault } from "../files/FileVault.jsx";
+import { fetchMessagingPlatforms, fetchHermesModels, fetchHermesToolsets, fetchHermesSkills, fetchCronJobs, fetchHermesProfiles } from "../../lib/hermesBridge.js";
+import { fetchKanbanList } from "../../lib/kanbanBridge.js";
 import "./ChatInput.css";
 import "../files/FileVault.css";
 
@@ -56,7 +61,21 @@ function readAsDataUrl(file) {
   visible bubble, shown as chips instead).
 */
 export function ChatInput() {
-  const { draft, setDraft, send, stop, thinking } = useChat();
+  const {
+    draft,
+    setDraft,
+    send,
+    stop,
+    retry,
+    newChat,
+    exportChat,
+    activeId,
+    messages,
+    thinking,
+    addLocalResponse,
+  } = useChat();
+  const { goTo } = useViewMode();
+  const { openPalette } = useCommandPaletteMode();
   const inputRef = useRef(null);
   const fileRef = useRef(null);
   const recogRef = useRef(null);
@@ -140,10 +159,133 @@ export function ChatInput() {
   const removeFile = (name) => setFiles((prev) => prev.filter((f) => f.name !== name));
   const dismissRejection = (name) => setRejections((prev) => prev.filter((r) => r.name !== name));
 
-  const submit = () => {
+  const executeSlashCommand = async (text) => {
+    const [rawName, ...args] = text.slice(1).trim().split(/\s+/);
+    const name = (rawName || "").toLowerCase();
+    const cmd = COMMANDS.find((c) => c.name === name);
+    const say = (msg, isError = false) => addLocalResponse(text, msg, { isError });
+
+    if (!name) {
+      openPalette();
+      say("Command Palette aperta. Cerca un comando o continua a scrivere dopo `/`.");
+      return;
+    }
+    if (!cmd) {
+      say(`Comando /${name} non riconosciuto. Usa /help o Ctrl/Cmd+K per vedere i comandi disponibili.`, true);
+      return;
+    }
+
+    // UI-local commands that are actually possible from this chat surface.
+    if (name === "new" || name === "reset") {
+      newChat();
+      return;
+    }
+    if (name === "stop") {
+      if (thinking) stop();
+      else say("Nessuna run attiva da fermare.");
+      return;
+    }
+    if (name === "retry") {
+      const lastHermes = [...messages].reverse().find((m) => m.role === "hermes" && !m.streaming);
+      if (lastHermes) retry(lastHermes.id);
+      else say("Non c'è ancora una risposta Hermes da rilanciare.", true);
+      return;
+    }
+    if (name === "save") {
+      if (activeId) exportChat(activeId);
+      say("Export della chat avviato dal browser.");
+      return;
+    }
+    if (name === "image" || name === "paste") {
+      fileRef.current?.click();
+      say(name === "image" ? "Selettore file aperto: immagini supportate come input reale al modello." : "Il paste nativo del browser funziona nel composer; per immagini/file usa anche il pulsante attach.");
+      return;
+    }
+
+    if (cmd.status !== "available") {
+      say(`/${cmd.name} non può essere utilizzato direttamente da questa chat UI. Motivo: ${cmd.note}`, true);
+      return;
+    }
+    if (cmd.risk !== "safe") {
+      say(`/${cmd.name} è ${cmd.risk} e richiede conferma visiva nella Command Palette/Safety Center. Motivo: ${cmd.note}`, true);
+      openPalette();
+      return;
+    }
+
+    try {
+      switch (name) {
+        case "help":
+        case "commands":
+          say(
+            `${COMMANDS.length} comandi registrati. Esempi eseguibili qui: /status, /kanban, /cron, /tools, /skills, /platforms, /model, /new, /retry, /stop. ` +
+              `Se un comando è solo Telegram/CLI o richiede conferma, la chat lo spiega invece di fingere successo.`
+          );
+          return;
+        case "status":
+        case "usage":
+        case "profile":
+          goTo("system");
+          say(`/${name}: apro System Overview con i dati reali del backend.`);
+          return;
+        case "platforms": {
+          const res = await fetchMessagingPlatforms();
+          const platforms = (res.platforms || []).map((p) => `${p.name || p.id}:${p.enabled ? p.status || "enabled" : "off"}`).join(", ") || "nessuna";
+          say(`/platforms → ${platforms}`);
+          return;
+        }
+        case "model": {
+          const res = await fetchHermesModels();
+          say(res.configured ? `/model → ${res.options?.length ?? 0} opzioni disponibili. Per cambiare modello usa Hermes/System; il cambio è globale.` : "/model → dashboard non configurata.");
+          return;
+        }
+        case "tools":
+        case "toolsets": {
+          const res = await fetchHermesToolsets();
+          goTo("tools");
+          say(`/${name} → ${res.toolsets?.filter((t) => t.enabled).length ?? 0}/${res.toolsets?.length ?? 0} toolset attivi. Apro Tools.`);
+          return;
+        }
+        case "skills": {
+          const res = await fetchHermesSkills();
+          goTo("hermes");
+          say(`/skills → ${res.skills?.length ?? 0} skill rilevate. Apro Hermes.`);
+          return;
+        }
+        case "cron": {
+          const res = await fetchCronJobs();
+          goTo("jobs");
+          say(`/cron → ${(res.jobs || res || []).length ?? 0} job letti. Apro Jobs.`);
+          return;
+        }
+        case "kanban": {
+          const res = await fetchKanbanList({});
+          goTo("kanban");
+          say(`/kanban → ${res.data?.length ?? 0} task attivi. Apro Kanban.`);
+          return;
+        }
+        case "history":
+          goTo("chat");
+          say("/history → la cronologia è nel drawer Chats a sinistra della chat.");
+          return;
+        default: {
+          const [toolsetsRes, skillsRes, cronRes, profRes] = await Promise.allSettled([fetchHermesToolsets(), fetchHermesSkills(), fetchCronJobs(), fetchHermesProfiles()]);
+          say(`/${name} → check bridge: toolsets=${toolsetsRes.status} skills=${skillsRes.status} cron=${cronRes.status} profiles=${profRes.status}.`);
+        }
+      }
+    } catch (err) {
+      say(`/${name} fallito: ${err.message || String(err)}`, true);
+    }
+  };
+
+  const submit = async () => {
     if (thinking) return;
     const text = draft.trim();
     if (!text && files.length === 0) return;
+    if (text.startsWith("/") && files.length === 0) {
+      setDraft("");
+      await executeSlashCommand(text);
+      return;
+    }
     if (files.length) {
       const textFiles = files.filter((f) => !f.isImage);
       const images = files.filter((f) => f.isImage);

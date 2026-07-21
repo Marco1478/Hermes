@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { fetchKanbanStatus, fetchKanbanList, fetchKanbanTask, createKanbanTask } from "../../lib/kanbanBridge.js";
+import { AnimatePresence, Reorder, motion, useDragControls } from "framer-motion";
+import { fetchKanbanStatus, fetchKanbanList, fetchKanbanTask, createKanbanTask, dispatchKanban } from "../../lib/kanbanBridge.js";
 import { PageShell } from "../PageShell.jsx";
 import { DiagnosticCard } from "../DiagnosticCard.jsx";
 import { KanbanCard } from "./KanbanCard.jsx";
@@ -8,11 +8,12 @@ import { KanbanDetailDrawer } from "./KanbanDetailDrawer.jsx";
 import { KanbanTaskActions } from "./KanbanTaskActions.jsx";
 import "./KanbanPage.css";
 
-function NewTaskModal({ onClose, onCreated }) {
+function NewTaskModal({ onClose, onCreated, presetColumn }) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [assignee, setAssignee] = useState("");
-  const [triage, setTriage] = useState(false);
+  const [triage, setTriage] = useState(presetColumn === "backlog");
+  const [dispatchAfter, setDispatchAfter] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -25,6 +26,7 @@ function NewTaskModal({ onClose, onCreated }) {
     setError(null);
     try {
       await createKanbanTask({ title, body, assignee: assignee || undefined, triage });
+      if (dispatchAfter) await dispatchKanban(1, false);
       onCreated();
     } catch (err) {
       setError(err.message || String(err));
@@ -61,10 +63,18 @@ function NewTaskModal({ onClose, onCreated }) {
           Assignee
           <input className="job-modal-input" value={assignee} onChange={(e) => setAssignee(e.target.value)} placeholder="Optional profile name" />
         </label>
+        <div className="kanban-assignee-presets">
+          <button type="button" className="btn-pill" onClick={() => setAssignee("default")}>Hermes default</button>
+          <button type="button" className="btn-pill" onClick={() => setAssignee("claude")}>Claude</button>
+        </div>
 
         <label className="job-modal-label mono kanban-modal-checkbox">
           <input type="checkbox" checked={triage} onChange={(e) => setTriage(e.target.checked)} />
           Park in triage (specify later, instead of Ready now)
+        </label>
+        <label className="job-modal-label mono kanban-modal-checkbox">
+          <input type="checkbox" checked={dispatchAfter} onChange={(e) => setDispatchAfter(e.target.checked)} />
+          Dispatch immediately after creation (starts the Kanban worker if a ready assignee exists)
         </label>
 
         {error && <p className="panel-error">{error}</p>}
@@ -74,7 +84,7 @@ function NewTaskModal({ onClose, onCreated }) {
             cancel
           </button>
           <button type="button" className="btn-pill" onClick={onCreate} disabled={saving}>
-            {saving ? "creating…" : "create"}
+            {saving ? "creating…" : dispatchAfter ? "create + dispatch" : "create"}
           </button>
         </div>
       </motion.div>
@@ -90,6 +100,44 @@ const COLUMNS = [
   { key: "review", label: "Review", statuses: ["review"] },
   { key: "done", label: "Done", statuses: ["done"] },
 ];
+const COLUMN_ORDER_KEY = "hermes-ui.kanban.column-order.v1";
+const DEFAULT_COLUMN_ORDER = COLUMNS.map((c) => c.key);
+
+function loadColumnOrder() {
+  try {
+    const raw = localStorage.getItem(COLUMN_ORDER_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (!Array.isArray(parsed)) return DEFAULT_COLUMN_ORDER;
+    const valid = parsed.filter((k) => DEFAULT_COLUMN_ORDER.includes(k));
+    return [...valid, ...DEFAULT_COLUMN_ORDER.filter((k) => !valid.includes(k))];
+  } catch {
+    return DEFAULT_COLUMN_ORDER;
+  }
+}
+
+function KanbanColumn({ col, tasks, onOpen, onCreate }) {
+  const controls = useDragControls();
+  const count = tasks?.length || 0;
+  return (
+    <Reorder.Item as="section" value={col.key} className={`kanban-column kanban-column--${col.key}`} dragListener={false} dragControls={controls}>
+      <div className="kanban-column-head" onPointerDown={(e) => controls.start(e)} title="Drag from the title to reorder columns">
+        <span className="panel-section-title">{col.label}</span>
+        <span className="kanban-column-count mono">{count}</span>
+      </div>
+      <div className="kanban-column-body">
+        {count === 0 && (
+          <button type="button" className="kanban-empty-create" onClick={onCreate} aria-label={`Create task in ${col.label}`}>
+            <span className="kanban-empty-plus">+</span>
+            <span className="kanban-empty-copy mono">add task</span>
+          </button>
+        )}
+        {tasks?.map((t) => (
+          <KanbanCard key={t.id} task={t} onOpen={onOpen} />
+        ))}
+      </div>
+    </Reorder.Item>
+  );
+}
 
 /*
   KanbanPage — Marco's real operational board: Hermes/Claude/GitHub/cron
@@ -107,7 +155,8 @@ export function KanbanPage() {
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(null);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState(null);
+  const [columnOrder, setColumnOrder] = useState(loadColumnOrder);
 
   const load = useCallback(async () => {
     try {
@@ -139,6 +188,16 @@ export function KanbanPage() {
     }
     return byKey;
   }, [tasks]);
+
+  const orderedColumns = useMemo(() => columnOrder.map((key) => COLUMNS.find((c) => c.key === key)).filter(Boolean), [columnOrder]);
+  const updateColumnOrder = useCallback((next) => {
+    setColumnOrder(next);
+    try {
+      localStorage.setItem(COLUMN_ORDER_KEY, JSON.stringify(next));
+    } catch {
+      /* best effort */
+    }
+  }, []);
 
   const openTask = useCallback(async (id) => {
     setOpenId(id);
@@ -178,7 +237,7 @@ export function KanbanPage() {
       title="Kanban"
       headerExtra={
         status?.configured && (
-          <button type="button" className="btn-pill" onClick={() => setCreating(true)}>
+          <button type="button" className="btn-pill" onClick={() => setCreating({ presetColumn: "ready" })}>
             + new task
           </button>
         )
@@ -195,22 +254,17 @@ export function KanbanPage() {
       {!status && !error && <p className="panel-empty">Loading…</p>}
 
       {status?.configured && !error && (
-        <div className="kanban-board">
-          {COLUMNS.map((col) => (
-            <div key={col.key} className="kanban-column">
-              <div className="kanban-column-head">
-                <span className="panel-section-title">{col.label}</span>
-                <span className="kanban-column-count mono">{columns[col.key]?.length || 0}</span>
-              </div>
-              <div className="kanban-column-body">
-                {columns[col.key]?.length === 0 && <p className="panel-empty">Empty.</p>}
-                {columns[col.key]?.map((t) => (
-                  <KanbanCard key={t.id} task={t} onOpen={openTask} />
-                ))}
-              </div>
-            </div>
+        <Reorder.Group as="div" axis="x" values={columnOrder} onReorder={updateColumnOrder} className="kanban-board">
+          {orderedColumns.map((col) => (
+            <KanbanColumn
+              key={col.key}
+              col={col}
+              tasks={columns[col.key]}
+              onOpen={openTask}
+              onCreate={() => setCreating({ presetColumn: col.key })}
+            />
           ))}
-        </div>
+        </Reorder.Group>
       )}
 
       <AnimatePresence>
@@ -225,9 +279,10 @@ export function KanbanPage() {
         )}
         {creating && (
           <NewTaskModal
-            onClose={() => setCreating(false)}
+            presetColumn={creating.presetColumn}
+            onClose={() => setCreating(null)}
             onCreated={() => {
-              setCreating(false);
+              setCreating(null);
               load();
             }}
           />

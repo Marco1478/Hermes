@@ -307,6 +307,33 @@ export function ChatProvider({ children }) {
     [activeId, patchChat]
   );
 
+  const addLocalResponse = useCallback(
+    (userText, responseText, { isError = false } = {}) => {
+      const cid = activeId || chatsRef.current[0]?.id;
+      if (!cid) return;
+      const userMsgId = uid();
+      const hermesMsgId = uid();
+      enterChat();
+      setChats((prev) =>
+        prev.map((c) =>
+          c.id !== cid
+            ? c
+            : {
+                ...c,
+                title: c.title || deriveTitle(userText),
+                updatedAt: Date.now(),
+                messages: [
+                  ...c.messages,
+                  { id: userMsgId, role: "user", text: userText },
+                  { id: hermesMsgId, role: "hermes", text: responseText, isError, thoughts: [{ label: "slash command", detail: "handled locally by the custom UI" }] },
+                ],
+              }
+        )
+      );
+    },
+    [activeId, enterChat]
+  );
+
   const renameChat = useCallback(
     (id, title) => {
       const clean = title.trim();
@@ -364,6 +391,7 @@ export function ChatProvider({ children }) {
       switchChat,
       deleteChat,
       setModel,
+      addLocalResponse,
       renameChat,
       togglePin,
       exportChat,
@@ -386,6 +414,7 @@ export function ChatProvider({ children }) {
       switchChat,
       deleteChat,
       setModel,
+      addLocalResponse,
       renameChat,
       togglePin,
       exportChat,
