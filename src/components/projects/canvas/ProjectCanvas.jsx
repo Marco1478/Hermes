@@ -20,6 +20,16 @@ const NODE_TYPES = [
   { key: "kanban", label: "Kanban ref", glyph: "▤" },
 ];
 
+// Grouped purely for toolbar presentation (CLAUDE-004) — same NODE_TYPES
+// data, just clustered so the toolbar reads as "notes / shapes / structure
+// / references" instead of one flat row of ten buttons.
+const NODE_GROUPS = [
+  { label: "Notes", keys: ["text", "sticky", "card"] },
+  { label: "Shapes", keys: ["decision", "circle"] },
+  { label: "Structure", keys: ["checklist"] },
+  { label: "References", keys: ["image", "file", "note", "kanban"] },
+];
+
 const COLORS = ["teal", "warn", "bad", "ok", "violet"];
 const GRID = 20;
 const MIN_W = 100;
@@ -267,75 +277,83 @@ function NodeContent({ node, notes }) {
 function NodeInspector({ node, notes, onChange, onDelete, onDuplicate, onClose }) {
   return (
     <aside className="canvas-inspector">
-      <div className="project-section-head">
-        <p className="panel-section-title" style={{ marginBottom: 0 }}>
-          {NODE_TYPES.find((t) => t.key === node.type)?.label || node.type}
-        </p>
+      <div className="canvas-inspector-head">
+        <p className="canvas-inspector-type mono">{NODE_TYPES.find((t) => t.key === node.type)?.label || node.type}</p>
         <button type="button" className="btn-pill" onClick={onClose}>
           close
         </button>
       </div>
-      <label className="job-modal-label mono">
-        Title
-        <input className="job-modal-input" value={node.title} onChange={(e) => onChange({ title: e.target.value })} />
-      </label>
-      {node.type !== "checklist" && node.type !== "note" && node.type !== "kanban" && (
+
+      <div className="canvas-inspector-section">
+        <p className="canvas-inspector-section-title">Content</p>
         <label className="job-modal-label mono">
-          Body
-          <textarea className="job-modal-textarea mono" rows={4} value={node.body} onChange={(e) => onChange({ body: e.target.value })} />
+          Title
+          <input className="job-modal-input" value={node.title} onChange={(e) => onChange({ title: e.target.value })} />
         </label>
-      )}
-      {(node.type === "image" || node.type === "file") && (
-        <>
+        {node.type !== "checklist" && node.type !== "note" && node.type !== "kanban" && (
           <label className="job-modal-label mono">
-            {node.type === "image" ? "Image URL" : "File URL / vault path"}
-            <input className="job-modal-input" value={node.ref?.url || ""} onChange={(e) => onChange({ ref: { url: e.target.value } })} placeholder="https://…" />
+            Body
+            <textarea className="job-modal-textarea mono" rows={4} value={node.body} onChange={(e) => onChange({ body: e.target.value })} />
           </label>
-          <p className="panel-empty canvas-inspector-hint">
-            {node.type === "image"
-              ? "A public image URL — pasted, it previews live below. There's no upload on this build; a vault-relative path won't render here (the browser can't reach it), only a real https:// link will."
-              : "A link (https://…) opens in a new tab from the node. A vault-relative path (e.g. Hermes/Projects/…/assets/file.pdf) is stored as a reference but can't be opened from here — there's no upload/open-from-vault on this build."}
-          </p>
-          {node.type === "image" && node.ref?.url && (
-            <div className="canvas-inspector-preview">
-              <ImagePreview url={node.ref.url} />
-            </div>
-          )}
-        </>
-      )}
-      {node.type === "note" && (
-        <label className="job-modal-label mono">
-          Linked note
-          <select className="notes-meta-select mono" value={node.ref?.noteId || ""} onChange={(e) => onChange({ ref: { noteId: e.target.value || null } })}>
-            <option value="">none</option>
-            {notes.map((n) => (
-              <option key={n.id} value={n.id}>
-                {n.title || "Untitled"}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-      {node.type === "kanban" && (
-        <label className="job-modal-label mono">
-          Kanban task ID
-          <input className="job-modal-input mono" value={node.ref?.taskId || ""} onChange={(e) => onChange({ ref: { taskId: e.target.value } })} placeholder="t_xxxxxxxx" />
-        </label>
-      )}
-      {node.type === "checklist" && (
-        <ChecklistEditor items={node.checklist} onChange={(checklist) => onChange({ checklist })} />
-      )}
-      <div className="notes-color-row">
-        {COLORS.map((c) => (
-          <button
-            key={c}
-            type="button"
-            className={`note-color-swatch note-color-swatch--${c}${node.color === c ? " note-color-swatch--active" : ""}`}
-            onClick={() => onChange({ color: c })}
-          />
-        ))}
+        )}
+        {(node.type === "image" || node.type === "file") && (
+          <>
+            <label className="job-modal-label mono">
+              {node.type === "image" ? "Image URL" : "File URL / vault path"}
+              <input className="job-modal-input" value={node.ref?.url || ""} onChange={(e) => onChange({ ref: { url: e.target.value } })} placeholder="https://…" />
+            </label>
+            <p className="panel-empty canvas-inspector-hint">
+              {node.type === "image"
+                ? "A public image URL — pasted, it previews live below. There's no upload on this build; a vault-relative path won't render here (the browser can't reach it), only a real https:// link will."
+                : "A link (https://…) opens in a new tab from the node. A vault-relative path (e.g. Hermes/Projects/…/assets/file.pdf) is stored as a reference but can't be opened from here — there's no upload/open-from-vault on this build."}
+            </p>
+            {node.type === "image" && node.ref?.url && (
+              <div className="canvas-inspector-preview">
+                <ImagePreview url={node.ref.url} />
+              </div>
+            )}
+          </>
+        )}
+        {node.type === "note" && (
+          <label className="job-modal-label mono">
+            Linked note
+            <select className="notes-meta-select mono" value={node.ref?.noteId || ""} onChange={(e) => onChange({ ref: { noteId: e.target.value || null } })}>
+              <option value="">none</option>
+              {notes.map((n) => (
+                <option key={n.id} value={n.id}>
+                  {n.title || "Untitled"}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {node.type === "kanban" && (
+          <label className="job-modal-label mono">
+            Kanban task ID
+            <input className="job-modal-input mono" value={node.ref?.taskId || ""} onChange={(e) => onChange({ ref: { taskId: e.target.value } })} placeholder="t_xxxxxxxx" />
+          </label>
+        )}
+        {node.type === "checklist" && (
+          <ChecklistEditor items={node.checklist} onChange={(checklist) => onChange({ checklist })} />
+        )}
       </div>
-      <div className="job-modal-actions">
+
+      <div className="canvas-inspector-section">
+        <p className="canvas-inspector-section-title">Appearance</p>
+        <div className="notes-color-row">
+          {COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`note-color-swatch note-color-swatch--${c}${node.color === c ? " note-color-swatch--active" : ""}`}
+              onClick={() => onChange({ color: c })}
+              title={c}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="canvas-inspector-actions">
         <GlassButton variant="secondary" onClick={onDuplicate}>
           duplicate
         </GlassButton>
@@ -431,6 +449,7 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
   const [snapEnabled, setSnapEnabled] = useState(false);
   const [connecting, setConnecting] = useState(null); // { fromId, x, y } in world coords
   const [mode, setMode] = useState("select");
+  const [showModeHelp, setShowModeHelp] = useState(false);
   const panRef = useRef(null);
   const viewportRef = useRef(null);
   const saveTimer = useRef(null);
@@ -730,6 +749,16 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
     setZoom((z) => Math.min(2, Math.max(0.4, z - e.deltaY * 0.001)));
   };
 
+  // HUD zoom controls (CLAUDE-004) — the wheel already zooms, but "no tiny
+  // raw text controls" means the zoom% readout needs real +/-/reset buttons
+  // next to it, not just a passive label.
+  const zoomIn = () => setZoom((z) => Math.min(2, +(z + 0.1).toFixed(2)));
+  const zoomOut = () => setZoom((z) => Math.max(0.4, +(z - 0.1).toFixed(2)));
+  const zoomReset = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
+
   return (
     <div className="project-canvas-editor">
       <div className="project-section-head">
@@ -750,32 +779,67 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
             # snap
           </GlassButton>
         </GlassToolbar>
-        <span className="mono panel-empty">zoom {Math.round(zoom * 100)}%</span>
       </div>
 
-      <div className="canvas-mode-bar" role="radiogroup" aria-label="Canvas interaction mode">
-        {MODES.map((m) => (
+      <div className="canvas-mode-bar-row">
+        <div className="canvas-mode-bar" role="radiogroup" aria-label="Canvas interaction mode">
+          {MODES.map((m) => (
+            <button
+              key={m.key}
+              type="button"
+              role="radio"
+              aria-checked={mode === m.key}
+              className={`canvas-mode-btn${mode === m.key ? " canvas-mode-btn--active" : ""}`}
+              onClick={() => setMode(m.key)}
+              title={`${m.hint} (${m.shortcut})`}
+            >
+              {m.label}
+              <span className="canvas-mode-btn-key mono">{m.shortcut}</span>
+            </button>
+          ))}
+        </div>
+        <div className="canvas-mode-help-wrap">
           <button
-            key={m.key}
             type="button"
-            role="radio"
-            aria-checked={mode === m.key}
-            className={`canvas-mode-btn${mode === m.key ? " canvas-mode-btn--active" : ""}`}
-            onClick={() => setMode(m.key)}
-            title={`${m.hint} (${m.shortcut})`}
+            className={`canvas-mode-help-btn${showModeHelp ? " canvas-mode-help-btn--active" : ""}`}
+            onClick={() => setShowModeHelp((s) => !s)}
+            title="Mode help"
+            aria-expanded={showModeHelp}
           >
-            {m.label}
-            <span className="canvas-mode-btn-key mono">{m.shortcut}</span>
+            ?
           </button>
-        ))}
+          {showModeHelp && (
+            <div className="canvas-mode-help-popover">
+              <p className="canvas-inspector-section-title">Modes</p>
+              <dl className="canvas-mode-help-list">
+                {MODES.map((m) => (
+                  <div key={m.key} className="canvas-mode-help-row">
+                    <dt>
+                      {m.label} <span className="canvas-mode-btn-key mono">{m.shortcut}</span>
+                    </dt>
+                    <dd>{m.hint}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
+        </div>
       </div>
 
       <GlassToolbar className="canvas-toolbar">
-        {NODE_TYPES.map((t) => (
-          <button key={t.key} type="button" className="canvas-toolbar-btn" onClick={() => addNode(t.key)} title={`Add ${t.label}`}>
-            <span>{t.glyph}</span>
-            {t.label}
-          </button>
+        {NODE_GROUPS.map((group, gi) => (
+          <div className="canvas-toolbar-group" key={group.label}>
+            {gi > 0 && <span className="canvas-toolbar-divider" aria-hidden="true" />}
+            {group.keys.map((key) => {
+              const t = NODE_TYPES.find((n) => n.key === key);
+              return (
+                <button key={t.key} type="button" className="canvas-toolbar-btn" onClick={() => addNode(t.key)} title={`Add ${t.label}`}>
+                  <span>{t.glyph}</span>
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
         ))}
       </GlassToolbar>
 
@@ -801,12 +865,45 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
                 </div>
               </NodeShell>
             ))}
-            {nodes.length === 0 && (
-              <div className="canvas-empty-hint">
-                <p className="canvas-empty-hint-title">Empty canvas</p>
-                <p className="canvas-empty-hint-body">Add a shape from the toolbar above, then drag from a selected node's dot to connect it to another.</p>
+          </div>
+
+          {nodes.length === 0 && (
+            <div className="canvas-empty-state">
+              <div className="canvas-empty-card">
+                <p className="canvas-empty-card-title">This canvas is empty</p>
+                <p className="canvas-empty-card-body">
+                  Add a node, then drag from a selected node's dot to connect it to another. Switch modes (below the
+                  toolbar) to pan, connect, or place nodes exactly where you click.
+                </p>
+                <div className="canvas-empty-card-actions">
+                  <GlassButton variant="secondary" onClick={() => addNode("text")}>
+                    + Text
+                  </GlassButton>
+                  <GlassButton variant="secondary" onClick={() => addNode("card")}>
+                    + Shape
+                  </GlassButton>
+                  <GlassButton variant="secondary" onClick={() => addNode("image")}>
+                    + Reference asset
+                  </GlassButton>
+                  <GlassButton variant="secondary" onClick={() => setShowModeHelp(true)}>
+                    Mode help
+                  </GlassButton>
+                </div>
               </div>
-            )}
+            </div>
+          )}
+
+          <div className="canvas-hud">
+            <button type="button" className="canvas-hud-btn" onClick={zoomOut} title="Zoom out">
+              –
+            </button>
+            <span className="canvas-hud-zoom mono">{Math.round(zoom * 100)}%</span>
+            <button type="button" className="canvas-hud-btn" onClick={zoomIn} title="Zoom in">
+              +
+            </button>
+            <button type="button" className="canvas-hud-btn canvas-hud-reset" onClick={zoomReset} title="Reset view">
+              ⤾
+            </button>
           </div>
 
           {/* Floats ON TOP of the viewport instead of sharing a grid column
