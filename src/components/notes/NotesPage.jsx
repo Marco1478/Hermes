@@ -128,6 +128,7 @@ export function NotesPage() {
   const [activeFolder, setActiveFolder] = useState("all"); // "all" | "unfiled" | folder name
   const [activeTag, setActiveTag] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [linkFilter, setLinkFilter] = useState("all"); // "all" | "free" | "linked"
   const [sort, setSort] = useState("updated");
   const [preview, setPreview] = useState(true);
   const [newChecklistText, setNewChecklistText] = useState("");
@@ -145,6 +146,8 @@ export function NotesPage() {
     if (activeFolder === "unfiled") list = list.filter((n) => !n.folder);
     else if (activeFolder !== "all") list = list.filter((n) => n.folder === activeFolder);
     if (activeTag) list = list.filter((n) => (n.tags || []).includes(activeTag));
+    if (linkFilter === "free") list = list.filter((n) => !usageByNoteId.get(n.id));
+    else if (linkFilter === "linked") list = list.filter((n) => usageByNoteId.get(n.id));
     if (q) {
       list = list.filter(
         (n) =>
@@ -160,7 +163,7 @@ export function NotesPage() {
     });
     sorted.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
     return sorted;
-  }, [notes, query, activeFolder, activeTag, showArchived, sort]);
+  }, [notes, query, activeFolder, activeTag, showArchived, sort, linkFilter, usageByNoteId]);
 
   useEffect(() => {
     if (selectedId && !notes.some((n) => n.id === selectedId)) setSelectedId(null);
@@ -243,6 +246,18 @@ export function NotesPage() {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="notes-filter-row">
+            <button type="button" className={`btn-pill${linkFilter === "all" ? " btn-pill--active" : ""}`} onClick={() => setLinkFilter("all")}>
+              all
+            </button>
+            <button type="button" className={`btn-pill${linkFilter === "free" ? " btn-pill--active" : ""}`} onClick={() => setLinkFilter("free")}>
+              free
+            </button>
+            <button type="button" className={`btn-pill${linkFilter === "linked" ? " btn-pill--active" : ""}`} onClick={() => setLinkFilter("linked")}>
+              in projects
+            </button>
           </div>
 
           <div className="notes-folders">
