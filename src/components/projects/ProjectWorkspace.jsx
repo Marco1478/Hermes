@@ -5,8 +5,8 @@ import { ProjectCanvas } from "./canvas/ProjectCanvas.jsx";
 import { ProjectWorkflows } from "./workflows/ProjectWorkflows.jsx";
 import { ProjectKanbanPanel } from "./ProjectKanbanPanel.jsx";
 import { ProjectChatPanel } from "./ProjectChatPanel.jsx";
+import { ProjectIntelligencePanel } from "./ProjectIntelligencePanel.jsx";
 import { ProjectTagExplorer } from "./ProjectTagExplorer.jsx";
-import { WorkspacePlaceholder } from "./WorkspacePlaceholder.jsx";
 
 const SECTIONS = [
   { key: "overview", label: "Overview" },
@@ -74,9 +74,7 @@ export function ProjectWorkspace({ project, notes, vaultStatus, onBack, onUpdate
         {section === "workflows" && <ProjectWorkflows project={project} tagFilter={activeTag} />}
         {section === "kanban" && <ProjectKanbanPanel project={project} onLinkTask={taskActions.link} onUnlinkTask={taskActions.unlink} />}
         {section === "chat" && <ProjectChatPanel project={project} notes={notes} />}
-        {section === "intelligence" && (
-          <WorkspacePlaceholder title="Intelligence" chunk="CLAUDE-009" detail="A deterministic project summary panel lands in a later chunk." />
-        )}
+        {section === "intelligence" && <ProjectIntelligencePanel project={project} notes={notes} onOpenChat={() => setSection("chat")} />}
       </div>
     </div>
   );
