@@ -14,7 +14,8 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { createObsidianExec, safeRelPath, noteToMarkdown, markdownToNote } from "../vite-plugins/obsidianBridge.js";
+import { createObsidianExec, safeRelPath, noteToMarkdown, markdownToNote, projectToMarkdown, markdownToProject } from "../vite-plugins/obsidianBridge.js";
+import { createKanbanExec } from "../vite-plugins/kanbanBridge.js";
 
 const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -291,6 +292,171 @@ async function checkObsidian() {
   }
 }
 
+// ---- Project workspaces (projects/canvases/workflows/kanban relation) -------
+// Same reasoning as checkObsidian() above: exercises the real bridge
+// primitives directly (obsidianBridge.js, kanbanBridge.js) against the real
+// vault/CLI, using a dedicated _HERMES_UI_SMOKE_*_DELETE_ME prefix so a
+// human skimming the vault or Kanban board immediately recognizes and can
+// ignore/remove any artifact left behind by a crashed run.
+async function checkProjectWorkspaces() {
+  if (!OBSIDIAN_VAULT_PATH) return; // already reported by checkObsidian()'s env check
+
+  const obsidian = createObsidianExec({
+    sshHost: SSH_HOST,
+    sshKeyPath: SSH_KEY_PATH,
+    vaultPath: OBSIDIAN_VAULT_PATH,
+    notesDir: OBSIDIAN_NOTES_DIR,
+    projectsDir: OBSIDIAN_PROJECTS_DIR,
+    archiveDir: OBSIDIAN_ARCHIVE_DIR,
+  });
+
+  const status = await obsidian.status().catch((err) => ({ ok: false, error: err.message }));
+  if (!status.ok || !status.vaultOk) {
+    record("obsidian", "project workspace checks", false, "vault not reachable — skipped");
+    return;
+  }
+
+  const projectRel = "_HERMES_UI_SMOKE_PROJECT_DELETE_ME";
+  const canvasRel = "_HERMES_UI_SMOKE_CANVAS_DELETE_ME.canvas.json";
+  const workflowRel = "_HERMES_UI_SMOKE_WORKFLOW_DELETE_ME.workflow.json";
+  const noteRel = "_HERMES_UI_SMOKE_TEST_LINKED_NOTE_DELETE_ME.md";
+  const canvasDir = `${obsidian.dirs.projects}/${projectRel}/canvases`;
+  const workflowDir = `${obsidian.dirs.projects}/${projectRel}/workflows`;
+
+  const baseProject = {
+    name: projectRel,
+    description: "Automated smoke test project — safe to ignore/delete.",
+    status: "planning",
+    priority: "medium",
+    color: null,
+    tags: ["smoke"],
+    dueDate: null,
+    milestones: [],
+    linkedNoteRefs: [],
+    linkedKanbanIds: [],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+
+  let kanbanTaskId = null;
+  try {
+    // --- project create/read/list ---
+    const projectWrite = await obsidian.writeFile(obsidian.dirs.projects, `${projectRel}/overview.md`, projectToMarkdown(baseProject));
+    record("obsidian", "create/write test project", projectWrite.ok, projectWrite.error);
+
+    const projectRead = await obsidian.readFile(obsidian.dirs.projects, `${projectRel}/overview.md`);
+    const parsedProject = projectRead.ok ? markdownToProject(projectRel, projectRead.raw) : null;
+    record("obsidian", "read test project", Boolean(projectRead.ok && parsedProject?.name === baseProject.name), projectRead.error);
+
+    const projectList = await obsidian.listFiles(obsidian.dirs.projects, "nested");
+    record("obsidian", "search/list finds test project", Boolean(projectList.ok && projectList.files.some((f) => f.relPath === projectRel)), projectList.error);
+
+    // --- canvas create/update/archive ---
+    const canvas = { version: 1, type: "hermes-project-canvas", name: "_HERMES_UI_SMOKE_CANVAS_DELETE_ME", tags: ["smoke"], nodes: [], edges: [] };
+    const canvasWrite = await obsidian.writeFile(canvasDir, canvasRel, JSON.stringify(canvas, null, 2));
+    record("obsidian", "create test canvas", canvasWrite.ok, canvasWrite.error);
+
+    const canvasUpdated = { ...canvas, nodes: [{ id: "smoke-node", type: "card", x: 0, y: 0, w: 220, h: 130, title: "smoke", body: "", color: "teal", tags: [], checklist: [], ref: null }] };
+    const canvasUpdate = await obsidian.writeFile(canvasDir, canvasRel, JSON.stringify(canvasUpdated, null, 2));
+    const canvasReread = await obsidian.readFile(canvasDir, canvasRel);
+    const canvasParsed = canvasReread.ok ? JSON.parse(canvasReread.raw) : null;
+    record("obsidian", "update test canvas", Boolean(canvasUpdate.ok && canvasParsed?.nodes?.length === 1), canvasUpdate.error);
+
+    const canvasList = await obsidian.listFiles(canvasDir, "flat-json");
+    record("obsidian", "search/list finds test canvas", Boolean(canvasList.ok && canvasList.files.some((f) => f.relPath === canvasRel)), canvasList.error);
+
+    const canvasArchive = await obsidian.move(canvasDir, canvasRel, `${obsidian.dirs.archive}/${projectRel}/canvases`, canvasRel);
+    record("obsidian", "archive test canvas", canvasArchive.ok, canvasArchive.error);
+
+    // --- workflow create/update/archive ---
+    const workflow = { version: 1, type: "hermes-project-workflow", name: "_HERMES_UI_SMOKE_WORKFLOW_DELETE_ME", description: "", tags: ["smoke"], status: "draft", steps: [] };
+    const workflowWrite = await obsidian.writeFile(workflowDir, workflowRel, JSON.stringify(workflow, null, 2));
+    record("obsidian", "create test workflow", workflowWrite.ok, workflowWrite.error);
+
+    const workflowUpdated = {
+      ...workflow,
+      steps: [{ id: "smoke-step", title: "smoke step", description: "", owner: "marco", status: "todo", linkedNoteId: null, linkedCanvasId: null, linkedTaskId: "", command: "" }],
+    };
+    const workflowUpdate = await obsidian.writeFile(workflowDir, workflowRel, JSON.stringify(workflowUpdated, null, 2));
+    const workflowReread = await obsidian.readFile(workflowDir, workflowRel);
+    const workflowParsed = workflowReread.ok ? JSON.parse(workflowReread.raw) : null;
+    record("obsidian", "update test workflow", Boolean(workflowUpdate.ok && workflowParsed?.steps?.length === 1), workflowUpdate.error);
+
+    const workflowList = await obsidian.listFiles(workflowDir, "flat-json");
+    record("obsidian", "search/list finds test workflow", Boolean(workflowList.ok && workflowList.files.some((f) => f.relPath === workflowRel)), workflowList.error);
+
+    const workflowArchive = await obsidian.move(workflowDir, workflowRel, `${obsidian.dirs.archive}/${projectRel}/workflows`, workflowRel);
+    record("obsidian", "archive test workflow", workflowArchive.ok, workflowArchive.error);
+
+    // --- free note create + link/unlink to project (relation lives in the
+    // project's own frontmatter, never a fake field on the note — see
+    // state/Projects.jsx's linkNote/unlinkNote) ---
+    const note = { title: "_HERMES_UI_SMOKE_TEST_LINKED_NOTE_DELETE_ME", body: "Automated smoke test note for project linking — safe to ignore/delete.", tags: ["smoke"], checklist: [] };
+    const noteWrite = await obsidian.writeFile(obsidian.dirs.notes, noteRel, noteToMarkdown(note));
+    record("obsidian", "create free note for linking", noteWrite.ok, noteWrite.error);
+
+    const noteRef = noteRel.replace(/\.md$/, "");
+    const linkWrite = await obsidian.writeFile(obsidian.dirs.projects, `${projectRel}/overview.md`, projectToMarkdown({ ...baseProject, linkedNoteRefs: [noteRef] }));
+    const linkReread = await obsidian.readFile(obsidian.dirs.projects, `${projectRel}/overview.md`);
+    const linkParsed = linkReread.ok ? markdownToProject(projectRel, linkReread.raw) : null;
+    record("obsidian", "link note to project (frontmatter round-trip)", Boolean(linkWrite.ok && linkParsed?.linkedNoteRefs?.includes(noteRef)), linkWrite.error);
+
+    const unlinkWrite = await obsidian.writeFile(obsidian.dirs.projects, `${projectRel}/overview.md`, projectToMarkdown(baseProject));
+    const unlinkReread = await obsidian.readFile(obsidian.dirs.projects, `${projectRel}/overview.md`);
+    const unlinkParsed = unlinkReread.ok ? markdownToProject(projectRel, unlinkReread.raw) : null;
+    record("obsidian", "unlink note from project", Boolean(unlinkWrite.ok && !(unlinkParsed?.linkedNoteRefs || []).includes(noteRef)), unlinkWrite.error);
+
+    // --- project<->Kanban relation: a real, reversible Kanban task, linked
+    // the same way the app links one (project-side linkedKanbanIds, no
+    // invented field on the task itself — see state/Projects.jsx) ---
+    const kanban = createKanbanExec({ sshHost: SSH_HOST, sshKeyPath: SSH_KEY_PATH });
+    try {
+      const createRes = await kanban.runJson(["create", "_HERMES_UI_SMOKE_KANBAN_DELETE_ME", "--json", "--triage"]);
+      kanbanTaskId = createRes.ok ? createRes.data?.id : null;
+      record("kanban", "reversible test task create", Boolean(kanbanTaskId), createRes.error);
+
+      if (kanbanTaskId) {
+        const relWrite = await obsidian.writeFile(obsidian.dirs.projects, `${projectRel}/overview.md`, projectToMarkdown({ ...baseProject, linkedKanbanIds: [kanbanTaskId] }));
+        const relReread = await obsidian.readFile(obsidian.dirs.projects, `${projectRel}/overview.md`);
+        const relParsed = relReread.ok ? markdownToProject(projectRel, relReread.raw) : null;
+        record("obsidian", "project<->kanban relation round-trip (frontmatter)", Boolean(relWrite.ok && relParsed?.linkedKanbanIds?.includes(kanbanTaskId)), relWrite.error);
+      }
+    } finally {
+      if (kanbanTaskId) {
+        // archive prints a plain confirmation line, not JSON (no --json
+        // support on this verb) — matches the app's own
+        // /local/kanban/archive route, which uses runText for this exact
+        // reason (see vite-plugins/hermesBridge.js).
+        const archiveRes = await kanban.runText(["archive", kanbanTaskId]);
+        record("kanban", "reversible test task cleanup (archive)", archiveRes.ok, archiveRes.ok ? archiveRes.message : archiveRes.error);
+      }
+    }
+
+    // --- path traversal still rejected (project-scoped paths too) ---
+    const trav = safeRelPath("../../etc/passwd");
+    record("obsidian", "project path traversal rejected", trav === null, `../../etc/passwd -> ${trav}`);
+  } finally {
+    // Cleanup: the app's own bridge deliberately has no hard-delete — this
+    // direct rm removes the whole smoke project folder (active + archived
+    // copies, which also covers the archived canvas/workflow inside it) and
+    // the standalone linked note. Same pattern as checkObsidian()'s cleanup.
+    const cleanupScript = [
+      `rm -rf '${obsidian.dirs.projects}/${projectRel}'`,
+      `rm -rf '${obsidian.dirs.archive}/${projectRel}'`,
+      `rm -f '${obsidian.dirs.notes}/${noteRel}'`,
+      `rm -f '${obsidian.dirs.archive}/${noteRel}'`,
+    ].join(" && ");
+    const cleanup = await execFileAsync(
+      KANBAN_HAS_SSH ? "ssh" : "docker",
+      KANBAN_HAS_SSH
+        ? ["-i", SSH_KEY_PATH, "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "-o", "StrictHostKeyChecking=accept-new", SSH_HOST, `docker exec hermes sh -c "${cleanupScript}"`]
+        : ["exec", "hermes", "sh", "-c", cleanupScript],
+      { timeout: 15000 }
+    ).catch((err) => ({ error: err.message }));
+    record("obsidian", "cleanup (no test project/canvas/workflow/note left in real vault)", !cleanup.error, cleanup.error);
+  }
+}
+
 // ---- command registry --------------------------------------------------------
 async function checkCommandRegistry() {
   try {
@@ -328,6 +494,7 @@ async function main() {
   await checkToolsetsNoOpToggle();
   await checkKanban();
   await checkObsidian();
+  await checkProjectWorkspaces();
   await checkCommandRegistry();
   checkScrollRegression();
 

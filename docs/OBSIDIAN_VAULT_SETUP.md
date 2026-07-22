@@ -39,19 +39,41 @@ ever joined into a remote command.
     Projects/
       Some Project Name/
         overview.md
+        notes/          (scaffolded, currently unused — project notes are
+                          free notes linked by reference, see below)
+        canvases/
+          Architecture map.canvas.json
+        workflows/
+          Feature workflow.workflow.json
+        assets/          (scaffolded, no UI writes here yet)
     Archive/
       Some Note Title.md
       Some Project Name/
         overview.md
+        canvases/
+          Architecture map.canvas.json
+        workflows/
+          Feature workflow.workflow.json
 ```
 
-Notes are flat `.md` files directly under `OBSIDIAN_NOTES_DIR`. Each
-project is a folder under `OBSIDIAN_PROJECTS_DIR` containing an
-`overview.md` — Marco (or Hermes) can freely add more files to a project
-folder (`roadmap.md`, `decisions.md`, ...) directly in Obsidian; the UI
-only ever manages `overview.md`. Archiving moves the file (notes) or the
-whole folder (projects) into `OBSIDIAN_ARCHIVE_DIR`, preserving structure —
-never a hard delete.
+Notes are flat `.md` files directly under `OBSIDIAN_NOTES_DIR` — including
+notes "in" a project, which are never copied or moved into the project
+folder; a project only ever holds a *reference* (`linked_notes` in its own
+frontmatter) to a note's stable filename. The `notes/`/`assets/` subfolders
+under a project are scaffolded at creation time (see `mkdirp` in
+`vite-plugins/obsidianBridge.js`) so Marco can drop files in directly from
+Obsidian even though the UI doesn't manage that subfolder itself yet.
+
+Canvases and workflows *do* live inside their owning project's folder,
+as flat `.json` files (not markdown, and not Obsidian desktop's own
+`.canvas` format) — `<project>/canvases/<Name>.canvas.json` and
+`<project>/workflows/<Name>.workflow.json`. Each project can freely gain
+more files in its folder (`roadmap.md`, `decisions.md`, ...) directly in
+Obsidian; the UI only ever manages `overview.md`, `canvases/*.json`, and
+`workflows/*.json`. Archiving moves the file (notes) or the whole folder
+(projects, canvases, workflows) into `OBSIDIAN_ARCHIVE_DIR` — never a hard
+delete. Archiving a project moves its whole folder in one operation, which
+also relocates any canvases/workflows still inside it.
 
 ### File format
 
@@ -84,12 +106,39 @@ Projects use `type: project` plus `status`, `priority`, `due`,
 frontmatter, and a `## Milestones` task-list section instead of
 `## Checklist`. The checklist/milestone section is real Obsidian task-list
 syntax — ticking a box in Obsidian itself is a valid edit the UI can read
-back.
+back. `linked_kanban` is how a project and a real Kanban task relate: the
+task itself has no `project_id` setter in the actual CLI, so the relation
+is stored only here, on the project side — never invented on the task.
 
 Frontmatter is parsed/serialized by a small hand-rolled reader in
 `vite-plugins/obsidianBridge.js` (flat scalars + string arrays only — no
 YAML dependency added; this codebase avoids new dependencies where a
 ~50-line parser covers the real shape needed).
+
+Canvas and workflow files are plain JSON, not frontmatter+markdown (there's
+no meaningful "body" to keep human-editable prose in, unlike a note):
+
+```json
+{
+  "version": 1,
+  "type": "hermes-project-canvas",
+  "name": "Architecture map",
+  "tags": ["smoke"],
+  "nodes": [
+    { "id": "...", "type": "card", "x": 60, "y": 60, "w": 220, "h": 130,
+      "title": "Entry point", "body": "", "color": "teal", "tags": [],
+      "checklist": [], "ref": null }
+  ],
+  "edges": []
+}
+```
+
+`edges` is reserved shape only — this build has no UI to draw a connection
+between nodes, so it's always `[]`; nothing reads it yet. A workflow file
+looks the same but with `"type": "hermes-project-workflow"`, `"status"`
+(`draft`/`active`/`done`), and a `"steps"` array instead of `"nodes"`/
+`"edges"` (`{id, title, description, owner, status, linkedNoteId,
+linkedCanvasId, linkedTaskId, command}` per step).
 
 ## Required configuration (never committed)
 
@@ -135,6 +184,39 @@ fall back to pretending localStorage is the real store.
 - System Overview has an "Obsidian Vault" card: connected / not configured
   / error, plus live note/project counts and last-edited time when
   connected.
+- Opening a project switches to a full workspace (`ProjectWorkspace.jsx`)
+  with its own Overview / Notes / Canvas / Workflows / Kanban / Chat /
+  Intelligence tabs:
+  - **Canvas** — a pan/zoom board of typed nodes (text, sticky, card,
+    decision, circle, checklist, image/file/note/kanban refs), persisted
+    as the JSON format above.
+  - **Workflows** — an ordered, drag-reorderable list of steps, persisted
+    the same way.
+  - **Kanban** — shows only the real tasks this project has linked
+    (`linked_kanban`); creating/linking a task here also makes it appear
+    on the *main* Kanban board with a project color chip, via a
+    `projectByTaskId` lookup built from every project's `linked_kanban`.
+  - **Intelligence** — a deterministic summary (active notes/workflows/
+    open+blocked task counts, last-updated note, a rule-based "suggested
+    next action") — not an LLM feature, since no Hermes
+    analysis/summarize endpoint exists on this build yet.
+  - **New project templates** (`src/lib/projectTemplates.js`) pre-fill
+    the New Project form and, once the project exists, can scaffold a
+    starter workflow (and for "Hermes feature", a starter canvas) via
+    the same real write calls the Workflows/Canvas tabs use.
+
+## Smoke coverage
+
+`npm run smoke` (`scripts/smoke-backend.mjs`) exercises the real vault and
+Kanban CLI directly through the same bridge modules the dev server uses
+(not reimplemented) — status, path-traversal rejection, and reversible
+create/read/list/update/archive/cleanup for notes, projects, canvases,
+workflows, note↔project linking, and the project↔Kanban relation. Every
+artifact it creates is named with a `_HERMES_UI_SMOKE_*_DELETE_ME` prefix
+and removed again at the end of the run (`rm -rf` on the smoke script's own
+throwaway paths only — the app itself never exposes a hard-delete). If a
+run is interrupted mid-way, anything left behind is easy to spot and safe
+to delete by that same prefix.
 
 ## Deliberately not done here
 
