@@ -50,6 +50,7 @@ export const createKanbanTask = (task) => sendJson("/local/kanban/create", "POST
 export const assignKanbanTask = (id, profile) => sendJson("/local/kanban/assign", "PUT", { id, profile });
 export const commentKanbanTask = (id, text, author) => sendJson("/local/kanban/comment", "POST", { id, text, author });
 export const blockKanbanTask = (id, reason, kind) => sendJson("/local/kanban/block", "POST", { id, reason, kind });
+export const promoteKanbanTask = (id, reason) => sendJson("/local/kanban/promote", "POST", { id, reason });
 export const unblockKanbanTasks = (ids, reason) => sendJson("/local/kanban/unblock", "POST", { ids, reason });
 export const completeKanbanTasks = (ids, result, summary) => sendJson("/local/kanban/complete", "POST", { ids, result, summary });
 export const archiveKanbanTasks = (ids) => sendJson("/local/kanban/archive", "POST", { ids });

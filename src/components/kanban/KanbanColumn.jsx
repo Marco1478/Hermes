@@ -6,8 +6,11 @@ import { KanbanCard } from "./KanbanCard.jsx";
   header (title/count row), not the whole column, so clicking a card or the
   quick-add button never gets mistaken for a reorder gesture.
 */
-export function KanbanColumn({ col, tasks, onOpen, onAddCard, projectByTaskId }) {
+export function KanbanColumn({ col, tasks, onOpen, onAddCard, projectByTaskId, onCardDragChange, onCardDrop, dropState }) {
   const controls = useDragControls();
+  const isHover = dropState?.overColumn === col.key;
+  const isValidTarget = isHover && dropState?.allowed;
+  const isInvalidTarget = isHover && dropState && !dropState.allowed;
 
   return (
     <Reorder.Item
@@ -15,7 +18,7 @@ export function KanbanColumn({ col, tasks, onOpen, onAddCard, projectByTaskId })
       value={col.key}
       dragListener={false}
       dragControls={controls}
-      className="kanban-column"
+      className={`kanban-column${isValidTarget ? " kanban-column--drop-ok" : ""}${isInvalidTarget ? " kanban-column--drop-no" : ""}`}
       data-column={col.key}
       whileDrag={{ scale: 1.02, zIndex: 5, boxShadow: "0 16px 44px rgba(0, 0, 0, 0.5)" }}
       transition={{ type: "spring", stiffness: 500, damping: 40 }}
@@ -31,7 +34,7 @@ export function KanbanColumn({ col, tasks, onOpen, onAddCard, projectByTaskId })
       <div className="kanban-column-body">
         <AnimatePresence mode="popLayout">
           {tasks.map((t) => (
-            <KanbanCard key={t.id} task={t} onOpen={onOpen} project={projectByTaskId?.get(t.id)} />
+            <KanbanCard key={t.id} task={t} onOpen={onOpen} project={projectByTaskId?.get(t.id)} onDragChange={onCardDragChange} onDrop={onCardDrop} />
           ))}
         </AnimatePresence>
         <button

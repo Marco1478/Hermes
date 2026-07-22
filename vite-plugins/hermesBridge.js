@@ -576,6 +576,28 @@ export function hermesBridgePlugin({
         sendJson(res, result.ok ? 200 : 502, result);
       });
 
+      use("/local/kanban/promote", async (req, res) => {
+        if (req.method !== "POST") {
+          sendJson(res, 405, { ok: false, error: "POST only" });
+          return;
+        }
+        let body;
+        try {
+          body = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid JSON body" });
+          return;
+        }
+        if (!body.id) {
+          sendJson(res, 400, { ok: false, error: "id is required" });
+          return;
+        }
+        const args = ["promote", body.id];
+        if (body.reason) args.push(body.reason);
+        const result = await kanban.runText(args);
+        sendJson(res, result.ok ? 200 : 502, result);
+      });
+
       use("/local/kanban/complete", async (req, res) => {
         if (req.method !== "POST") {
           sendJson(res, 405, { ok: false, error: "POST only" });

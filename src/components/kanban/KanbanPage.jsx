@@ -1,6 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, Reorder, motion } from "framer-motion";
-import { fetchKanbanStatus, fetchKanbanList, fetchKanbanTask, createKanbanTask, dispatchKanban } from "../../lib/kanbanBridge.js";
+import {
+  fetchKanbanStatus,
+  fetchKanbanList,
+  fetchKanbanTask,
+  createKanbanTask,
+  dispatchKanban,
+  promoteKanbanTask,
+  blockKanbanTask,
+  completeKanbanTasks,
+} from "../../lib/kanbanBridge.js";
 import { useProjects } from "../../state/Projects.jsx";
 import { PageShell } from "../PageShell.jsx";
 import { DiagnosticCard } from "../DiagnosticCard.jsx";
@@ -126,6 +135,21 @@ const hasCreatePreset = (col) => col.triage !== undefined || col.initialStatus !
 const COLUMN_ORDER_KEY = "hermes-ui.kanban.column-order.v1";
 const DEFAULT_COLUMN_ORDER = COLUMNS.map((c) => c.key);
 
+const columnKeyForStatus = (status) => COLUMNS.find((c) => c.statuses.includes(status))?.key || "backlog";
+
+// Drag-a-card-to-a-column only ever calls a real CLI command that already
+// exists for a completely different reason (promote/block/complete) — there
+// is no generic "set status" endpoint (see vite-plugins/hermesBridge.js),
+// and "running"/"review" are states the worker sets itself, not something a
+// human command can force. Dropping on Backlog/In progress/Review is
+// rejected with an explanation rather than silently doing nothing or
+// inventing a fake transition.
+const DROP_ACTIONS = {
+  ready: (task) => promoteKanbanTask(task.id, "Moved to Ready via board drag"),
+  blocked: (task) => blockKanbanTask(task.id, "Moved to Blocked via board drag"),
+  done: (task) => completeKanbanTasks([task.id], "Moved to Done via board drag"),
+};
+
 function loadColumnOrder() {
   try {
     const raw = localStorage.getItem(COLUMN_ORDER_KEY);
@@ -161,6 +185,9 @@ export function KanbanPage() {
   const [detailError, setDetailError] = useState(null);
   const [creating, setCreating] = useState(null); // null | { generic: true } | column preset
   const [columnOrder, setColumnOrder] = useState(loadColumnOrder);
+  const [dropState, setDropState] = useState(null); // { overColumn, allowed } | null
+  const [dropError, setDropError] = useState(null);
+  const dropErrorTimer = useRef(null);
 
   const onReorder = useCallback((next) => {
     setColumnOrder(next);
@@ -251,6 +278,50 @@ export function KanbanPage() {
     }
   }, [load, openId]);
 
+  const showDropError = useCallback((message) => {
+    clearTimeout(dropErrorTimer.current);
+    setDropError(message);
+    dropErrorTimer.current = setTimeout(() => setDropError(null), 6000);
+  }, []);
+
+  // Live hover feedback while a card is being dragged — task itself hasn't
+  // moved yet, this just tells the column under the pointer whether letting
+  // go here would do anything.
+  const onCardDragChange = useCallback(
+    (taskId, overColumn) => {
+      if (!taskId || !overColumn) {
+        setDropState(null);
+        return;
+      }
+      const task = (tasks || []).find((t) => t.id === taskId);
+      const currentColumn = task ? columnKeyForStatus(task.status) : null;
+      setDropState({ overColumn, allowed: overColumn !== currentColumn && Boolean(DROP_ACTIONS[overColumn]) });
+    },
+    [tasks]
+  );
+
+  const onCardDrop = useCallback(
+    async (task, columnKey) => {
+      setDropState(null);
+      if (!columnKey) return;
+      const currentColumn = columnKeyForStatus(task.status);
+      if (columnKey === currentColumn) return;
+      const action = DROP_ACTIONS[columnKey];
+      if (!action) {
+        const label = COLUMNS.find((c) => c.key === columnKey)?.label || columnKey;
+        showDropError(`Can't drop directly on "${label}" — that status is set by the worker, not a direct command. Try Ready, Blocked, or Done, or open the card for other actions.`);
+        return;
+      }
+      try {
+        await action(task);
+        await load();
+      } catch (err) {
+        showDropError(err.message || String(err));
+      }
+    },
+    [load, showDropError]
+  );
+
   return (
     <PageShell
       title="Kanban"
@@ -272,6 +343,7 @@ export function KanbanPage() {
       )}
       {error && <DiagnosticCard title="Kanban board unavailable" detail={error} hint="Check the SSH bridge can reach the box and the container is running." />}
       {!status && !error && <p className="panel-empty">Loading…</p>}
+      {dropError && <p className="panel-error kanban-drop-error">{dropError}</p>}
 
       {status?.configured && !error && (
         <Reorder.Group
@@ -290,6 +362,9 @@ export function KanbanPage() {
               onOpen={openTask}
               onAddCard={(c) => setCreating(hasCreatePreset(c) ? c : { generic: true })}
               projectByTaskId={projectByTaskId}
+              onCardDragChange={onCardDragChange}
+              onCardDrop={onCardDrop}
+              dropState={dropState}
             />
           ))}
         </Reorder.Group>

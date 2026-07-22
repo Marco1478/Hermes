@@ -201,6 +201,35 @@
   font-size: 0.62rem;
 }
 
+/* ---- Card drag-to-move ----------------------------------------------------- */
+
+.kanban-card {
+  cursor: grab;
+  touch-action: none;
+}
+
+.kanban-card--dragging {
+  cursor: grabbing;
+  z-index: 30;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(110, 231, 223, 0.3);
+  transform: scale(1.03) !important;
+}
+
+.kanban-column--drop-ok {
+  border-color: rgba(110, 231, 223, 0.6);
+  box-shadow: 0 0 0 2px rgba(110, 231, 223, 0.28), 0 18px 44px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(180deg, rgba(110, 231, 223, 0.08), rgba(110, 231, 223, 0.02));
+}
+
+.kanban-column--drop-no {
+  border-color: rgba(217, 143, 122, 0.5);
+  box-shadow: 0 0 0 2px rgba(217, 143, 122, 0.22);
+}
+
+.kanban-drop-error {
+  margin-bottom: 0.5rem;
+}
+
 /* ---- Detail drawer -------------------------------------------------------- */
 
 .kanban-drawer-scrim {
