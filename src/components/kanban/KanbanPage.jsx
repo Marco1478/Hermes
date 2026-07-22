@@ -106,13 +106,20 @@ function NewTaskModal({ preset, onClose, onCreated }) {
 }
 
 const COLUMNS = [
-  { key: "backlog", label: "Backlog", statuses: ["triage", "todo"], creatable: true, triage: true },
-  { key: "ready", label: "Ready", statuses: ["ready"], creatable: true, triage: false },
-  { key: "in_progress", label: "In progress", statuses: ["running"], creatable: false },
-  { key: "blocked", label: "Blocked", statuses: ["blocked", "scheduled"], creatable: true, initialStatus: "blocked" },
-  { key: "review", label: "Review", statuses: ["review"], creatable: false },
-  { key: "done", label: "Done", statuses: ["done"], creatable: false },
+  { key: "backlog", label: "Backlog", statuses: ["triage", "todo"], triage: true },
+  { key: "ready", label: "Ready", statuses: ["ready"], triage: false },
+  { key: "in_progress", label: "In progress", statuses: ["running"] },
+  { key: "blocked", label: "Blocked", statuses: ["blocked", "scheduled"], initialStatus: "blocked" },
+  { key: "review", label: "Review", statuses: ["review"] },
+  { key: "done", label: "Done", statuses: ["done"] },
 ];
+
+// The real CLI can only place a new task straight into triage/todo, ready,
+// or blocked — there's no "create straight into running/review/done"
+// (see vite-plugins/hermesBridge.js). Columns without a triage/initialStatus
+// preset still get the same "+" affordance for a consistent board, but it
+// opens the generic modal instead of a false "creating in <column>" claim.
+const hasCreatePreset = (col) => col.triage !== undefined || col.initialStatus !== undefined;
 const COLUMN_ORDER_KEY = "hermes-ui.kanban.column-order.v1";
 const DEFAULT_COLUMN_ORDER = COLUMNS.map((c) => c.key);
 
@@ -254,7 +261,13 @@ export function KanbanPage() {
       {status?.configured && !error && (
         <Reorder.Group as="div" axis="x" values={columnOrder} onReorder={onReorder} className="kanban-board">
           {orderedColumns.map((col) => (
-            <KanbanColumn key={col.key} col={col} tasks={columns[col.key] || []} onOpen={openTask} onAddCard={setCreating} />
+            <KanbanColumn
+              key={col.key}
+              col={col}
+              tasks={columns[col.key] || []}
+              onOpen={openTask}
+              onAddCard={(c) => setCreating(hasCreatePreset(c) ? c : { generic: true })}
+            />
           ))}
         </Reorder.Group>
       )}

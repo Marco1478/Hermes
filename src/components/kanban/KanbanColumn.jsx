@@ -29,23 +29,20 @@ export function KanbanColumn({ col, tasks, onOpen, onAddCard }) {
         <span className="kanban-column-count mono">{tasks.length}</span>
       </div>
       <div className="kanban-column-body">
-        {tasks.length === 0 && !col.creatable && <span className="panel-empty">Nothing here.</span>}
         <AnimatePresence mode="popLayout">
           {tasks.map((t) => (
             <KanbanCard key={t.id} task={t} onOpen={onOpen} />
           ))}
         </AnimatePresence>
-        {col.creatable && (
-          <button
-            type="button"
-            className="kanban-column-panel kanban-column-panel--button"
-            onClick={() => onAddCard(col)}
-            aria-label={`Add card to ${col.label}`}
-            title={`Add card to ${col.label}`}
-          >
-            +
-          </button>
-        )}
+        <button
+          type="button"
+          className="kanban-column-panel kanban-column-panel--button"
+          onClick={() => onAddCard(col)}
+          aria-label={`Add card to ${col.label}`}
+          title={`Add card to ${col.label}`}
+        >
+          +
+        </button>
       </div>
     </Reorder.Item>
   );

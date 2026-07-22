@@ -1,19 +1,18 @@
 /* ---- Board ---------------------------------------------------------------- */
 
+/* Grid, not a horizontally-scrolling row: every column stays on screen at
+   once. auto-fit + minmax wraps to a second row only if the viewport is too
+   narrow for all of them side by side — never a horizontal scrollbar. */
 .kanban-board {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
   gap: 0.9rem;
-  overflow-x: auto;
-  overflow-y: visible;
+  align-items: start;
   padding: 0.2rem 0 0.9rem;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(110, 231, 223, 0.25) transparent;
 }
 
 .kanban-column {
-  flex: 1 0 260px;
-  min-width: 260px;
-  max-width: 320px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
