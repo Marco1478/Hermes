@@ -40,6 +40,7 @@
 
 .notes-filter-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
   align-items: center;
 }

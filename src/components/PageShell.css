@@ -70,14 +70,19 @@
   max-width: min(96vw, 1760px);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 860px) {
   /* Two rows, not one scrolling row: the nav tabs alone can be wider than
      the screen, and packing header-extra (the page's "+ new..." action,
      Kanban's included) into that same horizontally-scrolling flex row
      pushed it off-screen with a hidden scrollbar — invisible and
      undiscoverable, effectively disabling note/project creation on a
      narrow viewport. Only the nav strip scrolls now; the action button(s)
-     always stay on their own, fully visible row. */
+     always stay on their own, fully visible row.
+     Upper bound matches the min-width:861px rail breakpoint below exactly
+     — anything in between used to fall through to the bare 3-column
+     grid header with an un-wrapped nav, which visibly overlapped the
+     page title with the first couple of nav tabs at tablet widths
+     (confirmed live at 768px during QA). */
   .page-header {
     display: flex;
     flex-direction: column;
