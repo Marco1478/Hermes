@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useNotes } from "../../state/Notes.jsx";
 import { useProjects } from "../../state/Projects.jsx";
 import { PageShell } from "../PageShell.jsx";
+import { VaultStatusChip } from "../VaultStatusChip.jsx";
 import { renderMarkdownLite, wordCount, plainTextPreview } from "../../lib/markdownLite.js";
 import { downloadText, slugify } from "../../lib/exportChat.js";
 import "./NotesPage.css";
@@ -102,6 +103,11 @@ export function NotesPage() {
     notes,
     folders,
     allTags,
+    vaultStatus,
+    vaultError,
+    orphanedLocalNotes,
+    migrating,
+    migrateLocalNotesToVault,
     createNote,
     updateNote,
     deleteNote,
@@ -162,9 +168,9 @@ export function NotesPage() {
 
   const selected = notes.find((n) => n.id === selectedId) || null;
 
-  const onNewNote = () => {
-    const id = createNote({ folder: activeFolder !== "all" && activeFolder !== "unfiled" ? activeFolder : null });
-    setSelectedId(id);
+  const onNewNote = async () => {
+    const id = await createNote({ folder: activeFolder !== "all" && activeFolder !== "unfiled" ? activeFolder : null });
+    if (id) setSelectedId(id);
     setShowArchived(false);
   };
 
@@ -202,6 +208,19 @@ export function NotesPage() {
     >
       <div className="notes-shell">
         <aside className="notes-sidebar">
+          <VaultStatusChip status={vaultStatus} error={vaultError} />
+
+          {vaultStatus === "connected" && orphanedLocalNotes.length > 0 && (
+            <div className="vault-migrate-banner">
+              <span>
+                {orphanedLocalNotes.length} note{orphanedLocalNotes.length > 1 ? "s" : ""} saved before the vault was connected.
+              </span>
+              <button type="button" className="btn-pill" disabled={migrating} onClick={migrateLocalNotesToVault}>
+                {migrating ? "migrating…" : "migrate to vault"}
+              </button>
+            </div>
+          )}
+
           <input
             type="text"
             className="notes-search mono"
@@ -308,15 +327,17 @@ export function NotesPage() {
                   <button type="button" className="btn-pill" onClick={() => toggleArchive(selected.id)}>
                     {selected.archived ? "unarchive" : "archive"}
                   </button>
-                  <button
-                    type="button"
-                    className="btn-pill btn-pill--danger"
-                    onClick={() => {
-                      if (window.confirm("Delete this note? This cannot be undone.")) deleteNote(selected.id);
-                    }}
-                  >
-                    delete
-                  </button>
+                  {vaultStatus !== "connected" && (
+                    <button
+                      type="button"
+                      className="btn-pill btn-pill--danger"
+                      onClick={() => {
+                        if (window.confirm("Delete this note? This cannot be undone.")) deleteNote(selected.id);
+                      }}
+                    >
+                      delete
+                    </button>
+                  )}
                 </div>
               </div>
 

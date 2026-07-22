@@ -1,19 +1,33 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { fetchObsidianStatus, fetchVaultNotes, writeVaultNote, archiveVaultNote, unarchiveVaultNote } from "../lib/obsidianBridge.js";
 
 /*
-  Notes — local-first, deliberately. There is no `hermes notes` CLI or API
-  anywhere on the real backend (unlike Kanban, which exists as a real SQLite
-  board over SSH — see kanbanBridge.js). Building a fake bridge for
-  something with no server-side counterpart would be the "empty board that
-  looks like nothing to do" problem this codebase explicitly avoids
-  elsewhere. Notes are Marco's own scratch space, persisted the same honest
-  way chat history is (state/Chat.jsx): real localStorage, not a stand-in
-  for a backend that doesn't exist.
+  Notes — Obsidian-vault-backed when configured (see
+  docs/OBSIDIAN_VAULT_SETUP.md), local-storage-backed as an honest fallback
+  when it isn't. `vaultStatus` tells the UI which mode is actually active
+  ("connected" / "not_configured" / "error") rather than silently
+  presenting localStorage as if it were the durable store once a vault
+  exists — that was the whole problem with the original prototype.
+
+  Once connected, `notes` is populated straight from the vault and every
+  mutation writes through: instantly to local React state (so typing feels
+  immediate) and, per-note debounced, to a real markdown file over the
+  bridge (src/lib/obsidianBridge.js -> vite-plugins/obsidianBridge.js).
+  localStorage becomes cache/offline-fallback only, refreshed after every
+  successful vault read.
+
+  Note identity: `id` is the vault-relative filename (e.g. "Some Note.md")
+  once vault-backed, or a random uid in local-only mode. A note's filename
+  is assigned once at creation and never renamed on later title edits —
+  frontmatter `title` is the editable display value, independent of the
+  stable filename, so links into a note (from Projects, later Kanban)
+  never go stale just because its title changed.
 */
 
 const NotesContext = createContext(null);
 const STORE_KEY = "hermes-ui.notes.v1";
 const FOLDERS_KEY = "hermes-ui.notes.folders.v1";
+const WRITE_DEBOUNCE_MS = 700;
 
 function uid() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
@@ -38,7 +52,7 @@ function emptyNote(overrides = {}) {
   };
 }
 
-function loadNotes() {
+function loadLocalNotes() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
     const data = raw ? JSON.parse(raw) : null;
@@ -59,10 +73,73 @@ function loadFolders() {
   }
 }
 
-export function NotesProvider({ children }) {
-  const [notes, setNotes] = useState(loadNotes);
-  const [folders, setFolders] = useState(loadFolders);
+// A note whose id isn't a vault filename (no .md) predates any vault
+// connection — it's a local-only note the vault has never seen.
+const isVaultId = (id) => typeof id === "string" && id.endsWith(".md");
 
+export function NotesProvider({ children }) {
+  const [vaultStatus, setVaultStatus] = useState("unknown"); // unknown | checking | connected | not_configured | error
+  const [vaultError, setVaultError] = useState(null);
+  const [notes, setNotes] = useState(loadLocalNotes);
+  const [folders, setFolders] = useState(loadFolders);
+  const [orphanedLocalNotes, setOrphanedLocalNotes] = useState([]);
+  const [migrating, setMigrating] = useState(false);
+
+  const notesRef = useRef(notes);
+  useEffect(() => {
+    notesRef.current = notes;
+  }, [notes]);
+  const writeTimers = useRef({});
+  const vaultStatusRef = useRef(vaultStatus);
+  useEffect(() => {
+    vaultStatusRef.current = vaultStatus;
+  }, [vaultStatus]);
+
+  const loadFromVault = useCallback(async () => {
+    const [active, archived] = await Promise.all([fetchVaultNotes(false), fetchVaultNotes(true)]);
+    const merged = [...(active.data || []), ...(archived.data || [])];
+    setNotes(merged);
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(merged));
+    } catch {
+      /* best effort cache */
+    }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setVaultStatus("checking");
+      try {
+        const st = await fetchObsidianStatus();
+        if (!mounted) return;
+        if (!st.configured) {
+          setVaultStatus("not_configured");
+          return;
+        }
+        if (!st.vaultOk) {
+          setVaultStatus("error");
+          setVaultError(st.error || "Vault path not reachable.");
+          return;
+        }
+        const preVaultLocal = loadLocalNotes();
+        await loadFromVault();
+        if (!mounted) return;
+        setVaultStatus("connected");
+        setOrphanedLocalNotes(preVaultLocal.filter((n) => !isVaultId(n.id)));
+      } catch (err) {
+        if (!mounted) return;
+        setVaultStatus("error");
+        setVaultError(err.message || String(err));
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [loadFromVault]);
+
+  // localStorage cache write — local-only mode this is the real store;
+  // vault mode it's just an offline mirror refreshed on every vault load.
   useEffect(() => {
     const id = setTimeout(() => {
       try {
@@ -82,64 +159,159 @@ export function NotesProvider({ children }) {
     }
   }, [folders]);
 
-  const createNote = useCallback((overrides) => {
-    const note = emptyNote(overrides);
-    setNotes((prev) => [note, ...prev]);
-    return note.id;
+  const flushNoteToVault = useCallback(async (id) => {
+    const note = notesRef.current.find((n) => n.id === id);
+    if (!note) return;
+    try {
+      const res = await writeVaultNote(isVaultId(note.id) ? note.id : null, note);
+      if (res.data.id !== note.id) {
+        // First-ever vault write of a locally-created note: swap the temp
+        // uid for the real assigned filename.
+        setNotes((prev) => prev.map((n) => (n.id === note.id ? { ...n, ...res.data } : n)));
+      }
+    } catch {
+      /* transient network/SSH failure — the note stays correct in local
+         state and localStorage cache; next edit retries the write. */
+    }
   }, []);
 
-  const updateNote = useCallback((id, patch) => {
-    setNotes((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, ...(typeof patch === "function" ? patch(n) : patch), updatedAt: Date.now() } : n))
-    );
-  }, []);
+  const scheduleVaultWrite = useCallback(
+    (id) => {
+      if (vaultStatusRef.current !== "connected") return;
+      clearTimeout(writeTimers.current[id]);
+      writeTimers.current[id] = setTimeout(() => flushNoteToVault(id), WRITE_DEBOUNCE_MS);
+    },
+    [flushNoteToVault]
+  );
 
-  const deleteNote = useCallback((id) => {
-    setNotes((prev) => prev.filter((n) => n.id !== id));
-  }, []);
+  const createNote = useCallback(
+    async (overrides) => {
+      const note = emptyNote(overrides);
+      if (vaultStatusRef.current === "connected") {
+        try {
+          const res = await writeVaultNote(null, note);
+          setNotes((prev) => [res.data, ...prev]);
+          return res.data.id;
+        } catch (err) {
+          setVaultError(err.message || String(err));
+          return null;
+        }
+      }
+      setNotes((prev) => [note, ...prev]);
+      return note.id;
+    },
+    []
+  );
 
-  const duplicateNote = useCallback((id) => {
-    let newId = null;
+  const updateNote = useCallback(
+    (id, patch) => {
+      setNotes((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, ...(typeof patch === "function" ? patch(n) : patch), updatedAt: Date.now() } : n))
+      );
+      scheduleVaultWrite(id);
+    },
+    [scheduleVaultWrite]
+  );
+
+  const deleteNote = useCallback(
+    async (id) => {
+      // Filesystem access is archive-instead-of-delete by design (see
+      // vite-plugins/obsidianBridge.js) — once vault-connected, "delete"
+      // in the UI really performs a safe, reversible archive.
+      if (vaultStatusRef.current === "connected" && isVaultId(id)) {
+        try {
+          await archiveVaultNote(id);
+          setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, archived: true } : n)));
+          return;
+        } catch (err) {
+          setVaultError(err.message || String(err));
+          return;
+        }
+      }
+      setNotes((prev) => prev.filter((n) => n.id !== id));
+    },
+    []
+  );
+
+  const duplicateNote = useCallback(async (id) => {
+    const src = notesRef.current.find((n) => n.id === id);
+    if (!src) return null;
+    const copy = emptyNote({
+      ...src,
+      id: uid(),
+      title: src.title ? `${src.title} (copy)` : "",
+      pinned: false,
+      checklist: src.checklist.map((c) => ({ ...c, id: uid() })),
+    });
+    if (vaultStatusRef.current === "connected") {
+      try {
+        const res = await writeVaultNote(null, copy);
+        setNotes((prev) => {
+          const idx = prev.findIndex((n) => n.id === id);
+          return [...prev.slice(0, idx + 1), res.data, ...prev.slice(idx + 1)];
+        });
+        return res.data.id;
+      } catch (err) {
+        setVaultError(err.message || String(err));
+        return null;
+      }
+    }
     setNotes((prev) => {
-      const src = prev.find((n) => n.id === id);
-      if (!src) return prev;
-      const copy = emptyNote({
-        ...src,
-        id: uid(),
-        title: src.title ? `${src.title} (copy)` : "",
-        pinned: false,
-        checklist: src.checklist.map((c) => ({ ...c, id: uid() })),
-      });
-      newId = copy.id;
       const idx = prev.findIndex((n) => n.id === id);
       return [...prev.slice(0, idx + 1), copy, ...prev.slice(idx + 1)];
     });
-    return newId;
+    return copy.id;
   }, []);
 
-  const togglePin = useCallback((id) => {
-    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, pinned: !n.pinned, updatedAt: Date.now() } : n)));
+  const togglePin = useCallback(
+    (id) => {
+      updateNote(id, (n) => ({ pinned: !n.pinned }));
+    },
+    [updateNote]
+  );
+
+  const toggleArchive = useCallback(async (id) => {
+    const note = notesRef.current.find((n) => n.id === id);
+    if (!note) return;
+    const nextArchived = !note.archived;
+    if (vaultStatusRef.current === "connected" && isVaultId(id)) {
+      try {
+        if (nextArchived) await archiveVaultNote(id);
+        else await unarchiveVaultNote(id);
+        setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, archived: nextArchived } : n)));
+        return;
+      } catch (err) {
+        setVaultError(err.message || String(err));
+        return;
+      }
+    }
+    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, archived: nextArchived, updatedAt: Date.now() } : n)));
   }, []);
 
-  const toggleArchive = useCallback((id) => {
-    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, archived: !n.archived, updatedAt: Date.now() } : n)));
-  }, []);
+  // ---- Checklist -------------------------------------------------------------
+  const addChecklistItem = useCallback(
+    (noteId, text) => {
+      const item = { id: uid(), text, done: false };
+      updateNote(noteId, (n) => ({ checklist: [...n.checklist, item] }));
+    },
+    [updateNote]
+  );
 
-  // ---- Checklist -----------------------------------------------------------
-  const addChecklistItem = useCallback((noteId, text) => {
-    const item = { id: uid(), text, done: false };
-    updateNote(noteId, (n) => ({ checklist: [...n.checklist, item] }));
-  }, [updateNote]);
+  const toggleChecklistItem = useCallback(
+    (noteId, itemId) => {
+      updateNote(noteId, (n) => ({ checklist: n.checklist.map((c) => (c.id === itemId ? { ...c, done: !c.done } : c)) }));
+    },
+    [updateNote]
+  );
 
-  const toggleChecklistItem = useCallback((noteId, itemId) => {
-    updateNote(noteId, (n) => ({ checklist: n.checklist.map((c) => (c.id === itemId ? { ...c, done: !c.done } : c)) }));
-  }, [updateNote]);
+  const removeChecklistItem = useCallback(
+    (noteId, itemId) => {
+      updateNote(noteId, (n) => ({ checklist: n.checklist.filter((c) => c.id !== itemId) }));
+    },
+    [updateNote]
+  );
 
-  const removeChecklistItem = useCallback((noteId, itemId) => {
-    updateNote(noteId, (n) => ({ checklist: n.checklist.filter((c) => c.id !== itemId) }));
-  }, [updateNote]);
-
-  // ---- Folders ---------------------------------------------------------------
+  // ---- Folders — genuine local UI preference, not vault-backed data ---------
   const createFolder = useCallback((name) => {
     const clean = name.trim();
     if (!clean) return;
@@ -158,6 +330,32 @@ export function NotesProvider({ children }) {
     setNotes((prev) => prev.map((n) => (n.folder === name ? { ...n, folder: null } : n)));
   }, []);
 
+  // ---- Migration: notes created before the vault was ever connected --------
+  const migrateLocalNotesToVault = useCallback(async () => {
+    if (vaultStatusRef.current !== "connected" || orphanedLocalNotes.length === 0) return;
+    setMigrating(true);
+    try {
+      const migrated = [];
+      for (const local of orphanedLocalNotes) {
+        try {
+          const res = await writeVaultNote(null, local);
+          migrated.push({ oldId: local.id, note: res.data });
+        } catch {
+          /* leave this one in the orphan list, retry available next click */
+        }
+      }
+      if (migrated.length) {
+        setNotes((prev) => {
+          const withoutOld = prev.filter((n) => !migrated.some((m) => m.oldId === n.id));
+          return [...migrated.map((m) => m.note), ...withoutOld];
+        });
+        setOrphanedLocalNotes((prev) => prev.filter((n) => !migrated.some((m) => m.oldId === n.id)));
+      }
+    } finally {
+      setMigrating(false);
+    }
+  }, [orphanedLocalNotes]);
+
   const allTags = useMemo(() => {
     const set = new Set();
     for (const n of notes) for (const t of n.tags || []) set.add(t);
@@ -169,6 +367,11 @@ export function NotesProvider({ children }) {
       notes,
       folders,
       allTags,
+      vaultStatus,
+      vaultError,
+      orphanedLocalNotes,
+      migrating,
+      migrateLocalNotesToVault,
       createNote,
       updateNote,
       deleteNote,
@@ -186,6 +389,11 @@ export function NotesProvider({ children }) {
       notes,
       folders,
       allTags,
+      vaultStatus,
+      vaultError,
+      orphanedLocalNotes,
+      migrating,
+      migrateLocalNotesToVault,
       createNote,
       updateNote,
       deleteNote,
