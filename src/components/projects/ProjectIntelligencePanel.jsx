@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
-import { fetchVaultCanvases, fetchVaultWorkflows } from "../../lib/obsidianBridge.js";
-import { fetchKanbanTask } from "../../lib/kanbanBridge.js";
+import { useMemo } from "react";
+import { useChat } from "../../state/Chat.jsx";
+import { useViewMode } from "../../state/ViewMode.jsx";
+import { useProjectSignals } from "../../lib/useProjectSignals.js";
+import { buildProjectContextMessage } from "../../lib/projectContext.js";
+import { GlassButton } from "../ui/GlassButton.jsx";
 
 function relTimeAgo(ms) {
   if (!ms) return "—";
@@ -31,61 +34,43 @@ function Tile({ label, value, sub, tone }) {
   JSON files the bridge never stat()s or timestamps (see
   vite-plugins/obsidianBridge.js's listFiles) — inventing one would violate
   the no-fake-backend-fields rule the rest of this app follows.
+
+  "Analyze in Chat" seeds the exact same rich context message
+  ProjectChatPanel's own button does (shared builder in
+  src/lib/projectContext.js) and jumps straight to Chat with it in the
+  composer — one click, not "switch tabs, then find the other button."
 */
 export function ProjectIntelligencePanel({ project, notes, onOpenChat }) {
-  const [canvases, setCanvases] = useState(null);
-  const [workflows, setWorkflows] = useState(null);
-  const [tasks, setTasks] = useState(null);
-  const [loadError, setLoadError] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [cvRes, wfRes] = await Promise.all([fetchVaultCanvases(project.id), fetchVaultWorkflows(project.id)]);
-        if (cancelled) return;
-        setCanvases(cvRes.data || []);
-        setWorkflows(wfRes.data || []);
-      } catch (err) {
-        if (!cancelled) setLoadError(err.message || String(err));
-      }
-      const taskEntries = await Promise.all(
-        (project.linkedKanbanIds || []).map(async (id) => {
-          try {
-            const res = await fetchKanbanTask(id);
-            return res.data.task;
-          } catch {
-            return null; // deleted/inaccessible — excluded from counts, not faked
-          }
-        })
-      );
-      if (!cancelled) setTasks(taskEntries.filter(Boolean));
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [project.id, project.linkedKanbanIds]);
+  const { newChat, setDraft } = useChat();
+  const { goTo } = useViewMode();
+  const { canvases, workflows, tasks, loading, error: loadError } = useProjectSignals(project);
 
   const linkedNotes = useMemo(() => project.linkedNoteIds.map((id) => notes.find((n) => n.id === id)).filter((n) => n && !n.archived), [project.linkedNoteIds, notes]);
 
   const lastUpdatedNote = useMemo(() => (linkedNotes.length ? linkedNotes.reduce((a, b) => (b.updatedAt > a.updatedAt ? b : a)) : null), [linkedNotes]);
 
-  const loading = canvases === null || workflows === null || tasks === null;
-  const activeWorkflows = workflows?.filter((w) => w.status !== "done") || [];
-  const openTasks = tasks?.filter((t) => t.status !== "done") || [];
-  const blockedTasks = tasks?.filter((t) => t.status === "blocked") || [];
-  const blockedSteps = (workflows || []).reduce((sum, w) => sum + (w.steps || []).filter((s) => s.status === "blocked").length, 0);
+  const activeWorkflows = workflows.filter((w) => w.status !== "done");
+  const openTasks = tasks.filter((t) => t.status !== "done");
+  const blockedTasks = tasks.filter((t) => t.status === "blocked");
+  const blockedSteps = workflows.reduce((sum, w) => sum + (w.steps || []).filter((s) => s.status === "blocked").length, 0);
   const totalBlocked = blockedTasks.length + blockedSteps;
 
   const nextAction = loading
     ? null
     : totalBlocked > 0
       ? `${totalBlocked} blocked item${totalBlocked === 1 ? "" : "s"} — clear ${blockedTasks.length > 0 ? "the Kanban tab" : "the Workflows tab"} first.`
-      : linkedNotes.length === 0 && (workflows?.length || 0) === 0 && (tasks?.length || 0) === 0
+      : linkedNotes.length === 0 && workflows.length === 0 && tasks.length === 0
         ? "Nothing linked yet — add a note, canvas, workflow, or task to get this project moving."
         : openTasks.length > 0
           ? `${openTasks.length} open Kanban task${openTasks.length === 1 ? "" : "s"} — check the Kanban tab.`
           : "Nothing obviously blocking right now.";
+
+  const onAnalyzeInChat = () => {
+    const message = buildProjectContextMessage(project, linkedNotes, canvases, workflows, tasks);
+    newChat();
+    setDraft(message);
+    goTo("chat");
+  };
 
   return (
     <div className="panel-section">
@@ -139,11 +124,17 @@ export function ProjectIntelligencePanel({ project, notes, onOpenChat }) {
         Ask Hermes
       </p>
       <p className="panel-empty" style={{ margin: 0 }}>
-        No Hermes analysis endpoint exists on this build yet — this panel is deterministic counts only.
+        No Hermes analysis endpoint exists on this build yet — no summary below is model-generated. This seeds the real project
+        data above into a new chat message for you to review and send.
       </p>
-      <button type="button" className="btn-pill" onClick={onOpenChat} style={{ marginTop: "0.5rem" }}>
-        open Chat tab instead →
-      </button>
+      <div className="job-modal-actions" style={{ marginTop: "0.5rem" }}>
+        <GlassButton variant="primary" onClick={onAnalyzeInChat} disabled={loading}>
+          Analyze in Chat →
+        </GlassButton>
+        <GlassButton variant="secondary" onClick={onOpenChat}>
+          open Chat tab instead
+        </GlassButton>
+      </div>
     </div>
   );
 }
