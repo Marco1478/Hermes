@@ -12,6 +12,12 @@ import { writeVaultWorkflow, writeVaultCanvas } from "../../lib/obsidianBridge.j
 import { GlassButton } from "../ui/GlassButton.jsx";
 import { GlassSegmented, GlassSegmentedOption } from "../ui/GlassSegmented.jsx";
 import "./ProjectsPage.css";
+// ProjectOverviewPanel/ProjectWorkflows/ProjectChatPanel reuse the Notes
+// editor's textarea/checklist/tag-input/meta-select classes wholesale (by
+// design, not by accident) — with pages code-split (CLAUDE-006), that
+// reuse needs this page's own chunk to actually ship those rules, not just
+// assume they're already on the page because Notes happened to load first.
+import "../notes/NotesPage.css";
 
 const STATUS_LABEL = {
   planning: "Planning",

@@ -319,40 +319,10 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
-.kanban-action-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.kanban-action-row--stack {
-  align-items: flex-start;
-}
-
-.kanban-action-input,
-.kanban-action-textarea {
-  flex: 1;
-  min-width: 0;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  padding: 0.5rem 0.65rem;
-  color: var(--silver);
-  font-size: 0.75rem;
-  font-family: var(--font-body);
-  transition: border-color 0.15s ease;
-}
-
-.kanban-action-textarea {
-  resize: vertical;
-  line-height: 1.5;
-}
-
-.kanban-action-input:focus,
-.kanban-action-textarea:focus {
-  outline: none;
-  border-color: rgba(255, 255, 255, 0.3);
-}
+/* .kanban-action-row/-row--stack/-input/-textarea moved to
+   src/components/ui/glass.css — ProjectKanbanPanel.jsx (Projects page)
+   uses these too, and needs them present without the Kanban page chunk
+   ever having loaded. */
 
 .kanban-modal-checkbox {
   flex-direction: row;

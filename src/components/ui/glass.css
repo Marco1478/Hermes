@@ -196,3 +196,112 @@
   outline: 2px solid var(--teal);
   outline-offset: 2px;
 }
+
+/* ---- Shared form controls ------------------------------------------------ */
+/* Genuinely cross-page primitives (modal scrim/shell/inputs, the compact
+   action-row input used by task/note quick-add rows, the borderless title
+   input used by both a note's editor and a project's overview header) —
+   they live here, not in whichever page happened to define them first,
+   because every lazy-loaded page chunk (CLAUDE-006) only ships the CSS its
+   own imports pull in. A class defined in JobsPage.css and used by
+   ProjectsPage/KanbanPage/ConfirmModal rendered without ever visiting Jobs
+   first: those consumers get an unstyled native <input>, which is why it
+   showed white. Every page that needs these already imports a Glass*
+   component, so keeping the rules here guarantees they're never missing. */
+
+.job-modal-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.job-modal {
+  width: min(100%, 560px);
+  max-height: 85vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1.4rem;
+}
+
+.job-modal-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: var(--silver-dim);
+  opacity: 0.7;
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.job-modal-input,
+.job-modal-textarea {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+  color: var(--silver);
+  font-size: 0.72rem;
+  font-family: var(--font-body);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.job-modal-textarea {
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.job-modal-input:focus,
+.job-modal-textarea:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.job-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.kanban-action-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.kanban-action-row--stack {
+  align-items: flex-start;
+}
+
+.kanban-action-input,
+.kanban-action-textarea {
+  flex: 1;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+  color: var(--silver);
+  font-size: 0.75rem;
+  font-family: var(--font-body);
+  transition: border-color 0.15s ease;
+}
+
+.kanban-action-textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.kanban-action-input:focus,
+.kanban-action-textarea:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.3);
+}
