@@ -119,10 +119,67 @@
   transform-origin: 0 0;
 }
 
+/* Snap-to-grid visual feedback — the same GRID (20px) the JS rounds
+   positions to, so the guide lines actually line up with where a node
+   will land. */
+.canvas-world--grid {
+  background-image: linear-gradient(rgba(110, 231, 223, 0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(110, 231, 223, 0.12) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
 .canvas-empty-hint {
   position: absolute;
   top: 40px;
   left: 40px;
+  max-width: 320px;
+  padding: 1rem 1.2rem;
+  border: 1.5px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+}
+
+.canvas-empty-hint-title {
+  color: var(--silver);
+  opacity: 0.8;
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+
+.canvas-empty-hint-body {
+  color: var(--silver-dim);
+  opacity: 0.6;
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+/* ---- Edges (V2) ----------------------------------------------------------- */
+
+.canvas-edge-layer {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.canvas-edge-line {
+  stroke: rgba(110, 231, 223, 0.55);
+  stroke-width: 2;
+  fill: none;
+}
+
+.canvas-edge-line--pending {
+  stroke-dasharray: 6 5;
+  stroke: rgba(255, 255, 255, 0.5);
+}
+
+.canvas-edge-hit {
+  stroke: transparent;
+  stroke-width: 16;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.canvas-history-toolbar {
+  margin-left: auto;
 }
 
 /* ---- Nodes -------------------------------------------------------------- */
@@ -153,6 +210,54 @@
 .canvas-node--selected .canvas-node-inner {
   border-color: rgba(110, 231, 223, 0.5);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4), 0 0 22px rgba(110, 231, 223, 0.2);
+}
+
+/* ---- Connector + resize handles (only rendered while selected) ------------ */
+
+.canvas-node-connector {
+  position: absolute;
+  top: 50%;
+  right: -11px;
+  width: 22px;
+  height: 22px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(110, 231, 223, 0.5);
+  background: var(--ink-deep);
+  color: var(--teal);
+  font-size: 0.6rem;
+  line-height: 1;
+  cursor: crosshair;
+  touch-action: none;
+  transition: background 0.15s ease, transform 0.15s ease;
+  z-index: 5;
+}
+
+.canvas-node-connector:hover {
+  background: rgba(110, 231, 223, 0.25);
+  transform: translateY(-50%) scale(1.15);
+}
+
+.canvas-node-resize {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: var(--ink-deep);
+  cursor: nwse-resize;
+  touch-action: none;
+  z-index: 5;
+}
+
+.canvas-node-resize:hover {
+  border-color: var(--teal);
+  background: rgba(110, 231, 223, 0.25);
 }
 
 .canvas-node--circle .canvas-node-inner {
