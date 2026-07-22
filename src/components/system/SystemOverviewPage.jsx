@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useGateway } from "../../state/GatewayHealth.jsx";
 import { useUsage } from "../../state/Usage.jsx";
 import { useChat } from "../../state/Chat.jsx";
+import { useNotes } from "../../state/Notes.jsx";
+import { useProjects } from "../../state/Projects.jsx";
 import { useViewMode } from "../../state/ViewMode.jsx";
+import { VaultStatusChip } from "../VaultStatusChip.jsx";
 import {
   fetchSystemStats,
   fetchMessagingPlatforms,
@@ -99,6 +102,8 @@ export function SystemOverviewPage() {
   const gateway = useGateway();
   const { openai, anthropic } = useUsage();
   const { chatList, activeId, runningChatId } = useChat();
+  const { notes, vaultStatus, vaultError } = useNotes();
+  const { projects } = useProjects();
   const { goTo } = useViewMode();
 
   const [stats, setStats] = useState(null);
@@ -186,6 +191,13 @@ export function SystemOverviewPage() {
     const ready = memory.providers.filter((p) => p.status === "ready").length;
     return { total: memory.providers.length, ready, active: memory.active || null };
   }, [memory]);
+
+  const vaultStats = useMemo(() => {
+    const activeNotes = notes.filter((n) => !n.archived);
+    const activeProjects = projects.filter((p) => !p.archived);
+    const lastModified = notes.reduce((max, n) => (n.updatedAt > max ? n.updatedAt : max), 0);
+    return { noteCount: activeNotes.length, projectCount: activeProjects.length, lastModified: lastModified || null };
+  }, [notes, projects]);
 
   return (
     <PageShell title="System">
@@ -324,6 +336,33 @@ export function SystemOverviewPage() {
               <SummaryTile label="ACTIVE" value={memoryStats.active || "—"} />
             </div>
           )}
+        </button>
+      </div>
+
+      {/* ---- Obsidian vault ------------------------------------------------- */}
+      <div className="panel-section">
+        <button type="button" className="panel-card glass-card--interactive overview-vault" onClick={() => goTo("notes")}>
+          <div className="overview-section-head">
+            <p className="panel-section-title" style={{ marginBottom: 0 }}>
+              Obsidian Vault
+            </p>
+            <VaultStatusChip status={vaultStatus} error={vaultError} />
+          </div>
+          {vaultStatus === "connected" && (
+            <div className="overview-tile-grid">
+              <SummaryTile label="NOTES" value={vaultStats.noteCount} />
+              <SummaryTile label="PROJECTS" value={vaultStats.projectCount} />
+              <SummaryTile label="LAST EDIT" value={vaultStats.lastModified ? relTimeAgo(vaultStats.lastModified) : "—"} />
+            </div>
+          )}
+          {vaultStatus === "not_configured" && (
+            <DiagnosticCard
+              title="Vault not configured"
+              detail="Notes/Projects are falling back to browser-local storage."
+              hint="Set OBSIDIAN_VAULT_PATH in .env.local — see docs/OBSIDIAN_VAULT_SETUP.md."
+            />
+          )}
+          {vaultStatus === "error" && <DiagnosticCard title="Vault unreachable" detail={vaultError} hint="Check the SSH bridge can reach the box and the container is running." />}
         </button>
       </div>
 

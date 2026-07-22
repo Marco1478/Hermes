@@ -129,6 +129,12 @@ fall back to pretending localStorage is the real store.
   `vault not configured`), never silently presented as durable storage.
 - A one-click "migrate local notes to vault" action moves anything that
   was created before the vault was configured.
+- Kanban task detail can create a note from a task, or link an existing
+  one — persisted as a real Kanban comment ("Linked Obsidian note:
+  [[...]]"), since there's no `linked_notes` field on a real task.
+- System Overview has an "Obsidian Vault" card: connected / not configured
+  / error, plus live note/project counts and last-edited time when
+  connected.
 
 ## Deliberately not done here
 
