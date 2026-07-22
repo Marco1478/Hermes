@@ -3,6 +3,7 @@ import { ProjectOverviewPanel } from "./ProjectOverviewPanel.jsx";
 import { ProjectNotesPanel } from "./ProjectNotesPanel.jsx";
 import { ProjectCanvas } from "./canvas/ProjectCanvas.jsx";
 import { ProjectWorkflows } from "./workflows/ProjectWorkflows.jsx";
+import { ProjectChatPanel } from "./ProjectChatPanel.jsx";
 import { WorkspacePlaceholder } from "./WorkspacePlaceholder.jsx";
 
 const SECTIONS = [
@@ -68,9 +69,7 @@ export function ProjectWorkspace({ project, notes, vaultStatus, onBack, onUpdate
         {section === "kanban" && (
           <WorkspacePlaceholder title="Kanban" chunk="CLAUDE-008" detail="Project-scoped Kanban view (mirroring the main board) lands in a later chunk." />
         )}
-        {section === "chat" && (
-          <WorkspacePlaceholder title="Chat" chunk="CLAUDE-006" detail="A project-aware Hermes chat entrypoint lands in a later chunk." />
-        )}
+        {section === "chat" && <ProjectChatPanel project={project} notes={notes} />}
         {section === "intelligence" && (
           <WorkspacePlaceholder title="Intelligence" chunk="CLAUDE-009" detail="A deterministic project summary panel lands in a later chunk." />
         )}
