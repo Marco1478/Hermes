@@ -888,6 +888,7 @@ export function hermesBridgePlugin({
           return;
         }
         const project = body.project || {};
+        const isNew = !body.id;
         let relPath = body.id ? safeRelPath(body.id) : null;
         if (body.id && !relPath) {
           sendJson(res, 400, { ok: false, error: "invalid path" });
@@ -912,6 +913,14 @@ export function hermesBridgePlugin({
         if (!result.ok) {
           sendJson(res, 502, result);
           return;
+        }
+        if (isNew) {
+          // Workspace skeleton — real subfolders from day one (see
+          // docs/OBSIDIAN_VAULT_SETUP.md), not created lazily by whichever
+          // chunk happens to touch them first.
+          await Promise.all(
+            ["notes", "canvases", "workflows", "assets"].map((sub) => obsidian.mkdirp(obsidian.dirs.projects, `${relPath}/${sub}`))
+          );
         }
         sendJson(res, 200, { ok: true, data: { ...project, id: relPath, archived: false, createdAt: record.createdAt, updatedAt: record.updatedAt } });
       });

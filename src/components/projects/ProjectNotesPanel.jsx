@@ -1,0 +1,166 @@
+import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { plainTextPreview } from "../../lib/markdownLite.js";
+
+function ImportNotesModal({ project, notes, onLink, onClose }) {
+  const [query, setQuery] = useState("");
+  const available = notes.filter((n) => !project.linkedNoteIds.includes(n.id) && !n.archived);
+  const filtered = query.trim()
+    ? available.filter((n) => n.title.toLowerCase().includes(query.toLowerCase()) || n.body.toLowerCase().includes(query.toLowerCase()))
+    : available;
+
+  return (
+    <motion.div className="job-modal-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+      <motion.div
+        className="glass-card job-modal"
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        transition={{ type: "spring", stiffness: 460, damping: 30 }}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Link existing note"
+      >
+        <p className="panel-section-title">Link a note into "{project.name || "Untitled project"}"</p>
+        <input className="job-modal-input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search notes…" autoFocus />
+        <div className="import-notes-list">
+          {filtered.length === 0 && <p className="panel-empty">{notes.length === 0 ? "No notes exist yet — create one below first." : "No matching notes."}</p>}
+          {filtered.map((n) => (
+            <button
+              key={n.id}
+              type="button"
+              className="import-notes-item"
+              onClick={() => {
+                onLink(n.id);
+                onClose();
+              }}
+            >
+              <span className="import-notes-item-title">{n.title || "Untitled"}</span>
+              <span className="import-notes-item-preview">{plainTextPreview(n.body, 70)}</span>
+            </button>
+          ))}
+        </div>
+        <div className="job-modal-actions">
+          <button type="button" className="btn-pill" onClick={onClose}>
+            close
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function ImportTextModal({ project, onCreate, onClose }) {
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const onImport = async () => {
+    if (!title.trim() && !body.trim()) return;
+    setSaving(true);
+    try {
+      await onCreate({ title: title.trim() || "Untitled", body });
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <motion.div className="job-modal-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+      <motion.div
+        className="glass-card job-modal"
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        transition={{ type: "spring", stiffness: 460, damping: 30 }}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Import text into project note"
+      >
+        <p className="panel-section-title">New note in "{project.name || "Untitled project"}"</p>
+        <p className="panel-empty">Paste or write markdown/text — it's saved as a real note in the vault, linked to this project.</p>
+        <label className="job-modal-label mono">
+          Title
+          <input className="job-modal-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Note title" autoFocus />
+        </label>
+        <label className="job-modal-label mono">
+          Content
+          <textarea className="job-modal-textarea mono" value={body} onChange={(e) => setBody(e.target.value)} rows={8} placeholder="Paste or write markdown here…" />
+        </label>
+        <div className="job-modal-actions">
+          <button type="button" className="btn-pill" onClick={onClose} disabled={saving}>
+            cancel
+          </button>
+          <button type="button" className="btn-pill" onClick={onImport} disabled={saving}>
+            {saving ? "saving…" : "create + link"}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/*
+  ProjectNotesPanel — notes stay global (see state/Notes.jsx); a project
+  only ever holds *references* (linkedNoteIds), never a forked copy. Three
+  ways a note ends up linked here: create-fresh, link-existing, or
+  import-pasted-text — all three just create/reuse a normal global note and
+  link it, so nothing here is a project-only note type.
+*/
+export function ProjectNotesPanel({ project, notes, onLinkNote, onUnlinkNote, onCreateNote }) {
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const linkedNotes = project.linkedNoteIds.map((id) => notes.find((n) => n.id === id)).filter(Boolean);
+
+  const onQuickCreate = async () => {
+    const id = await onCreateNote({ title: "", body: "" });
+    if (id) onLinkNote(id);
+  };
+
+  return (
+    <div className="panel-section">
+      <div className="project-section-head">
+        <p className="panel-section-title" style={{ marginBottom: 0 }}>
+          Notes ({linkedNotes.length})
+        </p>
+        <button type="button" className="btn-pill" onClick={onQuickCreate}>
+          + new project note
+        </button>
+        <button type="button" className="btn-pill" onClick={() => setImportOpen(true)}>
+          + import text
+        </button>
+        <button type="button" className="btn-pill" onClick={() => setLinkOpen(true)}>
+          + link existing note
+        </button>
+      </div>
+
+      {linkedNotes.length === 0 && <p className="panel-empty">No notes linked yet. Free notes stay global — linking here doesn't move or copy them.</p>}
+      <AnimatePresence initial={false}>
+        {linkedNotes.map((n) => (
+          <motion.div key={n.id} className="linked-note-row" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+            <div className="linked-note-info">
+              <span className="linked-note-title">{n.title || "Untitled"}</span>
+              <span className="linked-note-preview">{plainTextPreview(n.body, 90)}</span>
+            </div>
+            <button type="button" className="btn-pill" onClick={() => onUnlinkNote(n.id)}>
+              unlink
+            </button>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {linkOpen && <ImportNotesModal project={project} notes={notes} onLink={onLinkNote} onClose={() => setLinkOpen(false)} />}
+        {importOpen && <ImportTextModal project={project} onCreate={onQuickCreateWithContent(onCreateNote, onLinkNote)} onClose={() => setImportOpen(false)} />}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function onQuickCreateWithContent(onCreateNote, onLinkNote) {
+  return async ({ title, body }) => {
+    const id = await onCreateNote({ title, body, tags: ["imported"] });
+    if (id) onLinkNote(id);
+  };
+}

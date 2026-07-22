@@ -237,6 +237,15 @@ export function createObsidianExec({ sshHost, sshKeyPath, vaultPath, notesDir, p
     return result.ok && result.stdout.trim() === "YES";
   }
 
+  /* Project workspace skeleton — notes/canvases/workflows/assets are real
+     subfolders a project owns from creation, so Marco can drop files into
+     them directly in Obsidian even before the UI chunk that manages them
+     (canvas/workflows) lands. */
+  async function mkdirp(dir, relPath) {
+    const result = await execRemote(`mkdir -p ${shQuote(`${dir}/${relPath}`)}`);
+    return { ok: result.ok, error: result.ok ? undefined : result.stderr || "mkdir failed" };
+  }
+
   async function move(fromDir, fromRel, toDir, toRel) {
     const from = `${fromDir}/${fromRel}`;
     const to = `${toDir}/${toRel}`;
@@ -263,6 +272,7 @@ export function createObsidianExec({ sshHost, sshKeyPath, vaultPath, notesDir, p
     exists,
     move,
     removeEmptyDir,
+    mkdirp,
   };
 }
 

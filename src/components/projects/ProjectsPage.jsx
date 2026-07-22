@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { useProjects, STATUSES, PRIORITIES } from "../../state/Projects.jsx";
 import { useNotes } from "../../state/Notes.jsx";
 import { PageShell } from "../PageShell.jsx";
 import { VaultStatusChip } from "../VaultStatusChip.jsx";
+import { ProjectWorkspace } from "./ProjectWorkspace.jsx";
 import { plainTextPreview } from "../../lib/markdownLite.js";
 import "./ProjectsPage.css";
 
@@ -68,12 +69,35 @@ function ProjectCard({ project, onOpen }) {
   );
 }
 
-function ImportNotesModal({ project, notes, onLink, onClose }) {
-  const [query, setQuery] = useState("");
-  const available = notes.filter((n) => !project.linkedNoteIds.includes(n.id));
-  const filtered = query.trim()
-    ? available.filter((n) => n.title.toLowerCase().includes(query.toLowerCase()) || n.body.toLowerCase().includes(query.toLowerCase()))
-    : available;
+function NewProjectModal({ onCreate, onClose }) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [status, setStatus] = useState("planning");
+  const [color, setColor] = useState(null);
+  const [tagsText, setTagsText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const onSubmit = async () => {
+    if (!name.trim()) {
+      setError("Name is required.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const tags = tagsText
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+      await onCreate({ name: name.trim(), description, status, color, tags });
+      onClose();
+    } catch (err) {
+      setError(err.message || String(err));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <motion.div className="job-modal-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
@@ -85,273 +109,69 @@ function ImportNotesModal({ project, notes, onLink, onClose }) {
         transition={{ type: "spring", stiffness: 460, damping: 30 }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
-        aria-label="Import notes"
+        aria-label="New project"
       >
-        <p className="panel-section-title">Import notes into "{project.name || "Untitled project"}"</p>
-        <input
-          className="job-modal-input"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search notes…"
-          autoFocus
-        />
-        <div className="import-notes-list">
-          {filtered.length === 0 && <p className="panel-empty">{notes.length === 0 ? "No notes exist yet — create some in the Notes tab first." : "No matching notes."}</p>}
-          {filtered.map((n) => (
+        <p className="panel-section-title">New project</p>
+
+        <label className="job-modal-label mono">
+          Name
+          <input className="job-modal-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Project name" autoFocus />
+        </label>
+
+        <label className="job-modal-label mono">
+          Description
+          <textarea className="job-modal-textarea mono" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Optional summary" />
+        </label>
+
+        <label className="job-modal-label mono">
+          Status
+          <select className="notes-meta-select mono" value={status} onChange={(e) => setStatus(e.target.value)}>
+            {STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {STATUS_LABEL[s]}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className="notes-color-row">
+          {COLORS.map((c) => (
             <button
-              key={n.id}
+              key={c.label}
               type="button"
-              className="import-notes-item"
-              onClick={() => {
-                onLink(n.id);
-                onClose();
-              }}
-            >
-              <span className="import-notes-item-title">{n.title || "Untitled"}</span>
-              <span className="import-notes-item-preview">{plainTextPreview(n.body, 70)}</span>
-            </button>
-          ))}
-        </div>
-        <div className="job-modal-actions">
-          <button type="button" className="btn-pill" onClick={onClose}>
-            close
-          </button>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-}
-
-function ProjectDrawer({
-  project,
-  notes,
-  vaultStatus,
-  onClose,
-  onUpdate,
-  onDelete,
-  onToggleArchive,
-  onAddMilestone,
-  onToggleMilestone,
-  onRemoveMilestone,
-  onLinkNote,
-  onUnlinkNote,
-}) {
-  const [newMilestone, setNewMilestone] = useState("");
-  const [newTag, setNewTag] = useState("");
-  const [importOpen, setImportOpen] = useState(false);
-
-  const linkedNotes = project.linkedNoteIds.map((id) => notes.find((n) => n.id === id)).filter(Boolean);
-  const progress = progressOf(project);
-
-  const addTag = () => {
-    const t = newTag.trim();
-    if (!t) return;
-    if (!project.tags.includes(t)) onUpdate({ tags: [...project.tags, t] });
-    setNewTag("");
-  };
-
-  return (
-    <motion.div className="kanban-drawer-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
-      <motion.div
-        className="glass-card kanban-drawer"
-        initial={{ opacity: 0, x: 36 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: 36 }}
-        transition={{ type: "spring", stiffness: 380, damping: 34 }}
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label="Project detail"
-      >
-        <button type="button" className="btn-pill kanban-drawer-close" onClick={onClose}>
-          close
-        </button>
-
-        <input
-          className="notes-title-input"
-          value={project.name}
-          onChange={(e) => onUpdate({ name: e.target.value })}
-          placeholder="Untitled project"
-        />
-
-        <div className="project-drawer-row">
-          <label className="notes-meta-label mono">
-            status
-            <select className="notes-meta-select mono" value={project.status} onChange={(e) => onUpdate({ status: e.target.value })}>
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {STATUS_LABEL[s]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="notes-meta-label mono">
-            priority
-            <select className="notes-meta-select mono" value={project.priority} onChange={(e) => onUpdate({ priority: e.target.value })}>
-              {PRIORITIES.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="notes-meta-label mono">
-            due
-            <input
-              type="date"
-              className="notes-meta-select mono"
-              value={project.dueDate ? new Date(project.dueDate).toISOString().slice(0, 10) : ""}
-              onChange={(e) => onUpdate({ dueDate: e.target.value ? new Date(e.target.value).getTime() : null })}
+              className={`note-color-swatch note-color-swatch--${c.key || "none"}${color === c.key ? " note-color-swatch--active" : ""}`}
+              title={c.label}
+              aria-label={c.label}
+              onClick={() => setColor(c.key)}
             />
-          </label>
-        </div>
-
-        <div className="notes-meta-label mono">
-          color
-          <div className="notes-color-row">
-            {COLORS.map((c) => (
-              <button
-                key={c.label}
-                type="button"
-                className={`note-color-swatch note-color-swatch--${c.key || "none"}${project.color === c.key ? " note-color-swatch--active" : ""}`}
-                title={c.label}
-                aria-label={c.label}
-                onClick={() => onUpdate({ color: c.key })}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="notes-tags-row">
-          {project.tags.map((t) => (
-            <span key={t} className="tag-badge notes-tag-chip">
-              #{t}
-              <button type="button" onClick={() => onUpdate({ tags: project.tags.filter((x) => x !== t) })} aria-label={`Remove tag ${t}`}>
-                ×
-              </button>
-            </span>
-          ))}
-          <input
-            className="notes-tag-input mono"
-            value={newTag}
-            onChange={(e) => setNewTag(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addTag();
-              }
-            }}
-            placeholder="+ tag"
-          />
-        </div>
-
-        <div className="panel-section">
-          <p className="panel-section-title">Description</p>
-          <textarea
-            className="notes-body-textarea mono project-desc-textarea"
-            value={project.description}
-            onChange={(e) => onUpdate({ description: e.target.value })}
-            placeholder="What is this project about?"
-          />
-        </div>
-
-        <div className="notes-checklist">
-          <p className="panel-section-title" style={{ marginBottom: 0 }}>
-            Milestones {project.milestones.length > 0 && <span className="mono">({project.milestones.filter((m) => m.done).length}/{project.milestones.length})</span>}
-          </p>
-          {progress != null && (
-            <div className="notes-checklist-progress">
-              <div className="notes-checklist-progress-fill" style={{ width: `${progress * 100}%` }} />
-            </div>
-          )}
-          <AnimatePresence initial={false}>
-            {project.milestones.map((m) => (
-              <motion.div key={m.id} className="notes-checklist-item" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-                <label className="notes-checklist-label">
-                  <input type="checkbox" checked={m.done} onChange={() => onToggleMilestone(m.id)} />
-                  <span className={m.done ? "notes-checklist-done" : ""}>{m.text}</span>
-                </label>
-                <button type="button" className="notes-checklist-remove" onClick={() => onRemoveMilestone(m.id)} aria-label="Remove milestone">
-                  ×
-                </button>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-          <form
-            className="notes-checklist-add"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (newMilestone.trim()) onAddMilestone(newMilestone.trim());
-              setNewMilestone("");
-            }}
-          >
-            <input
-              className="notes-checklist-input mono"
-              value={newMilestone}
-              onChange={(e) => setNewMilestone(e.target.value)}
-              placeholder="+ milestone…"
-            />
-          </form>
-        </div>
-
-        <div className="panel-section">
-          <div className="project-section-head">
-            <p className="panel-section-title" style={{ marginBottom: 0 }}>
-              Linked notes ({linkedNotes.length})
-            </p>
-            <button type="button" className="btn-pill" onClick={() => setImportOpen(true)}>
-              + import notes
-            </button>
-          </div>
-          {linkedNotes.length === 0 && <p className="panel-empty">No notes linked yet.</p>}
-          {linkedNotes.map((n) => (
-            <div key={n.id} className="linked-note-row">
-              <div className="linked-note-info">
-                <span className="linked-note-title">{n.title || "Untitled"}</span>
-                <span className="linked-note-preview">{plainTextPreview(n.body, 90)}</span>
-              </div>
-              <button type="button" className="btn-pill" onClick={() => onUnlinkNote(n.id)}>
-                unlink
-              </button>
-            </div>
           ))}
         </div>
+
+        <label className="job-modal-label mono">
+          Tags
+          <input className="job-modal-input" value={tagsText} onChange={(e) => setTagsText(e.target.value)} placeholder="comma, separated, tags" />
+        </label>
+
+        {error && <p className="panel-error">{error}</p>}
 
         <div className="job-modal-actions">
-          <button type="button" className="btn-pill" onClick={onToggleArchive}>
-            {project.archived ? "unarchive" : "archive"}
+          <button type="button" className="btn-pill" onClick={onClose} disabled={saving}>
+            cancel
           </button>
-          {vaultStatus !== "connected" && (
-            <button
-              type="button"
-              className="btn-pill btn-pill--danger"
-              onClick={() => {
-                if (window.confirm("Delete this project? Linked notes are kept, just unlinked.")) onDelete();
-              }}
-            >
-              delete project
-            </button>
-          )}
+          <button type="button" className="btn-pill" onClick={onSubmit} disabled={saving}>
+            {saving ? "creating…" : "create"}
+          </button>
         </div>
-
-        <AnimatePresence>
-          {importOpen && (
-            <ImportNotesModal
-              project={project}
-              notes={notes}
-              onLink={onLinkNote}
-              onClose={() => setImportOpen(false)}
-            />
-          )}
-        </AnimatePresence>
       </motion.div>
     </motion.div>
   );
 }
 
 /*
-  ProjectsPage — a local-first project tracker (see state/Projects.jsx for
-  why local-first is honest here) that sits on top of Notes: each project
-  can import/link existing notes rather than duplicating their content.
+  ProjectsPage — list/grid of project cards; opening one switches this same
+  tab into a full ProjectWorkspace (internal sidebar: Overview/Notes/
+  Canvas/Workflows/Kanban/Chat/Intelligence) instead of a slide-over drawer
+  — a project is a self-contained operational space, not just a card.
 */
 export function ProjectsPage() {
   const {
@@ -372,7 +192,7 @@ export function ProjectsPage() {
     linkNote,
     unlinkNote,
   } = useProjects();
-  const { notes } = useNotes();
+  const { notes, createNote } = useNotes();
 
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -380,6 +200,7 @@ export function ProjectsPage() {
   const [tagFilter, setTagFilter] = useState(null);
   const [sort, setSort] = useState("updated");
   const [openId, setOpenId] = useState(null);
+  const [creating, setCreating] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -399,11 +220,6 @@ export function ProjectsPage() {
 
   const openProject = projects.find((p) => p.id === openId) || null;
 
-  const onNewProject = async () => {
-    const id = await createProject({});
-    if (id) setOpenId(id);
-  };
-
   const statusCounts = useMemo(() => {
     const visible = projects.filter((p) => Boolean(p.archived) === showArchived);
     const counts = { all: visible.length };
@@ -411,12 +227,41 @@ export function ProjectsPage() {
     return counts;
   }, [projects, showArchived]);
 
+  if (openProject) {
+    return (
+      <PageShell title="Projects" wide>
+        <ProjectWorkspace
+          project={openProject}
+          notes={notes}
+          vaultStatus={vaultStatus}
+          onBack={() => setOpenId(null)}
+          onUpdate={(patch) => updateProject(openProject.id, patch)}
+          onDelete={() => {
+            deleteProject(openProject.id);
+            setOpenId(null);
+          }}
+          onToggleArchive={() => toggleArchiveProject(openProject.id)}
+          milestoneActions={{
+            add: (text) => addMilestone(openProject.id, text),
+            toggle: (itemId) => toggleMilestone(openProject.id, itemId),
+            remove: (itemId) => removeMilestone(openProject.id, itemId),
+          }}
+          noteActions={{
+            link: (noteId) => linkNote(openProject.id, noteId),
+            unlink: (noteId) => unlinkNote(openProject.id, noteId),
+            create: createNote,
+          }}
+        />
+      </PageShell>
+    );
+  }
+
   return (
     <PageShell
       title="Projects"
       wide
       headerExtra={
-        <button type="button" className="btn-pill" onClick={onNewProject}>
+        <button type="button" className="btn-pill" onClick={() => setCreating(true)}>
           + new project
         </button>
       }
@@ -490,27 +335,15 @@ export function ProjectsPage() {
         ))}
       </div>
 
-      <AnimatePresence>
-        {openProject && (
-          <ProjectDrawer
-            project={openProject}
-            notes={notes}
-            vaultStatus={vaultStatus}
-            onClose={() => setOpenId(null)}
-            onUpdate={(patch) => updateProject(openProject.id, patch)}
-            onDelete={() => {
-              deleteProject(openProject.id);
-              setOpenId(null);
-            }}
-            onToggleArchive={() => toggleArchiveProject(openProject.id)}
-            onAddMilestone={(text) => addMilestone(openProject.id, text)}
-            onToggleMilestone={(itemId) => toggleMilestone(openProject.id, itemId)}
-            onRemoveMilestone={(itemId) => removeMilestone(openProject.id, itemId)}
-            onLinkNote={(noteId) => linkNote(openProject.id, noteId)}
-            onUnlinkNote={(noteId) => unlinkNote(openProject.id, noteId)}
-          />
-        )}
-      </AnimatePresence>
+      {creating && (
+        <NewProjectModal
+          onCreate={async (fields) => {
+            const id = await createProject(fields);
+            if (id) setOpenId(id);
+          }}
+          onClose={() => setCreating(false)}
+        />
+      )}
     </PageShell>
   );
 }
