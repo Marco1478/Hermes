@@ -189,6 +189,8 @@ export function ProjectsPage() {
     removeMilestone,
     linkNote,
     unlinkNote,
+    linkTask,
+    unlinkTask,
   } = useProjects();
   const { notes, createNote } = useNotes();
 
@@ -248,6 +250,10 @@ export function ProjectsPage() {
             link: (noteId) => linkNote(openProject.id, noteId),
             unlink: (noteId) => unlinkNote(openProject.id, noteId),
             create: createNote,
+          }}
+          taskActions={{
+            link: (taskId) => linkTask(openProject.id, taskId),
+            unlink: (taskId) => unlinkTask(openProject.id, taskId),
           }}
         />
       </PageShell>

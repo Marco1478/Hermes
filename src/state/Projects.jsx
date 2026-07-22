@@ -39,6 +39,7 @@ function emptyProject(overrides = {}) {
     dueDate: null,
     milestones: [],
     linkedNoteIds: [],
+    linkedKanbanIds: [],
     createdAt: now,
     updatedAt: now,
     ...overrides,
@@ -253,6 +254,23 @@ export function ProjectsProvider({ children }) {
     [updateProject]
   );
 
+  // ---- Kanban task linking — see KanbanPage.jsx's projectByTaskId: the
+  // relation lives here (linkedKanbanIds), not as an invented field on the
+  // real Kanban task. -------------------------------------------------------
+  const linkTask = useCallback(
+    (projectId, taskId) => {
+      updateProject(projectId, (p) => ((p.linkedKanbanIds || []).includes(taskId) ? p : { linkedKanbanIds: [...(p.linkedKanbanIds || []), taskId] }));
+    },
+    [updateProject]
+  );
+
+  const unlinkTask = useCallback(
+    (projectId, taskId) => {
+      updateProject(projectId, (p) => ({ linkedKanbanIds: (p.linkedKanbanIds || []).filter((id) => id !== taskId) }));
+    },
+    [updateProject]
+  );
+
   // ---- Migration: projects created before the vault was ever connected -----
   const migrateLocalProjectsToVault = useCallback(async () => {
     if (vaultStatusRef.current !== "connected" || orphanedLocalProjects.length === 0) return;
@@ -304,6 +322,8 @@ export function ProjectsProvider({ children }) {
       removeMilestone,
       linkNote,
       unlinkNote,
+      linkTask,
+      unlinkTask,
     }),
     [
       projects,

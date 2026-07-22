@@ -3,6 +3,7 @@ import { ProjectOverviewPanel } from "./ProjectOverviewPanel.jsx";
 import { ProjectNotesPanel } from "./ProjectNotesPanel.jsx";
 import { ProjectCanvas } from "./canvas/ProjectCanvas.jsx";
 import { ProjectWorkflows } from "./workflows/ProjectWorkflows.jsx";
+import { ProjectKanbanPanel } from "./ProjectKanbanPanel.jsx";
 import { ProjectChatPanel } from "./ProjectChatPanel.jsx";
 import { ProjectTagExplorer } from "./ProjectTagExplorer.jsx";
 import { WorkspacePlaceholder } from "./WorkspacePlaceholder.jsx";
@@ -24,7 +25,7 @@ const SECTIONS = [
   project. Lives inside the Projects tab (no new top-level route) — "back"
   just returns ProjectsPage to its list view.
 */
-export function ProjectWorkspace({ project, notes, vaultStatus, onBack, onUpdate, onDelete, onToggleArchive, milestoneActions, noteActions }) {
+export function ProjectWorkspace({ project, notes, vaultStatus, onBack, onUpdate, onDelete, onToggleArchive, milestoneActions, noteActions, taskActions }) {
   const [section, setSection] = useState("overview");
   const [activeTag, setActiveTag] = useState(null);
 
@@ -71,9 +72,7 @@ export function ProjectWorkspace({ project, notes, vaultStatus, onBack, onUpdate
         )}
         {section === "canvas" && <ProjectCanvas project={project} tagFilter={activeTag} />}
         {section === "workflows" && <ProjectWorkflows project={project} tagFilter={activeTag} />}
-        {section === "kanban" && (
-          <WorkspacePlaceholder title="Kanban" chunk="CLAUDE-008" detail="Project-scoped Kanban view (mirroring the main board) lands in a later chunk." />
-        )}
+        {section === "kanban" && <ProjectKanbanPanel project={project} onLinkTask={taskActions.link} onUnlinkTask={taskActions.unlink} />}
         {section === "chat" && <ProjectChatPanel project={project} notes={notes} />}
         {section === "intelligence" && (
           <WorkspacePlaceholder title="Intelligence" chunk="CLAUDE-009" detail="A deterministic project summary panel lands in a later chunk." />

@@ -6,7 +6,7 @@ import { KanbanCard } from "./KanbanCard.jsx";
   header (title/count row), not the whole column, so clicking a card or the
   quick-add button never gets mistaken for a reorder gesture.
 */
-export function KanbanColumn({ col, tasks, onOpen, onAddCard }) {
+export function KanbanColumn({ col, tasks, onOpen, onAddCard, projectByTaskId }) {
   const controls = useDragControls();
 
   return (
@@ -31,7 +31,7 @@ export function KanbanColumn({ col, tasks, onOpen, onAddCard }) {
       <div className="kanban-column-body">
         <AnimatePresence mode="popLayout">
           {tasks.map((t) => (
-            <KanbanCard key={t.id} task={t} onOpen={onOpen} />
+            <KanbanCard key={t.id} task={t} onOpen={onOpen} project={projectByTaskId?.get(t.id)} />
           ))}
         </AnimatePresence>
         <button

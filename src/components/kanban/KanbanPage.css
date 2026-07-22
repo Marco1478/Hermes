@@ -171,6 +171,36 @@
   opacity: 0.82;
 }
 
+/* Project-linked cards: a thin left accent bar in the project's own color
+   (same palette as .project-card-stripe--*), so a task's project is visible
+   at a glance on the main board without opening the drawer. */
+.kanban-card--project {
+  border-left: 2px solid transparent;
+}
+
+.kanban-card--project-teal {
+  border-left-color: var(--teal);
+}
+.kanban-card--project-warn {
+  border-left-color: var(--warn);
+}
+.kanban-card--project-bad {
+  border-left-color: var(--bad);
+}
+.kanban-card--project-ok {
+  border-left-color: var(--ok);
+}
+.kanban-card--project-violet {
+  border-left-color: #b6a6e8;
+}
+
+.kanban-card-project-chip {
+  align-self: flex-start;
+  color: var(--teal);
+  opacity: 0.85;
+  font-size: 0.62rem;
+}
+
 /* ---- Detail drawer -------------------------------------------------------- */
 
 .kanban-drawer-scrim {

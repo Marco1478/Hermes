@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, Reorder, motion } from "framer-motion";
 import { fetchKanbanStatus, fetchKanbanList, fetchKanbanTask, createKanbanTask, dispatchKanban } from "../../lib/kanbanBridge.js";
+import { useProjects } from "../../state/Projects.jsx";
 import { PageShell } from "../PageShell.jsx";
 import { DiagnosticCard } from "../DiagnosticCard.jsx";
 import { KanbanColumn } from "./KanbanColumn.jsx";
@@ -149,6 +150,7 @@ function loadColumnOrder() {
   localStorage for that specifically is honest, not a fake.
 */
 export function KanbanPage() {
+  const { projects } = useProjects();
   const [status, setStatus] = useState(null);
   const [tasks, setTasks] = useState(null);
   const [error, setError] = useState(null);
@@ -203,6 +205,17 @@ export function KanbanPage() {
     () => columnOrder.map((key) => COLUMNS.find((c) => c.key === key)).filter(Boolean),
     [columnOrder]
   );
+
+  // Project<->task relation lives on the project side (linkedKanbanIds in
+  // its Obsidian frontmatter) — there's no projectId field on a real
+  // Kanban task (verified against the CLI's actual create/update args), so
+  // this doesn't invent one. One pass over the already-loaded projects
+  // builds the reverse lookup a card needs to show its project chip.
+  const projectByTaskId = useMemo(() => {
+    const map = new Map();
+    for (const p of projects) for (const taskId of p.linkedKanbanIds || []) map.set(taskId, p);
+    return map;
+  }, [projects]);
 
   const openTask = useCallback(async (id) => {
     setOpenId(id);
@@ -275,6 +288,7 @@ export function KanbanPage() {
               tasks={columns[col.key] || []}
               onOpen={openTask}
               onAddCard={(c) => setCreating(hasCreatePreset(c) ? c : { generic: true })}
+              projectByTaskId={projectByTaskId}
             />
           ))}
         </Reorder.Group>

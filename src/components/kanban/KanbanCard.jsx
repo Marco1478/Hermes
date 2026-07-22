@@ -17,12 +17,12 @@ function relTimeAgo(sec) {
   return `${Math.round(h / 24)}d ago`;
 }
 
-export function KanbanCard({ task, onOpen }) {
+export function KanbanCard({ task, onOpen, project }) {
   const lastEventAt = task.completed_at || task.started_at || task.created_at;
   return (
     <motion.button
       type="button"
-      className="glass-card glass-card--interactive kanban-card"
+      className={`glass-card glass-card--interactive kanban-card${project ? ` kanban-card--project kanban-card--project-${project.color || "teal"}` : ""}`}
       onClick={() => onOpen(task.id)}
       layout
       initial={{ opacity: 0, y: 10, scale: 0.97 }}
@@ -36,6 +36,7 @@ export function KanbanCard({ task, onOpen }) {
         <span className="kanban-card-id mono">{task.id}</span>
         {task.priority > 0 && <span className="tag-badge">P{task.priority}</span>}
       </div>
+      {project && <span className="tag-badge kanban-card-project-chip">◆ {project.name}</span>}
       <p className="kanban-card-title">{task.title}</p>
       <div className="kanban-card-meta mono">
         <span className="kanban-card-owner">{task.assignee || "unassigned"}</span>
