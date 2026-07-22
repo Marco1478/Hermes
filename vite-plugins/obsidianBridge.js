@@ -195,11 +195,17 @@ export function createObsidianExec({ sshHost, sshKeyPath, vaultPath, notesDir, p
 /* One SSH round trip for the whole list: cat every matching file wrapped
      in control-byte delimiters, parsed apart here in Node. `pattern`:
      "flat" for a directory of loose .md files (notes), "nested" for
-     one-folder-per-project each holding overview.md (projects) — both
-     valid under either the active dir or the archive dir, since archiving
-     just relocates the same shape. */
+     one-folder-per-project each holding overview.md (projects), "flat-json"
+     for a directory of loose .json files (canvases/workflows) — all valid
+     under either the active dir or the archive dir, since archiving just
+     relocates the same shape. */
   async function listFiles(dir, pattern) {
-    const findExpr = pattern === "nested" ? `-mindepth 2 -maxdepth 2 -name overview.md` : `-maxdepth 1 -name '*.md'`;
+    const findExpr =
+      pattern === "nested"
+        ? `-mindepth 2 -maxdepth 2 -name overview.md`
+        : pattern === "flat-json"
+          ? `-maxdepth 1 -name '*.json'`
+          : `-maxdepth 1 -name '*.md'`;
     const script = `find ${shQuote(dir)} ${findExpr} -type f 2>/dev/null | while IFS= read -r f; do printf '${FILE_DELIM_START}%s${FILE_DELIM_START}' "$f"; cat "$f"; printf '${FILE_DELIM_END}'; done`;
     const result = await execRemote(script);
     if (!result.ok) return { ok: false, error: result.stderr || "list failed" };
