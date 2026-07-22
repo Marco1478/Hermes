@@ -1,0 +1,46 @@
+.view-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: min(calc(100% - 2rem), 1180px);
+  margin: 0 auto;
+  padding: clamp(3.4rem, 7vw, 4.6rem) clamp(1rem, 4vw, 2rem) 4rem;
+}
+
+.view-skeleton-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.view-skeleton-bar {
+  height: 0.9rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  background-size: 200% 100%;
+  animation: view-skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+.view-skeleton-bar--title {
+  width: 40%;
+  height: 1.1rem;
+}
+
+.view-skeleton-bar--short {
+  width: 60%;
+}
+
+@keyframes view-skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view-skeleton-bar {
+    animation: none;
+  }
+}
