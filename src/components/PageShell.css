@@ -425,7 +425,7 @@
     width: auto;
     min-height: 100%;
     margin: 0;
-    padding: clamp(8.6rem, 17vh, 10.4rem) 0.82rem 1rem;
+    padding: clamp(10.2rem, 19.5vh, 12rem) 0.82rem 1rem;
     display: flex;
     flex-direction: column;
     align-items: stretch;
