@@ -379,6 +379,16 @@ export function NotesProvider({ children }) {
     return [...set].sort();
   }, [notes]);
 
+  // A note created from outside the Notes tab (e.g. a project's "+ new
+  // project note") should open in the real editor for naming/writing, the
+  // same as clicking "+ new note" in Notes itself — not sit unopened as
+  // "Untitled" until someone happens to find it later. NotesPage consumes
+  // and clears this on mount/update; it's a one-shot handoff, not synced
+  // selection state.
+  const [pendingSelectId, setPendingSelectId] = useState(null);
+  const requestSelectNote = useCallback((id) => setPendingSelectId(id), []);
+  const consumePendingSelectNote = useCallback(() => setPendingSelectId(null), []);
+
   const value = useMemo(
     () => ({
       notes,
@@ -401,6 +411,9 @@ export function NotesProvider({ children }) {
       createFolder,
       renameFolder,
       deleteFolder,
+      pendingSelectId,
+      requestSelectNote,
+      consumePendingSelectNote,
     }),
     [
       notes,
@@ -412,6 +425,9 @@ export function NotesProvider({ children }) {
       migrating,
       migrateLocalNotesToVault,
       createNote,
+      pendingSelectId,
+      requestSelectNote,
+      consumePendingSelectNote,
       updateNote,
       deleteNote,
       duplicateNote,

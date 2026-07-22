@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { plainTextPreview } from "../../lib/markdownLite.js";
+import { useNotes } from "../../state/Notes.jsx";
+import { useViewMode } from "../../state/ViewMode.jsx";
 import { GlassButton } from "../ui/GlassButton.jsx";
 
 function ImportNotesModal({ project, notes, onLink, onClose }) {
@@ -112,12 +114,20 @@ function ImportTextModal({ project, onCreate, onClose }) {
 export function ProjectNotesPanel({ project, notes, onLinkNote, onUnlinkNote, onCreateNote, tagFilter }) {
   const [linkOpen, setLinkOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const { requestSelectNote } = useNotes();
+  const { goTo } = useViewMode();
   const linkedNotesAll = project.linkedNoteIds.map((id) => notes.find((n) => n.id === id)).filter(Boolean);
   const linkedNotes = tagFilter ? linkedNotesAll.filter((n) => (n.tags || []).includes(tagFilter)) : linkedNotesAll;
 
+  // Open the fresh note in the real Notes editor (title/body/tags/
+  // checklist) straight away, same as clicking "+ new note" from Notes
+  // itself — not just leave it sitting linked-but-unnamed in this list.
   const onQuickCreate = async () => {
     const id = await onCreateNote({ title: "", body: "" });
-    if (id) onLinkNote(id);
+    if (!id) return;
+    onLinkNote(id);
+    requestSelectNote(id);
+    goTo("notes");
   };
 
   return (

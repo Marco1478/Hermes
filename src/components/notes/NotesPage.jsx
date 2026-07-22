@@ -122,6 +122,8 @@ export function NotesPage() {
     createFolder,
     renameFolder,
     deleteFolder,
+    pendingSelectId,
+    consumePendingSelectNote,
   } = useNotes();
   const { projects } = useProjects();
 
@@ -194,6 +196,16 @@ export function NotesPage() {
   useEffect(() => {
     if (selectedId && !notes.some((n) => n.id === selectedId)) setSelectedId(null);
   }, [notes, selectedId]);
+
+  // One-shot handoff from outside Notes (e.g. a project's "+ new project
+  // note") — open the freshly created note in the real editor instead of
+  // leaving it sitting unnamed in the list. See state/Notes.jsx.
+  useEffect(() => {
+    if (!pendingSelectId) return;
+    setSelectedId(pendingSelectId);
+    setShowArchived(false);
+    consumePendingSelectNote();
+  }, [pendingSelectId, consumePendingSelectNote]);
 
   const selected = notes.find((n) => n.id === selectedId) || null;
 
