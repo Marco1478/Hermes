@@ -259,7 +259,14 @@ export function KanbanPage() {
       {!status && !error && <p className="panel-empty">Loading…</p>}
 
       {status?.configured && !error && (
-        <Reorder.Group as="div" axis="x" values={columnOrder} onReorder={onReorder} className="kanban-board">
+        <Reorder.Group
+          as="div"
+          axis="x"
+          values={columnOrder}
+          onReorder={onReorder}
+          className="kanban-board"
+          style={{ gridTemplateColumns: `repeat(${orderedColumns.length}, minmax(0, 1fr))` }}
+        >
           {orderedColumns.map((col) => (
             <KanbanColumn
               key={col.key}

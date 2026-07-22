@@ -465,4 +465,11 @@
     max-width: 1280px;
     padding-top: clamp(2rem, 4vw, 3.4rem);
   }
+
+  /* Same specificity as .page-constrain above, so source order is what
+     decides — this must stay after it, or the 1280px reading-width cap
+     silently wins back over dense pages (Kanban) that opted into --wide. */
+  .page-constrain--wide {
+    max-width: min(96vw, 1760px);
+  }
 }

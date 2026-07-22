@@ -54,9 +54,9 @@
     justify-content: flex-start;
     text-align: left;
     border-radius: 16px;
-    padding: 0.68rem 0.75rem;
-    font-size: 0.94rem;
-    letter-spacing: 0.03em;
+    padding: 0.72rem 0.75rem;
+    font-size: 1.05rem;
+    letter-spacing: 0.02em;
     position: relative;
     transition: color 0.16s ease, background 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
   }

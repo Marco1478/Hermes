@@ -1,14 +1,25 @@
 /* ---- Board ---------------------------------------------------------------- */
 
 /* Grid, not a horizontally-scrolling row: every column stays on screen at
-   once. auto-fit + minmax wraps to a second row only if the viewport is too
-   narrow for all of them side by side — never a horizontal scrollbar. */
+   once, filling the full board width edge to edge instead of clustering
+   narrow at one side. Column count is exact (set inline from the real
+   column count in KanbanPage.jsx) rather than an auto-fit guess — auto-fit
+   only fills the row when it happens to compute the same track count as
+   there are columns, otherwise leftover tracks and space; wrap to a second
+   row only kicks in below the sidebar breakpoint, where a fixed 6-wide row
+   would otherwise be crushed. */
 .kanban-board {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0.9rem;
   align-items: start;
   padding: 0.2rem 0 0.9rem;
+}
+
+@media (max-width: 860px) {
+  .kanban-board {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) !important;
+  }
 }
 
 .kanban-column {
