@@ -6,6 +6,7 @@ import { DiagnosticCard } from "../DiagnosticCard.jsx";
 import { KanbanColumn } from "./KanbanColumn.jsx";
 import { KanbanDetailDrawer } from "./KanbanDetailDrawer.jsx";
 import { KanbanTaskActions } from "./KanbanTaskActions.jsx";
+import { KanbanObsidianLinks } from "./KanbanObsidianLinks.jsx";
 import "./KanbanPage.css";
 
 function NewTaskModal({ preset, onClose, onCreated }) {
@@ -286,7 +287,14 @@ export function KanbanPage() {
             loading={detailLoading}
             error={detailError}
             onClose={closeDrawer}
-            actions={detail && <KanbanTaskActions task={detail.task} onChanged={onTaskChanged} />}
+            actions={
+              detail && (
+                <>
+                  <KanbanTaskActions task={detail.task} onChanged={onTaskChanged} />
+                  <KanbanObsidianLinks task={detail.task} onChanged={onTaskChanged} />
+                </>
+              )
+            }
           />
         )}
         {creating && (

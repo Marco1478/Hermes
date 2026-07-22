@@ -351,3 +351,32 @@
   color: var(--teal);
   border-color: rgba(110, 231, 223, 0.34);
 }
+
+/* ---- Obsidian note picker (link existing note to a task) ------------- */
+
+.obsidian-link-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(198, 201, 208, 0.2) transparent;
+}
+
+.obsidian-link-picker-item {
+  text-align: left;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  color: var(--silver);
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.obsidian-link-picker-item:hover {
+  border-color: rgba(110, 231, 223, 0.35);
+  background: rgba(110, 231, 223, 0.05);
+}
