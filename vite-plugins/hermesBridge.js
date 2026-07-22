@@ -37,6 +37,7 @@
 
 import { createKanbanExec } from "./kanbanBridge.js";
 import { createPluginsExec } from "./pluginsBridge.js";
+import { createObsidianExec, safeRelPath, safeFileName, noteToMarkdown, markdownToNote, projectToMarkdown, markdownToProject } from "./obsidianBridge.js";
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -62,11 +63,23 @@ export function hermesBridgePlugin({
   dashboardPassword,
   sshHost,
   sshKeyPath,
+  obsidianVaultPath,
+  obsidianNotesDir,
+  obsidianProjectsDir,
+  obsidianArchiveDir,
 }) {
   const gatewayConfigured = Boolean(gatewayBaseUrl && gatewayApiKey);
   const dashboardConfigured = Boolean(dashboardBaseUrl && dashboardUsername && dashboardPassword);
   const kanban = createKanbanExec({ sshHost, sshKeyPath });
   const plugins = createPluginsExec({ sshHost, sshKeyPath });
+  const obsidian = createObsidianExec({
+    sshHost,
+    sshKeyPath,
+    vaultPath: obsidianVaultPath,
+    notesDir: obsidianNotesDir,
+    projectsDir: obsidianProjectsDir,
+    archiveDir: obsidianArchiveDir,
+  });
 
   // ---- Gateway (bearer token, stateless) ---------------------------------
   async function gatewayFetch(path, init = {}) {
@@ -722,6 +735,214 @@ export function hermesBridgePlugin({
         const result = await plugins.runText(["disable", body.name]);
         sendJson(res, result.ok ? 200 : 502, result);
       });
+
+      // ---- Obsidian vault: no HTTP surface either — every operation is
+      // SSH-exec'd against the real markdown files inside the container.
+      // See obsidianBridge.js for the filesystem contract and path safety
+      // (every id the client sends is validated with safeRelPath before it
+      // ever touches a shell command).
+      use("/local/obsidian/status", async (req, res) => {
+        const result = await obsidian.status();
+        sendJson(res, 200, result);
+      });
+
+      use("/local/obsidian/notes/read", async (req, res) => {
+        if (!obsidian.configured) {
+          sendJson(res, 501, { ok: false, error: "Obsidian vault not configured" });
+          return;
+        }
+        const relPath = safeRelPath(new URL(req.url, "http://x").searchParams.get("path") || "");
+        if (!relPath) {
+          sendJson(res, 400, { ok: false, error: "invalid path" });
+          return;
+        }
+        const result = await obsidian.readFile(obsidian.dirs.notes, relPath);
+        if (!result.ok) {
+          sendJson(res, 502, result);
+          return;
+        }
+        sendJson(res, 200, { ok: true, data: markdownToNote(relPath, result.raw) });
+      });
+
+      use("/local/obsidian/notes/list", async (req, res) => {
+        if (!obsidian.configured) {
+          sendJson(res, 200, { ok: true, data: [] });
+          return;
+        }
+        const archived = new URL(req.url, "http://x").searchParams.get("archived") === "1";
+        const dir = archived ? obsidian.dirs.archive : obsidian.dirs.notes;
+        const result = await obsidian.listFiles(dir, "flat");
+        if (!result.ok) {
+          sendJson(res, 502, result);
+          return;
+        }
+        const data = result.files.map((f) => ({ ...markdownToNote(f.relPath, f.raw), archived }));
+        sendJson(res, 200, { ok: true, data });
+      });
+
+      use("/local/obsidian/notes/write", async (req, res) => {
+        if (req.method !== "POST") {
+          sendJson(res, 405, { ok: false, error: "POST only" });
+          return;
+        }
+        if (!obsidian.configured) {
+          sendJson(res, 501, { ok: false, error: "Obsidian vault not configured" });
+          return;
+        }
+        let body;
+        try {
+          body = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid JSON body" });
+          return;
+        }
+        const note = body.note || {};
+        let relPath = body.id ? safeRelPath(body.id) : null;
+        if (body.id && !relPath) {
+          sendJson(res, 400, { ok: false, error: "invalid path" });
+          return;
+        }
+        if (!relPath) {
+          const base = safeFileName(note.title);
+          let candidate = `${base}.md`;
+          for (let n = 2; await obsidian.exists(obsidian.dirs.notes, candidate); n++) {
+            if (n > 200) {
+              sendJson(res, 500, { ok: false, error: "could not find a free filename" });
+              return;
+            }
+            candidate = `${base} (${n}).md`;
+          }
+          relPath = candidate;
+        }
+        const now = Date.now();
+        const record = { ...note, createdAt: note.createdAt || now, updatedAt: now };
+        const result = await obsidian.writeFile(obsidian.dirs.notes, relPath, noteToMarkdown(record));
+        if (!result.ok) {
+          sendJson(res, 502, result);
+          return;
+        }
+        sendJson(res, 200, { ok: true, data: { ...record, id: relPath, archived: false } });
+      });
+
+      const noteArchiveRoute = (archiving) => async (req, res) => {
+        if (req.method !== "POST") {
+          sendJson(res, 405, { ok: false, error: "POST only" });
+          return;
+        }
+        if (!obsidian.configured) {
+          sendJson(res, 501, { ok: false, error: "Obsidian vault not configured" });
+          return;
+        }
+        let body;
+        try {
+          body = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid JSON body" });
+          return;
+        }
+        const relPath = safeRelPath(body.id);
+        if (!relPath) {
+          sendJson(res, 400, { ok: false, error: "invalid path" });
+          return;
+        }
+        const [fromDir, toDir] = archiving ? [obsidian.dirs.notes, obsidian.dirs.archive] : [obsidian.dirs.archive, obsidian.dirs.notes];
+        const result = await obsidian.move(fromDir, relPath, toDir, relPath);
+        sendJson(res, result.ok ? 200 : 502, result);
+      };
+      use("/local/obsidian/notes/archive", noteArchiveRoute(true));
+      use("/local/obsidian/notes/unarchive", noteArchiveRoute(false));
+
+      use("/local/obsidian/projects/list", async (req, res) => {
+        if (!obsidian.configured) {
+          sendJson(res, 200, { ok: true, data: [] });
+          return;
+        }
+        const archived = new URL(req.url, "http://x").searchParams.get("archived") === "1";
+        const dir = archived ? obsidian.dirs.archive : obsidian.dirs.projects;
+        const result = await obsidian.listFiles(dir, "nested");
+        if (!result.ok) {
+          sendJson(res, 502, result);
+          return;
+        }
+        const data = result.files.map((f) => {
+          const project = markdownToProject(f.relPath, f.raw);
+          return { ...project, archived, linkedNoteIds: project.linkedNoteRefs.map((ref) => `${ref}.md`) };
+        });
+        sendJson(res, 200, { ok: true, data });
+      });
+
+      use("/local/obsidian/projects/write", async (req, res) => {
+        if (req.method !== "POST") {
+          sendJson(res, 405, { ok: false, error: "POST only" });
+          return;
+        }
+        if (!obsidian.configured) {
+          sendJson(res, 501, { ok: false, error: "Obsidian vault not configured" });
+          return;
+        }
+        let body;
+        try {
+          body = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid JSON body" });
+          return;
+        }
+        const project = body.project || {};
+        let relPath = body.id ? safeRelPath(body.id) : null;
+        if (body.id && !relPath) {
+          sendJson(res, 400, { ok: false, error: "invalid path" });
+          return;
+        }
+        if (!relPath) {
+          const base = safeFileName(project.name);
+          let candidate = base;
+          for (let n = 2; await obsidian.exists(obsidian.dirs.projects, `${candidate}/overview.md`); n++) {
+            if (n > 200) {
+              sendJson(res, 500, { ok: false, error: "could not find a free folder name" });
+              return;
+            }
+            candidate = `${base} (${n})`;
+          }
+          relPath = candidate;
+        }
+        const now = Date.now();
+        const linkedNoteRefs = (project.linkedNoteIds || []).map((id) => id.replace(/\.md$/, ""));
+        const record = { ...project, linkedNoteRefs, createdAt: project.createdAt || now, updatedAt: now };
+        const result = await obsidian.writeFile(obsidian.dirs.projects, `${relPath}/overview.md`, projectToMarkdown(record));
+        if (!result.ok) {
+          sendJson(res, 502, result);
+          return;
+        }
+        sendJson(res, 200, { ok: true, data: { ...project, id: relPath, archived: false, createdAt: record.createdAt, updatedAt: record.updatedAt } });
+      });
+
+      const projectArchiveRoute = (archiving) => async (req, res) => {
+        if (req.method !== "POST") {
+          sendJson(res, 405, { ok: false, error: "POST only" });
+          return;
+        }
+        if (!obsidian.configured) {
+          sendJson(res, 501, { ok: false, error: "Obsidian vault not configured" });
+          return;
+        }
+        let body;
+        try {
+          body = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid JSON body" });
+          return;
+        }
+        const relPath = safeRelPath(body.id);
+        if (!relPath) {
+          sendJson(res, 400, { ok: false, error: "invalid path" });
+          return;
+        }
+        const [fromDir, toDir] = archiving ? [obsidian.dirs.projects, obsidian.dirs.archive] : [obsidian.dirs.archive, obsidian.dirs.projects];
+        const result = await obsidian.move(fromDir, relPath, toDir, relPath);
+        sendJson(res, result.ok ? 200 : 502, result);
+      };
+      use("/local/obsidian/projects/archive", projectArchiveRoute(true));
+      use("/local/obsidian/projects/unarchive", projectArchiveRoute(false));
     },
   };
 }

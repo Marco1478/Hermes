@@ -28,6 +28,16 @@ export default defineConfig(({ mode }) => {
   */
   const sshHost = env.HERMES_SSH_HOST || "root@192.168.2.11";
   const sshKeyPath = env.HERMES_SSH_KEY_PATH || "";
+  /*
+    Obsidian vault — same story as Kanban above (see obsidianBridge.js):
+    no HTTP surface, SSH-exec'd against the container filesystem. The path
+    is INSIDE the container (the mount target), not on whatever machine
+    runs `npm run dev`. See docs/OBSIDIAN_VAULT_SETUP.md.
+  */
+  const obsidianVaultPath = env.OBSIDIAN_VAULT_PATH || "";
+  const obsidianNotesDir = env.OBSIDIAN_NOTES_DIR || "Hermes/Notes";
+  const obsidianProjectsDir = env.OBSIDIAN_PROJECTS_DIR || "Hermes/Projects";
+  const obsidianArchiveDir = env.OBSIDIAN_ARCHIVE_DIR || "Hermes/Archive";
 
   return {
     plugins: [
@@ -41,6 +51,10 @@ export default defineConfig(({ mode }) => {
         dashboardPassword,
         sshHost,
         sshKeyPath,
+        obsidianVaultPath,
+        obsidianNotesDir,
+        obsidianProjectsDir,
+        obsidianArchiveDir,
       }),
       activityBridgePlugin({ projectRoot: process.cwd() }),
       missionBridgePlugin({ projectRoot: process.cwd() }),
