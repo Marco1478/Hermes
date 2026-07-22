@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, Reorder, motion } from "framer-motion";
-import { fetchKanbanStatus, fetchKanbanList, fetchKanbanTask, createKanbanTask } from "../../lib/kanbanBridge.js";
+import { fetchKanbanStatus, fetchKanbanList, fetchKanbanTask, createKanbanTask, dispatchKanban } from "../../lib/kanbanBridge.js";
 import { PageShell } from "../PageShell.jsx";
 import { DiagnosticCard } from "../DiagnosticCard.jsx";
 import { KanbanColumn } from "./KanbanColumn.jsx";
@@ -12,7 +12,8 @@ function NewTaskModal({ preset, onClose, onCreated }) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [assignee, setAssignee] = useState("");
-  const [triage, setTriage] = useState(false);
+  const [triage, setTriage] = useState(preset.generic ? false : Boolean(preset.triage));
+  const [dispatchAfter, setDispatchAfter] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -31,6 +32,7 @@ function NewTaskModal({ preset, onClose, onCreated }) {
         triage: preset.generic ? triage : preset.triage,
         initialStatus: preset.generic ? undefined : preset.initialStatus,
       });
+      if (dispatchAfter) await dispatchKanban(1, false);
       onCreated();
     } catch (err) {
       setError(err.message || String(err));
@@ -68,6 +70,14 @@ function NewTaskModal({ preset, onClose, onCreated }) {
           Assignee
           <input className="job-modal-input" value={assignee} onChange={(e) => setAssignee(e.target.value)} placeholder="Optional profile name" />
         </label>
+        <div className="kanban-assignee-presets">
+          <button type="button" className="btn-pill" onClick={() => setAssignee("default")}>
+            Hermes default
+          </button>
+          <button type="button" className="btn-pill" onClick={() => setAssignee("claude")}>
+            Claude
+          </button>
+        </div>
 
         {preset.generic && (
           <label className="job-modal-label mono kanban-modal-checkbox">
@@ -75,6 +85,10 @@ function NewTaskModal({ preset, onClose, onCreated }) {
             Park in triage (specify later, instead of Ready now)
           </label>
         )}
+        <label className="job-modal-label mono kanban-modal-checkbox">
+          <input type="checkbox" checked={dispatchAfter} onChange={(e) => setDispatchAfter(e.target.checked)} />
+          Dispatch immediately after creation (starts the Kanban worker if a ready assignee exists)
+        </label>
 
         {error && <p className="panel-error">{error}</p>}
 
@@ -83,7 +97,7 @@ function NewTaskModal({ preset, onClose, onCreated }) {
             cancel
           </button>
           <button type="button" className="btn-pill" onClick={onCreate} disabled={saving}>
-            {saving ? "creating…" : "create"}
+            {saving ? "creating…" : dispatchAfter ? "create + dispatch" : "create"}
           </button>
         </div>
       </motion.div>
@@ -92,26 +106,28 @@ function NewTaskModal({ preset, onClose, onCreated }) {
 }
 
 const COLUMNS = [
-  { key: "backlog", label: "Backlog", statuses: ["triage", "todo"], dot: "", creatable: true, triage: true },
-  { key: "ready", label: "Ready", statuses: ["ready"], dot: "on", creatable: true, triage: false },
-  { key: "in_progress", label: "In progress", statuses: ["running"], dot: "info", creatable: false },
-  { key: "blocked", label: "Blocked", statuses: ["blocked", "scheduled"], dot: "bad", creatable: true, initialStatus: "blocked" },
-  { key: "review", label: "Review", statuses: ["review"], dot: "warn", creatable: false },
-  { key: "done", label: "Done", statuses: ["done"], dot: "on", creatable: false },
+  { key: "backlog", label: "Backlog", statuses: ["triage", "todo"], creatable: true, triage: true },
+  { key: "ready", label: "Ready", statuses: ["ready"], creatable: true, triage: false },
+  { key: "in_progress", label: "In progress", statuses: ["running"], creatable: false },
+  { key: "blocked", label: "Blocked", statuses: ["blocked", "scheduled"], creatable: true, initialStatus: "blocked" },
+  { key: "review", label: "Review", statuses: ["review"], creatable: false },
+  { key: "done", label: "Done", statuses: ["done"], creatable: false },
 ];
-const DEFAULT_ORDER = COLUMNS.map((c) => c.key);
-const ORDER_STORAGE_KEY = "hermes-ui-kanban-column-order";
+const COLUMN_ORDER_KEY = "hermes-ui.kanban.column-order.v1";
+const DEFAULT_COLUMN_ORDER = COLUMNS.map((c) => c.key);
 
 function loadColumnOrder() {
   try {
-    const saved = JSON.parse(localStorage.getItem(ORDER_STORAGE_KEY) || "null");
-    if (Array.isArray(saved) && DEFAULT_ORDER.every((k) => saved.includes(k)) && saved.every((k) => DEFAULT_ORDER.includes(k))) {
-      return saved;
-    }
+    const raw = localStorage.getItem(COLUMN_ORDER_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (!Array.isArray(parsed)) return DEFAULT_COLUMN_ORDER;
+    const valid = parsed.filter((k) => DEFAULT_COLUMN_ORDER.includes(k));
+    // Any new default column not present in a saved (older) order still
+    // shows up, appended at the end, instead of silently disappearing.
+    return [...valid, ...DEFAULT_COLUMN_ORDER.filter((k) => !valid.includes(k))];
   } catch {
-    /* corrupt/old value — fall back to default */
+    return DEFAULT_COLUMN_ORDER;
   }
-  return DEFAULT_ORDER;
 }
 
 /*
@@ -137,7 +153,11 @@ export function KanbanPage() {
 
   const onReorder = useCallback((next) => {
     setColumnOrder(next);
-    localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(next));
+    try {
+      localStorage.setItem(COLUMN_ORDER_KEY, JSON.stringify(next));
+    } catch {
+      /* best effort */
+    }
   }, []);
 
   const load = useCallback(async () => {
@@ -170,6 +190,11 @@ export function KanbanPage() {
     }
     return byKey;
   }, [tasks]);
+
+  const orderedColumns = useMemo(
+    () => columnOrder.map((key) => COLUMNS.find((c) => c.key === key)).filter(Boolean),
+    [columnOrder]
+  );
 
   const openTask = useCallback(async (id) => {
     setOpenId(id);
@@ -228,11 +253,9 @@ export function KanbanPage() {
 
       {status?.configured && !error && (
         <Reorder.Group as="div" axis="x" values={columnOrder} onReorder={onReorder} className="kanban-board">
-          {columnOrder.map((key) => {
-            const col = COLUMNS.find((c) => c.key === key);
-            if (!col) return null;
-            return <KanbanColumn key={col.key} col={col} tasks={columns[col.key] || []} onOpen={openTask} onAddCard={setCreating} />;
-          })}
+          {orderedColumns.map((col) => (
+            <KanbanColumn key={col.key} col={col} tasks={columns[col.key] || []} onOpen={openTask} onAddCard={setCreating} />
+          ))}
         </Reorder.Group>
       )}
 

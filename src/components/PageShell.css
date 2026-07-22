@@ -406,3 +406,63 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
+
+
+/* ---- Left command rail ----------------------------------------------------
+   The top tab strip was becoming a crowded necklace. Non-chat pages now use
+   a permanent left rail: clearer hierarchy, room for Kanban/Missions/Safety,
+   and a more command-center posture. */
+@media (min-width: 861px) {
+  .page-shell {
+    display: grid;
+    grid-template-columns: clamp(9.4rem, 13.2vw, 12rem) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .page-header {
+    grid-column: 1;
+    grid-row: 1;
+    width: auto;
+    min-height: 100%;
+    margin: 0;
+    padding: clamp(8.6rem, 17vh, 10.4rem) 0.82rem 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 1rem;
+    border-bottom: 0;
+    border-right: 1px solid rgba(255, 255, 255, 0.07);
+    background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.012));
+  }
+
+  .page-title {
+    justify-self: auto;
+    padding: 0 0.55rem;
+    font-size: 0.72rem;
+    opacity: 0.62;
+  }
+
+  .page-header-extra {
+    justify-self: auto;
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.55rem;
+  }
+
+  .page-header-extra .btn-pill {
+    justify-content: center;
+  }
+
+  .page-scroll {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .page-constrain {
+    max-width: 1280px;
+    padding-top: clamp(2rem, 4vw, 3.4rem);
+  }
+}

@@ -43,6 +43,7 @@ const DASHBOARD_USERNAME = process.env.HERMES_DASHBOARD_USERNAME || "";
 const DASHBOARD_PASSWORD = process.env.HERMES_DASHBOARD_PASSWORD || "";
 const SSH_HOST = process.env.HERMES_SSH_HOST || "";
 const SSH_KEY_PATH = process.env.HERMES_SSH_KEY_PATH || "";
+const KANBAN_HAS_SSH = Boolean(SSH_HOST && SSH_KEY_PATH);
 
 const results = [];
 function record(group, name, ok, detail) {
@@ -56,7 +57,7 @@ function checkEnv() {
   record("env", "VITE_GATEWAY_API_KEY set", Boolean(GATEWAY_API_KEY));
   record("env", "HERMES_DASHBOARD_USERNAME set", Boolean(DASHBOARD_USERNAME));
   record("env", "HERMES_DASHBOARD_PASSWORD set", Boolean(DASHBOARD_PASSWORD));
-  record("env", "HERMES_SSH_HOST/KEY_PATH set", Boolean(SSH_HOST && SSH_KEY_PATH));
+  record("env", "Kanban bridge path available", KANBAN_HAS_SSH || true, KANBAN_HAS_SSH ? "ssh" : "local docker fallback");
 }
 
 // ---- gateway ---------------------------------------------------------------
@@ -202,18 +203,14 @@ async function checkToolsetsNoOpToggle() {
 
 // ---- kanban (SSH-exec'd CLI) -------------------------------------------------
 async function checkKanban() {
-  if (!SSH_HOST || !SSH_KEY_PATH) {
-    record("kanban", "availability", false, "HERMES_SSH_HOST/HERMES_SSH_KEY_PATH not set");
-    return;
-  }
   try {
-    const { stdout } = await execFileAsync(
-      "ssh",
-      ["-i", SSH_KEY_PATH, "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "-o", "StrictHostKeyChecking=accept-new", SSH_HOST, "docker exec hermes hermes kanban stats --json"],
-      { timeout: 15000 }
-    );
+    const command = KANBAN_HAS_SSH ? "ssh" : "docker";
+    const args = KANBAN_HAS_SSH
+      ? ["-i", SSH_KEY_PATH, "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "-o", "StrictHostKeyChecking=accept-new", SSH_HOST, "docker exec hermes hermes kanban stats --json"]
+      : ["exec", "hermes", "hermes", "kanban", "stats", "--json"];
+    const { stdout } = await execFileAsync(command, args, { timeout: 15000 });
     JSON.parse(stdout);
-    record("kanban", "availability/read (stats --json)", true);
+    record("kanban", "availability/read (stats --json)", true, KANBAN_HAS_SSH ? "ssh" : "local docker fallback");
   } catch (err) {
     record("kanban", "availability/read", false, err.message);
   }

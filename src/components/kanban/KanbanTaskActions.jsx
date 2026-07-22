@@ -7,6 +7,7 @@ import {
   completeKanbanTasks,
   archiveKanbanTasks,
   linkKanbanTasks,
+  dispatchKanban,
 } from "../../lib/kanbanBridge.js";
 
 const BLOCK_KINDS = ["needs_input", "capability", "dependency", "transient"];
@@ -32,6 +33,7 @@ export function KanbanTaskActions({ task, onChanged }) {
   const [result, setResult] = useState("");
   const [linkOtherId, setLinkOtherId] = useState("");
   const [linkDirection, setLinkDirection] = useState("child"); // this task is parent of linkOtherId, or child of it
+  const [executeAssignee, setExecuteAssignee] = useState(task.assignee || "default");
 
   const run = async (fn) => {
     setBusy(true);
@@ -65,6 +67,32 @@ export function KanbanTaskActions({ task, onChanged }) {
           assign
         </button>
       </div>
+
+      {!isTerminal && (
+        <div className="kanban-action-row kanban-action-row--execute">
+          <input
+            className="kanban-action-input"
+            value={executeAssignee}
+            onChange={(e) => setExecuteAssignee(e.target.value)}
+            placeholder="Hermes profile to execute"
+          />
+          <button
+            type="button"
+            className="btn-pill kanban-dispatch-button"
+            disabled={busy || !executeAssignee.trim()}
+            title="Assign this task and trigger one real Hermes Kanban dispatcher pass"
+            onClick={() =>
+              run(async () => {
+                await assignKanbanTask(task.id, executeAssignee.trim());
+                await commentKanbanTask(task.id, `Marco requested execution from the custom Kanban UI. Assigned to ${executeAssignee.trim()} and dispatch triggered.`, "custom-ui");
+                await dispatchKanban(1, false);
+              })
+            }
+          >
+            assign + execute
+          </button>
+        </div>
+      )}
 
       <div className="kanban-action-row kanban-action-row--stack">
         <textarea
