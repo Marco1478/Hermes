@@ -317,15 +317,7 @@ export function ProjectsPage() {
   }
 
   return (
-    <PageShell
-      title="Projects"
-      wide
-      headerExtra={
-        <button type="button" className="btn-pill" onClick={() => setCreating(true)}>
-          + new project
-        </button>
-      }
-    >
+    <PageShell title="Projects" wide>
       <VaultStatusChip status={vaultStatus} error={vaultError} />
 
       {vaultStatus === "connected" && orphanedLocalProjects.length > 0 && (
@@ -389,10 +381,14 @@ export function ProjectsPage() {
       )}
 
       <div className="projects-grid">
-        {filtered.length === 0 && <p className="panel-empty">No projects match. Create one to get started.</p>}
+        <button type="button" className="project-card project-card--add" onClick={() => setCreating(true)}>
+          <span className="project-card-add-icon">+</span>
+          <span className="project-card-add-label">new project</span>
+        </button>
         {filtered.map((p) => (
           <ProjectCard key={p.id} project={p} onOpen={setOpenId} />
         ))}
+        {filtered.length === 0 && <p className="panel-empty">No projects match.</p>}
       </div>
 
       {creating && (

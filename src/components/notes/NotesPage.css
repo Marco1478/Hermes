@@ -209,6 +209,51 @@
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), 0 0 18px rgba(110, 231, 223, 0.12);
 }
 
+/* Create action as a list tile the same shape as a real note row (not a
+   small header pill) — dashed border + centered "+", same posture as
+   Kanban's per-column add tile and the project grid's add tile. */
+.note-list-item--add {
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 3.6rem;
+  background: none;
+  border-style: dashed;
+  border-width: 1.5px;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.note-list-item--add:hover {
+  border-color: rgba(110, 231, 223, 0.4);
+  background: rgba(110, 231, 223, 0.045);
+  transform: none;
+}
+
+.note-list-item--add:active {
+  transform: scale(0.98);
+}
+
+.note-list-add-icon {
+  color: var(--silver-dim);
+  font-size: 1.4rem;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+
+.note-list-add-label {
+  color: var(--silver-dim);
+  opacity: 0.75;
+  font-size: 0.8rem;
+  letter-spacing: 0.03em;
+  transition: color 0.15s ease, opacity 0.15s ease;
+}
+
+.note-list-item--add:hover .note-list-add-icon,
+.note-list-item--add:hover .note-list-add-label {
+  color: var(--teal);
+  opacity: 1;
+}
+
 .note-list-item-body {
   flex: 1;
   min-width: 0;

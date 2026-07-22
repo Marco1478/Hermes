@@ -201,15 +201,7 @@ export function NotesPage() {
   const doneCount = selected ? selected.checklist.filter((c) => c.done).length : 0;
 
   return (
-    <PageShell
-      title="Notes"
-      wide
-      headerExtra={
-        <button type="button" className="btn-pill" onClick={onNewNote}>
-          + new note
-        </button>
-      }
-    >
+    <PageShell title="Notes" wide>
       <div className="notes-shell">
         <aside className="notes-sidebar">
           <VaultStatusChip status={vaultStatus} error={vaultError} />
@@ -308,6 +300,10 @@ export function NotesPage() {
           )}
 
           <div className="notes-list">
+            <button type="button" className="note-list-item note-list-item--add" onClick={onNewNote}>
+              <span className="note-list-add-icon">+</span>
+              <span className="note-list-add-label">new note</span>
+            </button>
             {filtered.length === 0 && <p className="panel-empty">No notes here yet.</p>}
             {filtered.map((n) => (
               <NoteListItem key={n.id} note={n} active={n.id === selectedId} onSelect={setSelectedId} usageCount={usageByNoteId.get(n.id) || 0} />
