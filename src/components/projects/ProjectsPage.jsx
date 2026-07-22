@@ -7,6 +7,8 @@ import { VaultStatusChip } from "../VaultStatusChip.jsx";
 import { ProjectWorkspace } from "./ProjectWorkspace.jsx";
 import { plainTextPreview } from "../../lib/markdownLite.js";
 import { parseTagsInput } from "../../lib/tags.js";
+import { PROJECT_TEMPLATES } from "../../lib/projectTemplates.js";
+import { writeVaultWorkflow, writeVaultCanvas } from "../../lib/obsidianBridge.js";
 import "./ProjectsPage.css";
 
 const STATUS_LABEL = {
@@ -70,7 +72,8 @@ function ProjectCard({ project, onOpen }) {
   );
 }
 
-function NewProjectModal({ onCreate, onClose }) {
+function NewProjectModal({ onCreate, onClose, vaultStatus }) {
+  const [templateKey, setTemplateKey] = useState("generic");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("planning");
@@ -78,6 +81,15 @@ function NewProjectModal({ onCreate, onClose }) {
   const [tagsText, setTagsText] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  const applyTemplate = (key) => {
+    setTemplateKey(key);
+    const t = PROJECT_TEMPLATES.find((tpl) => tpl.key === key);
+    if (!t) return;
+    setDescription(t.overview);
+    setColor(t.color);
+    setTagsText(t.tags.join(", "));
+  };
 
   const onSubmit = async () => {
     if (!name.trim()) {
@@ -88,7 +100,27 @@ function NewProjectModal({ onCreate, onClose }) {
     setError(null);
     try {
       const tags = parseTagsInput(tagsText);
-      await onCreate({ name: name.trim(), description, status, color, tags });
+      const id = await onCreate({ name: name.trim(), description, status, color, tags });
+      const template = PROJECT_TEMPLATES.find((t) => t.key === templateKey);
+      // Best-effort scaffold: the project itself is already created and
+      // usable even if these fail (e.g. vault not connected), so a
+      // workflow/canvas write failure here never blocks project creation.
+      if (id && vaultStatus === "connected" && template) {
+        if (template.workflow) {
+          try {
+            await writeVaultWorkflow(id, null, template.workflow);
+          } catch {
+            /* starter workflow is a bonus, not required */
+          }
+        }
+        if (template.canvas) {
+          try {
+            await writeVaultCanvas(id, null, { ...template.canvas, tags: [], edges: [] });
+          } catch {
+            /* starter canvas is a bonus, not required */
+          }
+        }
+      }
       onClose();
     } catch (err) {
       setError(err.message || String(err));
@@ -110,6 +142,30 @@ function NewProjectModal({ onCreate, onClose }) {
         aria-label="New project"
       >
         <p className="panel-section-title">New project</p>
+
+        <p className="job-modal-label mono" style={{ marginBottom: "0.2rem" }}>
+          Template
+        </p>
+        <div className="project-template-row">
+          {PROJECT_TEMPLATES.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              className={`btn-pill${templateKey === t.key ? " btn-pill--active" : ""}`}
+              title={t.summary}
+              onClick={() => applyTemplate(t.key)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        {templateKey !== "generic" && (
+          <p className="panel-empty" style={{ margin: 0 }}>
+            {PROJECT_TEMPLATES.find((t) => t.key === templateKey)?.summary} Pre-fills description/color/tags below — all editable now and after creation.
+            {PROJECT_TEMPLATES.find((t) => t.key === templateKey)?.workflow && " Adds a starter workflow once created."}
+            {PROJECT_TEMPLATES.find((t) => t.key === templateKey)?.canvas && " Adds a starter canvas once created."}
+          </p>
+        )}
 
         <label className="job-modal-label mono">
           Name
@@ -341,9 +397,11 @@ export function ProjectsPage() {
 
       {creating && (
         <NewProjectModal
+          vaultStatus={vaultStatus}
           onCreate={async (fields) => {
             const id = await createProject(fields);
             if (id) setOpenId(id);
+            return id;
           }}
           onClose={() => setCreating(false)}
         />
