@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { motion, useMotionValue } from "framer-motion";
+import { motion, useMotionValue, useDragControls } from "framer-motion";
 import { useNotes } from "../../../state/Notes.jsx";
 import { fetchVaultCanvases, writeVaultCanvas, archiveVaultCanvas } from "../../../lib/obsidianBridge.js";
 import { parseTagsInput } from "../../../lib/tags.js";
@@ -32,7 +32,8 @@ function uid() {
 }
 
 function newNode(type, x, y) {
-  return { id: uid(), type, x, y, w: 220, h: type === "circle" ? 140 : 130, title: "", body: "", color: "teal", tags: [], checklist: [], ref: null };
+  const bigger = type === "circle" || type === "decision";
+  return { id: uid(), type, x, y, w: type === "decision" ? 240 : 220, h: bigger ? 160 : 130, title: "", body: "", color: "teal", tags: [], checklist: [], ref: null };
 }
 
 function snap(value, enabled) {
@@ -57,6 +58,18 @@ function NodeShell({ node, zoom, selected, onSelect, onDrag, onDragStart, onStar
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const draggingRef = useRef(false);
+  // dragListener={false} + manually calling dragControls.start() from our
+  // OWN onPointerDown is the fix for the connector dot / resize handle
+  // hijacking the card drag (and, transitively, the "sometimes duplicates
+  // a card" bug that traced back to it): by default `drag` attaches its
+  // own NATIVE pointerdown listener directly to this element, which fires
+  // during real DOM bubbling from the connector/resize handle's own
+  // pointerdown BEFORE React's synthetic e.stopPropagation() in their
+  // handlers ever runs — so stopPropagation() there could never actually
+  // stop it. Routing drag-start through dragControls makes it just another
+  // React-mediated call, so a child's stopPropagation() genuinely prevents
+  // it, same pattern already used for column-drag in KanbanColumn.jsx.
+  const dragControls = useDragControls();
 
   useEffect(() => {
     if (draggingRef.current) return;
@@ -69,11 +82,14 @@ function NodeShell({ node, zoom, selected, onSelect, onDrag, onDragStart, onStar
       className={`canvas-node canvas-node--${node.type}${selected ? " canvas-node--selected" : ""}${node.color ? ` canvas-node--${node.color}` : ""}`}
       style={{ left: node.x, top: node.y, width: node.w, height: node.h, x, y }}
       onPointerDown={(e) => {
-        e.stopPropagation();
         onSelect(node.id);
+        dragControls.start(e);
       }}
       drag
+      dragListener={false}
+      dragControls={dragControls}
       dragMomentum={false}
+      dragElastic={0}
       onDragStart={() => {
         draggingRef.current = true;
         onDragStart(node.id);
@@ -84,7 +100,9 @@ function NodeShell({ node, zoom, selected, onSelect, onDrag, onDragStart, onStar
         x.set(0);
         y.set(0);
       }}
-      whileDrag={{ zIndex: 20, cursor: "grabbing" }}
+      whileDrag={{ zIndex: 20, cursor: "grabbing", scale: 1.03, transition: { duration: 0 } }}
+      whileHover={{ scale: 1.015, transition: { duration: 0.12 } }}
+      transition={{ duration: 0 }}
     >
       {children}
       {selected && (
@@ -111,6 +129,29 @@ function NodeShell({ node, zoom, selected, onSelect, onDrag, onDragStart, onStar
         </>
       )}
     </motion.div>
+  );
+}
+
+function isHttpUrl(url) {
+  return typeof url === "string" && /^https?:\/\//i.test(url.trim());
+}
+
+// There's no upload endpoint on this backend (a real one would need a new
+// server route to write binary files into the vault over the SSH bridge) —
+// so this stays a URL/path field, not a fake "upload" button. What it was
+// actually missing was ANY feedback on whether what you typed resolves to
+// something real: a live thumbnail (or a clear "couldn't load" state) so
+// you're not just guessing whether a path is right.
+function ImagePreview({ url }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [url]);
+  if (failed) {
+    return <p className="canvas-node-sub canvas-node-ref canvas-node-img-error">couldn't load "{url}" — check the URL/path</p>;
+  }
+  return (
+    <div className="canvas-node-img-wrap">
+      <img className="canvas-node-img" src={url} alt="" onError={() => setFailed(true)} draggable={false} />
+    </div>
   );
 }
 
@@ -150,11 +191,36 @@ function NodeContent({ node, notes }) {
       </>
     );
   }
-  if (node.type === "image" || node.type === "file") {
+  if (node.type === "image") {
+    const url = node.ref?.url;
     return (
       <>
-        <p className="canvas-node-title">{node.type === "image" ? "🖼" : "📄"} {node.title || (node.type === "image" ? "Image reference" : "File reference")}</p>
-        <p className="canvas-node-sub canvas-node-ref">{node.ref?.url || "no URL/path set"}</p>
+        <p className="canvas-node-title">🖼 {node.title || "Image reference"}</p>
+        {url ? (
+          <ImagePreview url={url} />
+        ) : (
+          <p className="canvas-node-sub canvas-node-ref">no URL/path set</p>
+        )}
+      </>
+    );
+  }
+  if (node.type === "file") {
+    const url = node.ref?.url;
+    const isLink = isHttpUrl(url);
+    return (
+      <>
+        <p className="canvas-node-title">📄 {node.title || "File reference"}</p>
+        {url ? (
+          isLink ? (
+            <a className="canvas-node-sub canvas-node-ref canvas-node-link" href={url} target="_blank" rel="noreferrer" onPointerDown={(e) => e.stopPropagation()}>
+              {url} ↗
+            </a>
+          ) : (
+            <p className="canvas-node-sub canvas-node-ref">{url}</p>
+          )
+        ) : (
+          <p className="canvas-node-sub canvas-node-ref">no URL/path set</p>
+        )}
       </>
     );
   }
@@ -188,10 +254,22 @@ function NodeInspector({ node, notes, onChange, onDelete, onDuplicate, onClose }
         </label>
       )}
       {(node.type === "image" || node.type === "file") && (
-        <label className="job-modal-label mono">
-          URL / vault asset path
-          <input className="job-modal-input" value={node.ref?.url || ""} onChange={(e) => onChange({ ref: { url: e.target.value } })} placeholder="https://… or Hermes/Projects/…/assets/…" />
-        </label>
+        <>
+          <label className="job-modal-label mono">
+            {node.type === "image" ? "Image URL" : "File URL / vault path"}
+            <input className="job-modal-input" value={node.ref?.url || ""} onChange={(e) => onChange({ ref: { url: e.target.value } })} placeholder="https://…" />
+          </label>
+          <p className="panel-empty canvas-inspector-hint">
+            {node.type === "image"
+              ? "A public image URL — pasted, it previews live below. There's no upload on this build; a vault-relative path won't render here (the browser can't reach it), only a real https:// link will."
+              : "A link (https://…) opens in a new tab from the node. A vault-relative path (e.g. Hermes/Projects/…/assets/file.pdf) is stored as a reference but can't be opened from here — there's no upload/open-from-vault on this build."}
+          </p>
+          {node.type === "image" && node.ref?.url && (
+            <div className="canvas-inspector-preview">
+              <ImagePreview url={node.ref.url} />
+            </div>
+          )}
+        </>
       )}
       {node.type === "note" && (
         <label className="job-modal-label mono">
@@ -588,7 +666,7 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
             )}
           </div>
         </div>
-        {selected && (
+        {selected ? (
           <NodeInspector
             node={selected}
             notes={notes}
@@ -597,6 +675,18 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
             onDuplicate={duplicateNode}
             onClose={() => setSelectedId(null)}
           />
+        ) : (
+          // Always rendered, same width as a real inspector — the panel
+          // popping in/out on select used to resize the viewport column
+          // right as a drag gesture started, visually yanking the node
+          // out from under the cursor (misread as "drag is too
+          // sensitive", and the layout jump landing the pointer on the
+          // inspector's own buttons is what caused the occasional
+          // "duplicates on drag" reports too).
+          <aside className="canvas-inspector canvas-inspector--empty">
+            <p className="panel-section-title">Inspector</p>
+            <p className="panel-empty">Select a node to edit its title, body, color, and connections.</p>
+          </aside>
         )}
       </div>
     </div>

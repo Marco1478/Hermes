@@ -70,29 +70,37 @@
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 999px;
-  padding: 0.35rem 0.7rem;
+  padding: 0.5rem 0.9rem;
+  min-height: 38px;
   color: var(--silver-dim);
-  font-size: 0.66rem;
+  font-size: 0.76rem;
   cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
 
 .canvas-toolbar-btn:hover {
   border-color: rgba(110, 231, 223, 0.35);
   color: var(--white);
   background: rgba(110, 231, 223, 0.06);
+  transform: translateY(-1px);
 }
 
 .project-canvas-body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 0px;
-  gap: 0.75rem;
+  /* Always two real columns — see the JSX comment on the empty-state
+     inspector: this geometry must never change on select, or the viewport
+     visibly resizes right as a drag gesture starts. */
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 0.9rem;
   flex: 1;
-  min-height: 55vh;
+  min-height: calc(100vh - 300px);
 }
 
-.project-canvas-body:has(.canvas-inspector) {
-  grid-template-columns: minmax(0, 1fr) 260px;
+@media (max-width: 900px) {
+  .project-canvas-body {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 60vh;
+  }
 }
 
 /* ---- Viewport / world ----------------------------------------------------- */
@@ -106,7 +114,13 @@
   background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
   background-size: 22px 22px;
   cursor: grab;
-  min-height: 55vh;
+  min-height: calc(100vh - 300px);
+}
+
+@media (max-width: 900px) {
+  .canvas-viewport {
+    min-height: 60vh;
+  }
 }
 
 .canvas-viewport:active {
@@ -195,8 +209,8 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  padding: 0.7rem 0.85rem;
+  gap: 0.4rem;
+  padding: 0.9rem 1.05rem;
   overflow: hidden;
   background: var(--glass-bg-raised);
   backdrop-filter: blur(10px);
@@ -217,9 +231,9 @@
 .canvas-node-connector {
   position: absolute;
   top: 50%;
-  right: -11px;
-  width: 22px;
-  height: 22px;
+  right: -15px;
+  width: 30px;
+  height: 30px;
   transform: translateY(-50%);
   display: flex;
   align-items: center;
@@ -228,36 +242,39 @@
   border: 1px solid rgba(110, 231, 223, 0.5);
   background: var(--ink-deep);
   color: var(--teal);
-  font-size: 0.6rem;
+  font-size: 0.72rem;
   line-height: 1;
   cursor: crosshair;
   touch-action: none;
-  transition: background 0.15s ease, transform 0.15s ease;
+  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
   z-index: 5;
 }
 
 .canvas-node-connector:hover {
-  background: rgba(110, 231, 223, 0.25);
+  background: rgba(110, 231, 223, 0.28);
   transform: translateY(-50%) scale(1.15);
+  box-shadow: 0 0 14px rgba(110, 231, 223, 0.4);
 }
 
 .canvas-node-resize {
   position: absolute;
-  right: -4px;
-  bottom: -4px;
-  width: 14px;
-  height: 14px;
-  border-radius: 3px;
+  right: -7px;
+  bottom: -7px;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
   border: 1px solid rgba(255, 255, 255, 0.35);
   background: var(--ink-deep);
   cursor: nwse-resize;
   touch-action: none;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
   z-index: 5;
 }
 
 .canvas-node-resize:hover {
   border-color: var(--teal);
-  background: rgba(110, 231, 223, 0.25);
+  background: rgba(110, 231, 223, 0.28);
+  box-shadow: 0 0 14px rgba(110, 231, 223, 0.35);
 }
 
 .canvas-node--circle .canvas-node-inner {
@@ -267,16 +284,21 @@
   text-align: center;
 }
 
+/* A real diamond outline via clip-path, not a rotated square — rotating the
+   whole box (the old approach) made its rendered footprint a ~1.4x larger
+   bounding diamond than the node's actual left/top/w/h rectangle, so the
+   selection outline, resize handle, and connector dot all sat visibly
+   outside the shape you could see, and text needed a counter-rotation
+   hack to stay upright. clip-path keeps the box's real geometry and the
+   visible shape identical, and content stays normal, unrotated text —
+   extra padding keeps it inside the diamond's readable center instead of
+   clipping at the corners. */
 .canvas-node--decision .canvas-node-inner {
-  border-radius: 10px;
-  transform: rotate(45deg);
+  clip-path: polygon(50% 2%, 98% 50%, 50% 98%, 2% 50%);
   align-items: center;
   justify-content: center;
   text-align: center;
-}
-
-.canvas-node--decision .canvas-node-inner > * {
-  transform: rotate(-45deg);
+  padding: 1.6rem 2.4rem;
 }
 
 .canvas-node--sticky .canvas-node-inner {
@@ -302,14 +324,14 @@
 
 .canvas-node-title {
   color: var(--white);
-  font-size: 0.78rem;
+  font-size: 0.92rem;
   line-height: 1.4;
 }
 
 .canvas-node-sub {
   color: var(--silver-dim);
   opacity: 0.7;
-  font-size: 0.66rem;
+  font-size: 0.76rem;
 }
 
 .canvas-node-ref {
@@ -320,7 +342,7 @@
 
 .canvas-node-body {
   color: var(--silver);
-  font-size: 0.68rem;
+  font-size: 0.8rem;
   line-height: 1.5;
   overflow: hidden;
 }
@@ -329,8 +351,8 @@
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  font-size: 0.64rem;
+  gap: 0.2rem;
+  font-size: 0.76rem;
   color: var(--silver);
 }
 
@@ -339,17 +361,79 @@
   text-decoration: line-through;
 }
 
+.canvas-node-img-wrap {
+  flex: 1;
+  min-height: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.canvas-node-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.canvas-node-img-error {
+  color: var(--bad);
+  opacity: 0.85;
+  white-space: normal;
+}
+
+.canvas-node-link {
+  color: var(--teal);
+  text-decoration: none;
+  white-space: normal;
+  word-break: break-all;
+}
+
+.canvas-node-link:hover {
+  text-decoration: underline;
+}
+
+.canvas-inspector-hint {
+  margin-top: -0.5rem;
+  font-size: 0.7rem;
+  line-height: 1.5;
+  white-space: normal;
+}
+
+.canvas-inspector-preview {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  max-height: 180px;
+}
+
+.canvas-inspector-preview .canvas-node-img-wrap {
+  height: 180px;
+}
+
 /* ---- Inspector ------------------------------------------------------------ */
 
 .canvas-inspector {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.9rem;
   background: var(--glass-bg);
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
   border: 1px solid var(--glass-border);
   border-radius: 16px;
-  padding: 1rem;
+  padding: 1.15rem;
+  font-size: 0.86rem;
   overflow-y: auto;
+}
+
+.canvas-inspector--empty {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.4rem;
+}
+
+.canvas-inspector--empty .panel-empty {
+  max-width: 220px;
 }
