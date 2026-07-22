@@ -167,6 +167,30 @@ export function NotesPage() {
     return sorted;
   }, [notes, query, activeFolder, activeTag, showArchived, sort, linkFilter, usageByNoteId]);
 
+  // Same scope as "all notes"'s own count below (showArchived only, no
+  // folder/tag/query filter) — the search placeholder must agree with
+  // that number, or "search 4 notes" next to "all notes 0" reads as
+  // contradictory instead of "0 of them are active right now".
+  const scopeCount = useMemo(() => notes.filter((n) => Boolean(n.archived) === showArchived).length, [notes, showArchived]);
+
+  // Same reasoning as ProjectsPage's emptyMessage — distinguish "nothing
+  // active but archived notes exist" / "filters hide notes that exist" /
+  // "genuinely nothing here yet" instead of one flat message.
+  const emptyMessage = useMemo(() => {
+    if (filtered.length > 0) return null;
+    const hasFilters = activeFolder !== "all" || Boolean(activeTag) || linkFilter !== "all" || query.trim().length > 0;
+    if (scopeCount === 0) {
+      const otherScopeCount = notes.filter((n) => Boolean(n.archived) !== showArchived).length;
+      if (!showArchived && otherScopeCount > 0) {
+        return `No active notes — ${otherScopeCount} archived. Switch to "archived" to see ${otherScopeCount === 1 ? "it" : "them"}.`;
+      }
+      if (showArchived) return "No archived notes.";
+      return "No notes yet — create one above to get started.";
+    }
+    if (hasFilters) return "No notes match this filter.";
+    return "No notes here yet.";
+  }, [filtered.length, activeFolder, activeTag, linkFilter, query, scopeCount, notes, showArchived]);
+
   useEffect(() => {
     if (selectedId && !notes.some((n) => n.id === selectedId)) setSelectedId(null);
   }, [notes, selectedId]);
@@ -221,7 +245,7 @@ export function NotesPage() {
           <input
             type="text"
             className="notes-search mono"
-            placeholder={`Search ${notes.length} notes…`}
+            placeholder={`Search ${scopeCount} ${showArchived ? "archived " : ""}note${scopeCount === 1 ? "" : "s"}…`}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -309,7 +333,7 @@ export function NotesPage() {
               <span className="note-list-add-icon">+</span>
               <span className="note-list-add-label">new note</span>
             </button>
-            {filtered.length === 0 && <p className="panel-empty">No notes here yet.</p>}
+            {emptyMessage && <p className="panel-empty">{emptyMessage}</p>}
             {filtered.map((n) => (
               <NoteListItem key={n.id} note={n} active={n.id === selectedId} onSelect={setSelectedId} usageCount={usageByNoteId.get(n.id) || 0} />
             ))}

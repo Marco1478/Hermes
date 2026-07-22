@@ -285,6 +285,26 @@ export function ProjectsPage() {
     return counts;
   }, [projects, showArchived]);
 
+  // Distinguishes *why* the grid is empty instead of one flat "no
+  // projects" for every case — "0 active, 3 archived" and "0 total,
+  // vault empty" and "5 exist but this filter hides them" are different
+  // situations and read as contradictory/confusing if collapsed into
+  // the same message (see instruction file 006, CLAUDE-004).
+  const emptyMessage = useMemo(() => {
+    if (filtered.length > 0) return null;
+    const hasFilters = statusFilter !== "all" || Boolean(tagFilter) || query.trim().length > 0;
+    if (statusCounts.all === 0) {
+      const otherScopeCount = projects.filter((p) => Boolean(p.archived) !== showArchived).length;
+      if (!showArchived && otherScopeCount > 0) {
+        return `No active projects — ${otherScopeCount} archived. Switch to "archived" to see ${otherScopeCount === 1 ? "it" : "them"}.`;
+      }
+      if (showArchived) return "No archived projects.";
+      return "No projects yet — create one above to get started.";
+    }
+    if (hasFilters) return "No projects match this filter.";
+    return "No projects match.";
+  }, [filtered.length, statusFilter, tagFilter, query, statusCounts.all, projects, showArchived]);
+
   if (openProject) {
     return (
       <PageShell title="Projects" wide>
@@ -345,7 +365,7 @@ export function ProjectsPage() {
         <input
           type="text"
           className="notes-search mono"
-          placeholder={`Search ${projects.length} projects…`}
+          placeholder={`Search ${statusCounts.all} ${showArchived ? "archived " : ""}project${statusCounts.all === 1 ? "" : "s"}…`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -392,7 +412,7 @@ export function ProjectsPage() {
         {filtered.map((p) => (
           <ProjectCard key={p.id} project={p} onOpen={setOpenId} />
         ))}
-        {filtered.length === 0 && <p className="panel-empty">No projects match.</p>}
+        {emptyMessage && <p className="panel-empty">{emptyMessage}</p>}
       </div>
 
       {creating && (
