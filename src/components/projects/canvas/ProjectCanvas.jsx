@@ -26,6 +26,22 @@ const MIN_W = 100;
 const MIN_H = 70;
 const MAX_HISTORY = 50;
 
+// Explicit interaction modes (CLAUDE-003) — Select/Move stays the default
+// and the connector dot / resize handle keep working exactly as before
+// regardless of mode; these are for the actions that used to be
+// discoverable only by accident (drag-a-node-to-connect once selected) or
+// not at all (no way to pan without landing exactly on empty canvas, no
+// quick "just place a card/text here"). Space held down temporarily
+// switches to Pan and reverts on release — see CanvasEditor's keydown
+// effect — same as every mainstream design tool.
+const MODES = [
+  { key: "select", label: "Select", shortcut: "V", hint: "Select & move (drag) — default" },
+  { key: "pan", label: "Pan", shortcut: "H", hint: "Drag anywhere to pan — or just hold Space" },
+  { key: "connect", label: "Connect", shortcut: "C", hint: "Click a node, drag to another to connect them" },
+  { key: "text", label: "Text", shortcut: "T", hint: "Click empty canvas to drop a text note there" },
+  { key: "shape", label: "Shape", shortcut: "R", hint: "Click empty canvas to drop a card there" },
+];
+
 function uid() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
   return `node-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -40,7 +56,7 @@ function snap(value, enabled) {
   return enabled ? Math.round(value / GRID) * GRID : value;
 }
 
-function NodeShell({ node, zoom, selected, onSelect, onDrag, onDragStart, onStartConnect, onResizeStart, children }) {
+function NodeShell({ node, zoom, mode, selected, onSelect, onDrag, onDragStart, onStartConnect, onResizeStart, children }) {
   // Position is authoritatively left/top (React state, persisted to the
   // vault) — x/y are ONLY the live, uncommitted offset of an in-progress
   // drag gesture. Without owning these motion values explicitly and
@@ -77,15 +93,31 @@ function NodeShell({ node, zoom, selected, onSelect, onDrag, onDragStart, onStar
     y.set(0);
   }, [node.x, node.y, x, y]);
 
+  // Mode governs what a plain pointerdown on the node body DOES — the
+  // connector dot and resize handle below are unconditional (they stop
+  // their own propagation and always mean "connect"/"resize" regardless
+  // of mode, since they're an explicit deliberate target either way).
+  const onNodePointerDown = (e) => {
+    if (mode === "pan") return; // don't select/drag — let it bubble to the viewport's own pan handler
+    if (mode === "connect") {
+      e.stopPropagation(); // a node click in Connect mode must never also reach the background pan handler
+      onSelect(node.id);
+      onStartConnect(node.id, e);
+      return;
+    }
+    // select / text / shape modes: clicking an EXISTING node always just
+    // selects+drags it (text/shape modes only change what an EMPTY-canvas
+    // click does — see CanvasEditor's onBackgroundPointerDown).
+    onSelect(node.id);
+    dragControls.start(e);
+  };
+
   return (
     <motion.div
       className={`canvas-node canvas-node--${node.type}${selected ? " canvas-node--selected" : ""}${node.color ? ` canvas-node--${node.color}` : ""}`}
-      style={{ left: node.x, top: node.y, width: node.w, height: node.h, x, y }}
-      onPointerDown={(e) => {
-        onSelect(node.id);
-        dragControls.start(e);
-      }}
-      drag
+      style={{ left: node.x, top: node.y, width: node.w, height: node.h, x, y, cursor: mode === "connect" ? "crosshair" : mode === "pan" ? "inherit" : undefined }}
+      onPointerDown={onNodePointerDown}
+      drag={mode !== "pan" && mode !== "connect"}
       dragListener={false}
       dragControls={dragControls}
       dragMomentum={false}
@@ -398,6 +430,7 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [snapEnabled, setSnapEnabled] = useState(false);
   const [connecting, setConnecting] = useState(null); // { fromId, x, y } in world coords
+  const [mode, setMode] = useState("select");
   const panRef = useRef(null);
   const viewportRef = useRef(null);
   const saveTimer = useRef(null);
@@ -459,20 +492,6 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
     scheduleSave(next.nodes, next.edges);
   }, [nodes, edges, scheduleSave]);
 
-  useEffect(() => {
-    const onKey = (e) => {
-      const mod = e.metaKey || e.ctrlKey;
-      if (!mod || e.key.toLowerCase() !== "z") return;
-      const tag = document.activeElement?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
-      e.preventDefault();
-      if (e.shiftKey) redo();
-      else undo();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo]);
-
   // Inspector field edits (title/body/ref/color/checklist) intentionally
   // don't push undo history — undo covers structural actions (add/delete/
   // duplicate node, drag, resize, connect), not every keystroke, or typing
@@ -490,6 +509,17 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
     const centerX = (240 - pan.x) / zoom;
     const centerY = (200 - pan.y) / zoom;
     const node = newNode(type, snap(centerX, snapEnabled), snap(centerY, snapEnabled));
+    commit([...nodes, node], edges);
+    setSelectedId(node.id);
+  };
+
+  // Text/Shape modes place the new node exactly where the user clicked
+  // (world coords via clientToWorld, defined below) instead of the
+  // toolbar's fixed near-center spot — the whole point of a placement
+  // mode is that you pick the spot.
+  const addNodeAt = (type, clientX, clientY) => {
+    const p = clientToWorld(clientX, clientY);
+    const node = newNode(type, snap(p.x - 110, snapEnabled), snap(p.y - 40, snapEnabled));
     commit([...nodes, node], edges);
     setSelectedId(node.id);
   };
@@ -513,6 +543,85 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
   const deleteEdge = (edgeId) => {
     commit(nodes, edges.filter((e) => e.id !== edgeId));
   };
+
+  // One consolidated keyboard handler for the whole editor: undo/redo (was
+  // already here), mode shortcuts (V/H/C/T/R), hold-Space-to-pan, Delete/
+  // Backspace to remove the selected node, and Escape. Escape is the
+  // tricky one — PageShell has its OWN global Escape listener that
+  // navigates all the way home, attached the moment PageShell itself
+  // mounts (long before this editor exists — PageShell is a persistent
+  // ancestor, CanvasEditor mounts/unmounts under it as Marco navigates).
+  // Registration order between two listeners on the same target (window)
+  // is what decides who runs first, and PageShell's was always going to
+  // be first that way — child-before-parent effect order only applies to
+  // effects that mount in the SAME commit, not to a listener attached by
+  // an ancestor that already existed. stopImmediatePropagation() from
+  // here arrived too late for that reason (confirmed live: Escape
+  // navigated home instead of deselecting). The fix that's actually
+  // order-independent: attach this one with {capture:true}. Capture-phase
+  // listeners on a target always run before bubble-phase listeners on
+  // that same target, regardless of which was registered first — so this
+  // reliably wins over PageShell's plain (bubble-phase) listener. With
+  // nothing to back out of, this handler does nothing and PageShell's own
+  // listener still runs normally ("go home"), same as any other page.
+  const modeBeforeSpaceRef = useRef(null);
+  useEffect(() => {
+    const isTyping = () => {
+      const tag = document.activeElement?.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA";
+    };
+    const onKeyDown = (e) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key.toLowerCase() === "z") {
+        if (isTyping()) return;
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+        return;
+      }
+      if (isTyping()) return;
+      if (e.key === "Escape") {
+        if (mode !== "select" || selectedId) {
+          e.preventDefault();
+          e.stopPropagation();
+          setMode("select");
+          setSelectedId(null);
+        }
+        return;
+      }
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
+        e.preventDefault();
+        deleteNode();
+        return;
+      }
+      if (e.code === "Space" && !e.repeat && mode !== "pan") {
+        e.preventDefault();
+        modeBeforeSpaceRef.current = mode;
+        setMode("pan");
+        return;
+      }
+      if (mod) return;
+      const found = MODES.find((m) => m.shortcut.toLowerCase() === e.key.toLowerCase());
+      if (found) {
+        e.preventDefault();
+        setMode(found.key);
+      }
+    };
+    const onKeyUp = (e) => {
+      if (e.code === "Space" && modeBeforeSpaceRef.current) {
+        setMode(modeBeforeSpaceRef.current);
+        modeBeforeSpaceRef.current = null;
+      }
+    };
+    // capture:true — see the comment above; this must win the race against
+    // PageShell's bubble-phase Escape listener regardless of mount order.
+    window.addEventListener("keydown", onKeyDown, { capture: true });
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown, { capture: true });
+      window.removeEventListener("keyup", onKeyUp);
+    };
+  }, [undo, redo, mode, selectedId, deleteNode]);
 
   // One undo snapshot per drag gesture (dragStart), not per tick — see
   // commit()'s header comment. Ticks after the first call commit with
@@ -587,9 +696,25 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
     window.addEventListener("pointerup", onUp);
   };
 
+  // In Select mode this only fires for a TRUE empty-canvas click (target
+  // is exactly the world div — a click that started on a node never
+  // reaches here as an empty click, since NodeShell's own pointerdown
+  // handles it, but the event still bubbles here too, hence the target
+  // check). Pan mode relaxes that check entirely — see NodeShell's
+  // onNodePointerDown, which deliberately does nothing (no select, no
+  // drag) and lets its own pointerdown bubble up here instead.
   const onBackgroundPointerDown = (e) => {
-    if (e.target !== panRef.current) return;
-    setSelectedId(null);
+    const isEmptyClick = e.target === panRef.current;
+    if (mode === "pan") {
+      // fall through to pan below regardless of what was under the pointer
+    } else if (mode === "text" || mode === "shape") {
+      if (!isEmptyClick) return; // clicking an existing node already selected it in NodeShell
+      addNodeAt(mode === "text" ? "text" : "card", e.clientX, e.clientY);
+      return;
+    } else {
+      if (!isEmptyClick) return;
+      setSelectedId(null);
+    }
     const start = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
     const onMove = (ev) => setPan({ x: start.panX + (ev.clientX - start.x), y: start.panY + (ev.clientY - start.y) });
     const onUp = () => {
@@ -628,6 +753,23 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
         <span className="mono panel-empty">zoom {Math.round(zoom * 100)}%</span>
       </div>
 
+      <div className="canvas-mode-bar" role="radiogroup" aria-label="Canvas interaction mode">
+        {MODES.map((m) => (
+          <button
+            key={m.key}
+            type="button"
+            role="radio"
+            aria-checked={mode === m.key}
+            className={`canvas-mode-btn${mode === m.key ? " canvas-mode-btn--active" : ""}`}
+            onClick={() => setMode(m.key)}
+            title={`${m.hint} (${m.shortcut})`}
+          >
+            {m.label}
+            <span className="canvas-mode-btn-key mono">{m.shortcut}</span>
+          </button>
+        ))}
+      </div>
+
       <GlassToolbar className="canvas-toolbar">
         {NODE_TYPES.map((t) => (
           <button key={t.key} type="button" className="canvas-toolbar-btn" onClick={() => addNode(t.key)} title={`Add ${t.label}`}>
@@ -638,7 +780,7 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
       </GlassToolbar>
 
       <div className="project-canvas-body">
-        <div ref={viewportRef} className="canvas-viewport" onPointerDown={onBackgroundPointerDown} onWheel={onWheel}>
+        <div ref={viewportRef} className={`canvas-viewport canvas-viewport--mode-${mode}`} onPointerDown={onBackgroundPointerDown} onWheel={onWheel}>
           <div ref={panRef} className={`canvas-world${snapEnabled ? " canvas-world--grid" : ""}`} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}>
             <EdgeLayer nodes={nodes} edges={edges} connecting={connecting} onDeleteEdge={deleteEdge} />
             {nodes.map((n) => (
@@ -646,6 +788,7 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
                 key={n.id}
                 node={n}
                 zoom={zoom}
+                mode={mode}
                 selected={n.id === selectedId}
                 onSelect={setSelectedId}
                 onDragStart={onDragNodeStart}

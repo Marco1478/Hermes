@@ -85,6 +85,66 @@
   transform: translateY(-1px);
 }
 
+/* ---- Mode bar (CLAUDE-003) -------------------------------------------------
+   The current interaction mode must be unmistakable, not inferred from
+   cursor behavior alone — this is the single source of truth a user
+   checks, and each button's title carries its keyboard shortcut. */
+
+.canvas-mode-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  width: fit-content;
+}
+
+.canvas-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  border: none;
+  border-radius: 999px;
+  padding: 0.5rem 0.95rem;
+  min-height: 36px;
+  background: none;
+  color: var(--silver-dim);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.canvas-mode-btn:hover {
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.canvas-mode-btn--active {
+  color: var(--white);
+  background: rgba(110, 231, 223, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(110, 231, 223, 0.4);
+}
+
+.canvas-mode-btn-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15em;
+  padding: 0.1em 0.35em;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--silver-dim);
+  font-size: 0.62rem;
+  opacity: 0.8;
+}
+
+.canvas-mode-btn--active .canvas-mode-btn-key {
+  background: rgba(110, 231, 223, 0.25);
+  color: var(--white);
+}
+
 .project-canvas-body {
   display: flex;
   flex: 1;
@@ -117,6 +177,22 @@
 
 .canvas-viewport:active {
   cursor: grabbing;
+}
+
+/* Select/Pan keep the default grab-to-pan-empty-space cursor (background
+   panning stays available in every mode) — Connect/Text/Shape swap to
+   crosshair so the surface itself signals "clicking here does something
+   different now", matching the active pill in the mode bar. */
+.canvas-viewport--mode-connect,
+.canvas-viewport--mode-text,
+.canvas-viewport--mode-shape {
+  cursor: crosshair;
+}
+
+.canvas-viewport--mode-connect:active,
+.canvas-viewport--mode-text:active,
+.canvas-viewport--mode-shape:active {
+  cursor: crosshair;
 }
 
 .canvas-world {
