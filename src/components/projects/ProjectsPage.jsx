@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useProjects, STATUSES, PRIORITIES } from "../../state/Projects.jsx";
 import { useNotes } from "../../state/Notes.jsx";
 import { PageShell } from "../PageShell.jsx";
+import { VaultStatusChip } from "../VaultStatusChip.jsx";
 import { plainTextPreview } from "../../lib/markdownLite.js";
 import "./ProjectsPage.css";
 
@@ -11,7 +12,6 @@ const STATUS_LABEL = {
   active: "Active",
   on_hold: "On hold",
   done: "Done",
-  archived: "Archived",
 };
 
 const STATUS_TONE = {
@@ -19,7 +19,6 @@ const STATUS_TONE = {
   active: "info",
   on_hold: "warn",
   done: "ok",
-  archived: "",
 };
 
 const COLORS = [
@@ -43,7 +42,7 @@ function progressOf(project) {
 
 function ProjectCard({ project, onOpen }) {
   const progress = progressOf(project);
-  const overdue = project.dueDate && project.dueDate < Date.now() && project.status !== "done" && project.status !== "archived";
+  const overdue = project.dueDate && project.dueDate < Date.now() && project.status !== "done" && !project.archived;
   return (
     <button type="button" className="project-card" onClick={() => onOpen(project.id)}>
       {project.color && <span className={`project-card-stripe project-card-stripe--${project.color}`} />}
@@ -123,7 +122,20 @@ function ImportNotesModal({ project, notes, onLink, onClose }) {
   );
 }
 
-function ProjectDrawer({ project, notes, onClose, onUpdate, onDelete, onAddMilestone, onToggleMilestone, onRemoveMilestone, onLinkNote, onUnlinkNote }) {
+function ProjectDrawer({
+  project,
+  notes,
+  vaultStatus,
+  onClose,
+  onUpdate,
+  onDelete,
+  onToggleArchive,
+  onAddMilestone,
+  onToggleMilestone,
+  onRemoveMilestone,
+  onLinkNote,
+  onUnlinkNote,
+}) {
   const [newMilestone, setNewMilestone] = useState("");
   const [newTag, setNewTag] = useState("");
   const [importOpen, setImportOpen] = useState(false);
@@ -305,15 +317,20 @@ function ProjectDrawer({ project, notes, onClose, onUpdate, onDelete, onAddMiles
         </div>
 
         <div className="job-modal-actions">
-          <button
-            type="button"
-            className="btn-pill btn-pill--danger"
-            onClick={() => {
-              if (window.confirm("Delete this project? Linked notes are kept, just unlinked.")) onDelete();
-            }}
-          >
-            delete project
+          <button type="button" className="btn-pill" onClick={onToggleArchive}>
+            {project.archived ? "unarchive" : "archive"}
           </button>
+          {vaultStatus !== "connected" && (
+            <button
+              type="button"
+              className="btn-pill btn-pill--danger"
+              onClick={() => {
+                if (window.confirm("Delete this project? Linked notes are kept, just unlinked.")) onDelete();
+              }}
+            >
+              delete project
+            </button>
+          )}
         </div>
 
         <AnimatePresence>
@@ -337,19 +354,36 @@ function ProjectDrawer({ project, notes, onClose, onUpdate, onDelete, onAddMiles
   can import/link existing notes rather than duplicating their content.
 */
 export function ProjectsPage() {
-  const { projects, allTags, createProject, updateProject, deleteProject, addMilestone, toggleMilestone, removeMilestone, linkNote, unlinkNote } =
-    useProjects();
+  const {
+    projects,
+    allTags,
+    vaultStatus,
+    vaultError,
+    orphanedLocalProjects,
+    migrating,
+    migrateLocalProjectsToVault,
+    createProject,
+    updateProject,
+    deleteProject,
+    toggleArchiveProject,
+    addMilestone,
+    toggleMilestone,
+    removeMilestone,
+    linkNote,
+    unlinkNote,
+  } = useProjects();
   const { notes } = useNotes();
 
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [showArchived, setShowArchived] = useState(false);
   const [tagFilter, setTagFilter] = useState(null);
   const [sort, setSort] = useState("updated");
   const [openId, setOpenId] = useState(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let list = projects;
+    let list = projects.filter((p) => Boolean(p.archived) === showArchived);
     if (statusFilter !== "all") list = list.filter((p) => p.status === statusFilter);
     if (tagFilter) list = list.filter((p) => p.tags.includes(tagFilter));
     if (q) list = list.filter((p) => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q));
@@ -361,20 +395,21 @@ export function ProjectsPage() {
       if (sort === "due") return (a.dueDate || Infinity) - (b.dueDate || Infinity);
       return b.updatedAt - a.updatedAt;
     });
-  }, [projects, query, statusFilter, tagFilter, sort]);
+  }, [projects, query, statusFilter, tagFilter, sort, showArchived]);
 
   const openProject = projects.find((p) => p.id === openId) || null;
 
-  const onNewProject = () => {
-    const id = createProject({});
-    setOpenId(id);
+  const onNewProject = async () => {
+    const id = await createProject({});
+    if (id) setOpenId(id);
   };
 
   const statusCounts = useMemo(() => {
-    const counts = { all: projects.length };
-    for (const s of STATUSES) counts[s] = projects.filter((p) => p.status === s).length;
+    const visible = projects.filter((p) => Boolean(p.archived) === showArchived);
+    const counts = { all: visible.length };
+    for (const s of STATUSES) counts[s] = visible.filter((p) => p.status === s).length;
     return counts;
-  }, [projects]);
+  }, [projects, showArchived]);
 
   return (
     <PageShell
@@ -386,7 +421,26 @@ export function ProjectsPage() {
         </button>
       }
     >
+      <VaultStatusChip status={vaultStatus} error={vaultError} />
+
+      {vaultStatus === "connected" && orphanedLocalProjects.length > 0 && (
+        <div className="vault-migrate-banner">
+          <span>
+            {orphanedLocalProjects.length} project{orphanedLocalProjects.length > 1 ? "s" : ""} saved before the vault was connected.
+          </span>
+          <button type="button" className="btn-pill" disabled={migrating} onClick={migrateLocalProjectsToVault}>
+            {migrating ? "migrating…" : "migrate to vault"}
+          </button>
+        </div>
+      )}
+
       <div className="projects-toolbar">
+        <button type="button" className={`btn-pill${!showArchived ? " btn-pill--active" : ""}`} onClick={() => setShowArchived(false)}>
+          active
+        </button>
+        <button type="button" className={`btn-pill${showArchived ? " btn-pill--active" : ""}`} onClick={() => setShowArchived(true)}>
+          archived
+        </button>
         <input
           type="text"
           className="notes-search mono"
@@ -441,12 +495,14 @@ export function ProjectsPage() {
           <ProjectDrawer
             project={openProject}
             notes={notes}
+            vaultStatus={vaultStatus}
             onClose={() => setOpenId(null)}
             onUpdate={(patch) => updateProject(openProject.id, patch)}
             onDelete={() => {
               deleteProject(openProject.id);
               setOpenId(null);
             }}
+            onToggleArchive={() => toggleArchiveProject(openProject.id)}
             onAddMilestone={(text) => addMilestone(openProject.id, text)}
             onToggleMilestone={(itemId) => toggleMilestone(openProject.id, itemId)}
             onRemoveMilestone={(itemId) => removeMilestone(openProject.id, itemId)}
