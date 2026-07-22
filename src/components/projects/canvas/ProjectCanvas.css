@@ -86,20 +86,18 @@
 }
 
 .project-canvas-body {
-  display: grid;
-  /* Always two real columns — see the JSX comment on the empty-state
-     inspector: this geometry must never change on select, or the viewport
-     visibly resizes right as a drag gesture starts. */
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
-  gap: 0.9rem;
+  display: flex;
   flex: 1;
-  min-height: calc(100vh - 300px);
+  /* Canvas is the hero surface (CLAUDE-002) — the board gets the full
+     width now that the inspector is a floating drawer (below) instead of
+     a permanent grid column, so this is just the one board area, no
+     second column to size. */
+  min-height: calc(100vh - 260px);
 }
 
 @media (max-width: 900px) {
   .project-canvas-body {
-    grid-template-columns: minmax(0, 1fr);
-    min-height: 60vh;
+    min-height: 65vh;
   }
 }
 
@@ -107,6 +105,7 @@
 
 .canvas-viewport {
   position: relative;
+  flex: 1;
   overflow: hidden;
   border-radius: 16px;
   border: 1px solid var(--glass-border);
@@ -114,13 +113,6 @@
   background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
   background-size: 22px 22px;
   cursor: grab;
-  min-height: calc(100vh - 300px);
-}
-
-@media (max-width: 900px) {
-  .canvas-viewport {
-    min-height: 60vh;
-  }
 }
 
 .canvas-viewport:active {
@@ -411,29 +403,29 @@
   height: 180px;
 }
 
-/* ---- Inspector ------------------------------------------------------------ */
+/* ---- Inspector (floating drawer, not a grid column — see JSX comment) ----- */
+
+.canvas-inspector-drawer {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  bottom: 0.85rem;
+  width: min(360px, calc(100% - 1.7rem));
+  z-index: 15;
+  filter: drop-shadow(0 22px 60px rgba(0, 0, 0, 0.55));
+}
 
 .canvas-inspector {
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
+  height: 100%;
   background: var(--glass-bg);
-  backdrop-filter: blur(16px) saturate(140%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
-  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid var(--glass-border-hover);
   border-radius: 16px;
   padding: 1.15rem;
   font-size: 0.86rem;
   overflow-y: auto;
-}
-
-.canvas-inspector--empty {
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  gap: 0.4rem;
-}
-
-.canvas-inspector--empty .panel-empty {
-  max-width: 220px;
 }

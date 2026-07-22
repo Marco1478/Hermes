@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { motion, useMotionValue, useDragControls } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, useDragControls } from "framer-motion";
 import { useNotes } from "../../../state/Notes.jsx";
 import { fetchVaultCanvases, writeVaultCanvas, archiveVaultCanvas } from "../../../lib/obsidianBridge.js";
 import { parseTagsInput } from "../../../lib/tags.js";
@@ -665,29 +665,36 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
               </div>
             )}
           </div>
+
+          {/* Floats ON TOP of the viewport instead of sharing a grid column
+              with it — the board's own box size never changes whether or
+              not this is open, so selecting a node can't yank the canvas
+              sideways out from under a drag gesture the way the old
+              always-reserved column did (see git history). Absolute inside
+              .canvas-viewport specifically, not project-canvas-body, so it
+              never overlaps the toolbar above it. */}
+          <AnimatePresence>
+            {selected && (
+              <motion.div
+                key={selected.id}
+                className="canvas-inspector-drawer"
+                initial={{ x: 24, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: 24, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 420, damping: 36 }}
+              >
+                <NodeInspector
+                  node={selected}
+                  notes={notes}
+                  onChange={updateSelectedNode}
+                  onDelete={deleteNode}
+                  onDuplicate={duplicateNode}
+                  onClose={() => setSelectedId(null)}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-        {selected ? (
-          <NodeInspector
-            node={selected}
-            notes={notes}
-            onChange={updateSelectedNode}
-            onDelete={deleteNode}
-            onDuplicate={duplicateNode}
-            onClose={() => setSelectedId(null)}
-          />
-        ) : (
-          // Always rendered, same width as a real inspector — the panel
-          // popping in/out on select used to resize the viewport column
-          // right as a drag gesture started, visually yanking the node
-          // out from under the cursor (misread as "drag is too
-          // sensitive", and the layout jump landing the pointer on the
-          // inspector's own buttons is what caused the occasional
-          // "duplicates on drag" reports too).
-          <aside className="canvas-inspector canvas-inspector--empty">
-            <p className="panel-section-title">Inspector</p>
-            <p className="panel-empty">Select a node to edit its title, body, color, and connections.</p>
-          </aside>
-        )}
       </div>
     </div>
   );
