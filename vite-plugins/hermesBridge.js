@@ -451,7 +451,7 @@ export function hermesBridgePlugin({
           sendJson(res, 400, { ok: false, error: "invalid JSON body" });
           return;
         }
-        const { title, body: openingPost, assignee, priority, parent, triage } = body;
+        const { title, body: openingPost, assignee, priority, parent, triage, initialStatus } = body;
         if (!title) {
           sendJson(res, 400, { ok: false, error: "title is required" });
           return;
@@ -462,6 +462,13 @@ export function hermesBridgePlugin({
         if (priority != null) args.push("--priority", String(priority));
         if (parent) args.push("--parent", parent);
         if (triage) args.push("--triage");
+        // Real CLI flag: --initial-status {blocked,running}. "running" is
+        // deliberately not offered from the column "+ add card" affordance
+        // (see KanbanPage.jsx) — a task can't honestly be "running" unless
+        // a worker really is, and creating one straight into that column
+        // with nothing behind it would be exactly the fake state this
+        // bridge has avoided everywhere else.
+        if (initialStatus === "blocked" || initialStatus === "running") args.push("--initial-status", initialStatus);
         const result = await kanban.runJson(args);
         sendJson(res, result.ok ? 200 : 502, result);
       });

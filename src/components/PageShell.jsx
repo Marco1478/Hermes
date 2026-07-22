@@ -11,7 +11,7 @@ import "./PageShell.css";
   centered tab nav) so the app reads as one system instead of bolted-on
   screens. No visible "esc" pill — Escape still goes home from the keyboard.
 */
-export function PageShell({ title, headerExtra, children }) {
+export function PageShell({ title, headerExtra, children, wide = false }) {
   const { enterHero } = useViewMode();
   const { openPalette } = useCommandPaletteMode();
 
@@ -37,7 +37,7 @@ export function PageShell({ title, headerExtra, children }) {
         </div>
       </header>
       <div className="page-scroll">
-        <div className="page-constrain">{children}</div>
+        <div className={`page-constrain${wide ? " page-constrain--wide" : ""}`}>{children}</div>
       </div>
     </div>
   );

@@ -4,7 +4,7 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #000000;
+  background: var(--ink-black);
 }
 
 .page-header {
@@ -53,6 +53,7 @@
   width: 100%;
   max-width: 1180px;
   margin: 0 auto;
+  transition: max-width 0.2s ease;
   /* Extra top padding: BrandMark is absolutely positioned and taller than
      .page-header, so it still overhangs into this flow area on the left —
      clear it fully rather than let the first section title collide with
@@ -61,6 +62,12 @@
   display: flex;
   flex-direction: column;
   gap: 1.75rem;
+}
+
+/* Dense operational surfaces (Kanban) get real breathing room instead of
+   fighting the same 1180px cap as reading-width pages. */
+.page-constrain--wide {
+  max-width: min(96vw, 1760px);
 }
 
 @media (max-width: 640px) {

@@ -5,7 +5,7 @@
 
 :root {
   /* Palette — greys carry a faint cool undertone, never a hue. */
-  --ink-black: #060708; /* page void */
+  --ink-black: #0c0e11; /* page void — a hair off true black, still dark */
   --ink-deep: #0b0d0f; /* raised surfaces */
   --ink-line: #1c1f24; /* hairlines */
   --silver-dim: #8b8f98; /* secondary text */

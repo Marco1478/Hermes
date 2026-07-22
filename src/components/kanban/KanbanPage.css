@@ -1,32 +1,55 @@
-/* ---- Board -------------------------------------------------------------- */
+/* ---- Board ----------------------------------------------------------------
+   auto-fit + minmax: however many columns fit at the current width sit in
+   one row, the rest wrap to a new row — the whole board is always visible,
+   never a horizontal scrollbar, regardless of viewport width. */
 
 .kanban-board {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 1rem;
-  overflow-x: auto;
-  padding-bottom: 0.6rem;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(198, 201, 208, 0.2) transparent;
+  align-items: start;
 }
 
 .kanban-column {
-  flex: 1 0 270px;
-  min-width: 270px;
-  max-width: 330px;
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
+  cursor: default;
 }
 
 .kanban-column-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 0.5rem;
   padding-bottom: 0.6rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.kanban-column-drag {
+  flex: none;
+  background: none;
+  border: none;
+  color: var(--silver-dim);
+  opacity: 0.4;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0.15rem 0.3rem;
+  cursor: grab;
+  touch-action: none;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.kanban-column-drag:hover {
+  opacity: 0.9;
+  color: var(--white);
+}
+
+.kanban-column-drag:active {
+  cursor: grabbing;
+}
+
 .kanban-column-label {
+  flex: 1;
   display: inline-flex;
   align-items: center;
   gap: 0.5em;
@@ -48,11 +71,37 @@
   gap: 0.65rem;
 }
 
-.kanban-column-empty {
-  padding: 1rem 0;
-  text-align: center;
-  border: 1px dashed rgba(255, 255, 255, 0.08);
+/* Shared dashed panel: plain "Nothing here." text when a column can't be
+   created into directly, or a big centered "+" when it can — the add
+   affordance replaces the empty-state text rather than sitting beside it. */
+.kanban-column-panel {
+  width: 100%;
+  min-height: 3.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
   border-radius: 12px;
+  background: none;
+  padding: 1rem;
+}
+
+.kanban-column-panel--button {
+  color: var(--silver-dim);
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+
+.kanban-column-panel--button:hover {
+  border-color: rgba(255, 255, 255, 0.32);
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.kanban-column-panel--button:active {
+  transform: scale(0.96);
 }
 
 /* ---- Card ---------------------------------------------------------------- */
@@ -105,13 +154,15 @@
 }
 
 /* Blocked cards: a quiet warm wash across the whole card, not a saturated
-   traffic-light border — distinct without shouting. */
-.kanban-column:nth-child(4) .kanban-card {
+   traffic-light border — distinct without shouting. Selected by the real
+   column identity (data-column), not DOM position — columns are now
+   user-reorderable, so nth-child would follow the wrong column. */
+.kanban-column[data-column="blocked"] .kanban-card {
   background: linear-gradient(rgba(217, 143, 122, 0.06), rgba(217, 143, 122, 0.06)), var(--glass-bg);
   border-color: rgba(217, 143, 122, 0.22);
 }
 
-.kanban-column:nth-child(6) .kanban-card {
+.kanban-column[data-column="done"] .kanban-card {
   opacity: 0.82;
 }
 

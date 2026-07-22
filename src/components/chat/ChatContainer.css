@@ -4,9 +4,7 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  /* Pure black on the chat page specifically — the hero keeps its own
-     near-black + video background. */
-  background: #000000;
+  background: var(--ink-black);
 }
 
 .chat-header {
