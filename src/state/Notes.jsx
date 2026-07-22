@@ -77,6 +77,22 @@ function loadFolders() {
 // connection — it's a local-only note the vault has never seen.
 const isVaultId = (id) => typeof id === "string" && id.endsWith(".md");
 
+// StrictMode double-invokes the mount effect, so two concurrent loadFromVault()
+// fetches can race an optimistic createNote() prepend — whichever full-list fetch
+// resolves last can already contain the note the prepend is about to re-add. Every
+// place notes state is built keeps first-seen-wins so a rogue duplicate can never
+// stick around long enough to hit React's key reconciliation.
+function dedupeById(list) {
+  const seen = new Set();
+  const out = [];
+  for (const n of list) {
+    if (seen.has(n.id)) continue;
+    seen.add(n.id);
+    out.push(n);
+  }
+  return out;
+}
+
 export function NotesProvider({ children }) {
   const [vaultStatus, setVaultStatus] = useState("unknown"); // unknown | checking | connected | not_configured | error
   const [vaultError, setVaultError] = useState(null);
@@ -97,7 +113,7 @@ export function NotesProvider({ children }) {
 
   const loadFromVault = useCallback(async () => {
     const [active, archived] = await Promise.all([fetchVaultNotes(false), fetchVaultNotes(true)]);
-    const merged = [...(active.data || []), ...(archived.data || [])];
+    const merged = dedupeById([...(active.data || []), ...(archived.data || [])]);
     setNotes(merged);
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify(merged));
@@ -190,7 +206,7 @@ export function NotesProvider({ children }) {
       if (vaultStatusRef.current === "connected") {
         try {
           const res = await writeVaultNote(null, note);
-          setNotes((prev) => [res.data, ...prev]);
+          setNotes((prev) => [res.data, ...prev.filter((n) => n.id !== res.data.id)]);
           return res.data.id;
         } catch (err) {
           setVaultError(err.message || String(err));
@@ -247,8 +263,9 @@ export function NotesProvider({ children }) {
       try {
         const res = await writeVaultNote(null, copy);
         setNotes((prev) => {
-          const idx = prev.findIndex((n) => n.id === id);
-          return [...prev.slice(0, idx + 1), res.data, ...prev.slice(idx + 1)];
+          const rest = prev.filter((n) => n.id !== res.data.id);
+          const idx = rest.findIndex((n) => n.id === id);
+          return [...rest.slice(0, idx + 1), res.data, ...rest.slice(idx + 1)];
         });
         return res.data.id;
       } catch (err) {

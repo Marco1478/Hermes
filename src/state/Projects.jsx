@@ -25,6 +25,19 @@ function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+// See state/Notes.jsx's dedupeById for why this is needed: StrictMode's
+// double-invoked mount effect can race an optimistic createProject() prepend.
+function dedupeById(list) {
+  const seen = new Set();
+  const out = [];
+  for (const p of list) {
+    if (seen.has(p.id)) continue;
+    seen.add(p.id);
+    out.push(p);
+  }
+  return out;
+}
+
 function emptyProject(overrides = {}) {
   const now = Date.now();
   return {
@@ -79,7 +92,7 @@ export function ProjectsProvider({ children }) {
 
   const loadFromVault = useCallback(async () => {
     const [active, archived] = await Promise.all([fetchVaultProjects(false), fetchVaultProjects(true)]);
-    const merged = [...(active.data || []), ...(archived.data || [])];
+    const merged = dedupeById([...(active.data || []), ...(archived.data || [])]);
     vaultBackedIds.current = new Set(merged.map((p) => p.id));
     setProjects(merged);
     try {
@@ -161,7 +174,7 @@ export function ProjectsProvider({ children }) {
       try {
         const res = await writeVaultProject(null, project);
         vaultBackedIds.current.add(res.data.id);
-        setProjects((prev) => [res.data, ...prev]);
+        setProjects((prev) => [res.data, ...prev.filter((p) => p.id !== res.data.id)]);
         return res.data.id;
       } catch (err) {
         setVaultError(err.message || String(err));
