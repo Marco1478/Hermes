@@ -5,6 +5,7 @@ import { UsageProvider } from "./state/Usage.jsx";
 import { ChatProvider } from "./state/Chat.jsx";
 import { NotesProvider } from "./state/Notes.jsx";
 import { ProjectsProvider } from "./state/Projects.jsx";
+import { RailCollapseProvider } from "./state/RailCollapse.jsx";
 import { Hero } from "./components/Hero.jsx";
 import { ChatContainer } from "./components/chat/ChatContainer.jsx";
 import { JobsPage } from "./components/jobs/JobsPage.jsx";
@@ -62,10 +63,12 @@ export function App() {
           <ChatProvider>
             <NotesProvider>
               <ProjectsProvider>
-                <CommandPaletteModeProvider>
-                  <Stage />
-                  <CommandPalette />
-                </CommandPaletteModeProvider>
+                <RailCollapseProvider>
+                  <CommandPaletteModeProvider>
+                    <Stage />
+                    <CommandPalette />
+                  </CommandPaletteModeProvider>
+                </RailCollapseProvider>
               </ProjectsProvider>
             </NotesProvider>
           </ChatProvider>

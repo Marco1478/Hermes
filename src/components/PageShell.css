@@ -475,6 +475,63 @@
 }
 
 
+/* ---- Rail collapse toggle -------------------------------------------------
+   Only meaningful once the left rail itself exists (min-width: 861px
+   below) — hidden below that, where nav is a compact scrolling strip,
+   not a rail to collapse. */
+.page-rail-toggle {
+  display: none;
+}
+
+@media (min-width: 861px) {
+  .page-rail-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: flex-end;
+    width: 1.85rem;
+    height: 1.85rem;
+    margin: 0 0.5rem 0.5rem 0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    background: none;
+    color: var(--silver-dim);
+    font-size: 0.9rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .page-rail-toggle:hover {
+    color: var(--white);
+    border-color: rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.045);
+  }
+
+  .page-shell--rail-collapsed {
+    grid-template-columns: 4.6rem minmax(0, 1fr);
+  }
+
+  .page-shell--rail-collapsed .page-header {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    align-items: center;
+  }
+
+  .page-shell--rail-collapsed .page-title {
+    display: none;
+  }
+
+  .page-shell--rail-collapsed .page-rail-toggle {
+    align-self: center;
+    margin: 0 0 0.5rem;
+  }
+
+  .page-shell--rail-collapsed .page-header-extra {
+    align-items: center;
+  }
+}
+
 /* ---- Left command rail ----------------------------------------------------
    The top tab strip was becoming a crowded necklace. Non-chat pages now use
    a permanent left rail: clearer hierarchy, room for Kanban/Missions/Safety,

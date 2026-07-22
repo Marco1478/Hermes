@@ -70,4 +70,18 @@
     background: linear-gradient(90deg, rgba(110,231,223,0.16), rgba(255,255,255,0.055));
     box-shadow: inset 2px 0 0 var(--teal), 0 0 24px rgba(110,231,223,0.07);
   }
+
+  /* Collapsed rail: single-letter chip, centered, full name on hover via
+     the button's title attribute (see PageNav.jsx) — not a real icon set,
+     kept typographic rather than picking a glyph per section. */
+  .page-nav--collapsed .page-nav-tab {
+    text-align: center;
+    padding: 0.7rem 0;
+    font-size: 0.82rem;
+    letter-spacing: 0.03em;
+  }
+
+  .page-nav--collapsed .page-nav-tab:hover {
+    transform: none;
+  }
 }
