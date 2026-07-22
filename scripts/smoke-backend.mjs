@@ -14,6 +14,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { createObsidianExec, safeRelPath, noteToMarkdown, markdownToNote } from "../vite-plugins/obsidianBridge.js";
 
 const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -44,6 +45,10 @@ const DASHBOARD_PASSWORD = process.env.HERMES_DASHBOARD_PASSWORD || "";
 const SSH_HOST = process.env.HERMES_SSH_HOST || "";
 const SSH_KEY_PATH = process.env.HERMES_SSH_KEY_PATH || "";
 const KANBAN_HAS_SSH = Boolean(SSH_HOST && SSH_KEY_PATH);
+const OBSIDIAN_VAULT_PATH = process.env.OBSIDIAN_VAULT_PATH || "";
+const OBSIDIAN_NOTES_DIR = process.env.OBSIDIAN_NOTES_DIR || "Hermes/Notes";
+const OBSIDIAN_PROJECTS_DIR = process.env.OBSIDIAN_PROJECTS_DIR || "Hermes/Projects";
+const OBSIDIAN_ARCHIVE_DIR = process.env.OBSIDIAN_ARCHIVE_DIR || "Hermes/Archive";
 
 const results = [];
 function record(group, name, ok, detail) {
@@ -216,6 +221,76 @@ async function checkKanban() {
   }
 }
 
+// ---- Obsidian vault (SSH-exec'd, same bridge module the dev server uses) ----
+// No local-temp-vault fallback here: the bridge always talks to the vault
+// over SSH/docker-exec against the real container (see
+// vite-plugins/obsidianBridge.js) — there's no code path where it reads a
+// filesystem local to wherever this script happens to run, so a folder
+// under /tmp on the machine running `npm run smoke` wouldn't actually
+// exercise anything. When OBSIDIAN_VAULT_PATH isn't set, the only honest
+// check is "the feature correctly reports itself as not configured."
+async function checkObsidian() {
+  record("env", "OBSIDIAN_VAULT_PATH set", Boolean(OBSIDIAN_VAULT_PATH), OBSIDIAN_VAULT_PATH ? "configured" : "not set — vault checks skipped, not a failure");
+  if (!OBSIDIAN_VAULT_PATH) return;
+
+  const obsidian = createObsidianExec({
+    sshHost: SSH_HOST,
+    sshKeyPath: SSH_KEY_PATH,
+    vaultPath: OBSIDIAN_VAULT_PATH,
+    notesDir: OBSIDIAN_NOTES_DIR,
+    projectsDir: OBSIDIAN_PROJECTS_DIR,
+    archiveDir: OBSIDIAN_ARCHIVE_DIR,
+  });
+
+  try {
+    const status = await obsidian.status();
+    record("obsidian", "status", Boolean(status.ok && status.vaultOk), status.error || `notes=${status.noteCount} projects=${status.projectCount}`);
+    if (!status.vaultOk) return;
+  } catch (err) {
+    record("obsidian", "status", false, err.message);
+    return;
+  }
+
+  const trav1 = safeRelPath("../secret.md");
+  const trav2 = safeRelPath("/etc/passwd");
+  record("obsidian", "path traversal rejected", trav1 === null && trav2 === null, `../secret.md -> ${trav1}, /etc/passwd -> ${trav2}`);
+
+  // Reversible test note. Flat, directly under notesDir — NOT a subfolder:
+  // notes are deliberately flat (list uses `find -maxdepth 1`, matching
+  // the app's own data model), so a subfolder path would silently never
+  // show up in the list check below despite writing/reading fine.
+  const testRel = "HERMES_UI_SMOKE_TEST_DELETE_ME.md";
+  const note = { title: "HERMES_UI_SMOKE_TEST_DELETE_ME", body: "Automated smoke test note — safe to ignore/delete.", tags: ["smoke"], checklist: [] };
+  try {
+    const writeRes = await obsidian.writeFile(obsidian.dirs.notes, testRel, noteToMarkdown(note));
+    record("obsidian", "create/write test note", writeRes.ok, writeRes.error);
+
+    const readRes = await obsidian.readFile(obsidian.dirs.notes, testRel);
+    const parsed = readRes.ok ? markdownToNote(testRel, readRes.raw) : null;
+    record("obsidian", "read test note", Boolean(readRes.ok && parsed?.title === note.title), readRes.error);
+
+    const listRes = await obsidian.listFiles(obsidian.dirs.notes, "flat");
+    record("obsidian", "search/list finds test note", Boolean(listRes.ok && listRes.files.some((f) => f.relPath === testRel)), listRes.error);
+
+    const archiveRes = await obsidian.move(obsidian.dirs.notes, testRel, obsidian.dirs.archive, testRel);
+    record("obsidian", "archive test note", archiveRes.ok, archiveRes.error);
+  } finally {
+    // Cleanup: the app's own bridge deliberately has no hard-delete (see
+    // obsidianBridge.js) — this direct rm is the smoke script alone
+    // tidying up its own throwaway artifact, not a capability exposed
+    // through the app.
+    const cleanupScript = `rm -f '${obsidian.dirs.archive}/${testRel}' '${obsidian.dirs.notes}/${testRel}'`;
+    const cleanup = await execFileAsync(
+      KANBAN_HAS_SSH ? "ssh" : "docker",
+      KANBAN_HAS_SSH
+        ? ["-i", SSH_KEY_PATH, "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "-o", "StrictHostKeyChecking=accept-new", SSH_HOST, `docker exec hermes sh -c "${cleanupScript}"`]
+        : ["exec", "hermes", "sh", "-c", cleanupScript],
+      { timeout: 15000 }
+    ).catch((err) => ({ error: err.message }));
+    record("obsidian", "cleanup (no test note left in real vault)", !cleanup.error, cleanup.error);
+  }
+}
+
 // ---- command registry --------------------------------------------------------
 async function checkCommandRegistry() {
   try {
@@ -252,6 +327,7 @@ async function main() {
   await checkMemoryNoOpEdit();
   await checkToolsetsNoOpToggle();
   await checkKanban();
+  await checkObsidian();
   await checkCommandRegistry();
   checkScrollRegression();
 
