@@ -9,6 +9,7 @@ import { plainTextPreview } from "../../lib/markdownLite.js";
 import { parseTagsInput } from "../../lib/tags.js";
 import { PROJECT_TEMPLATES } from "../../lib/projectTemplates.js";
 import { writeVaultWorkflow, writeVaultCanvas } from "../../lib/obsidianBridge.js";
+import { GlassButton } from "../ui/GlassButton.jsx";
 import "./ProjectsPage.css";
 
 const STATUS_LABEL = {
@@ -209,12 +210,12 @@ function NewProjectModal({ onCreate, onClose, vaultStatus }) {
         {error && <p className="panel-error">{error}</p>}
 
         <div className="job-modal-actions">
-          <button type="button" className="btn-pill" onClick={onClose} disabled={saving}>
+          <GlassButton variant="secondary" onClick={onClose} disabled={saving}>
             cancel
-          </button>
-          <button type="button" className="btn-pill" onClick={onSubmit} disabled={saving}>
+          </GlassButton>
+          <GlassButton variant="primary" onClick={onSubmit} disabled={saving}>
             {saving ? "creating…" : "create"}
-          </button>
+          </GlassButton>
         </div>
       </motion.div>
     </motion.div>

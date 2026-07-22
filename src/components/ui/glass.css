@@ -1,0 +1,198 @@
+/*
+  Glass UI primitives — shared, reusable interaction language for every
+  "important" control in the app: bigger hit areas, real hover lift/shine,
+  a visible keyboard focus ring, and a restrained teal glow reserved for
+  primary actions (matches --glow-teal's existing "only where it's
+  earned" rule from global.css). This sits alongside, not instead of,
+  the existing compact .btn-pill/.status-badge/.tag-badge chips — those
+  stay for dense toggle rows and inline metadata where a 42px button
+  would feel oversized; .glass-btn is for actions important enough to
+  want a bigger, more tactile target.
+*/
+
+.glass-btn {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55em;
+  min-height: 42px;
+  padding: 0 1.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  color: var(--silver);
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease, box-shadow 0.25s ease, transform 0.15s ease;
+}
+
+/* Hover "shine": a soft diagonal highlight sweeps across on hover rather
+   than a flat color swap — reads as glass catching light, not a CSS
+   toggle. Kept behind the label (z-index) so text never dims under it. */
+.glass-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.14) 45%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.55s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.glass-btn > * {
+  position: relative;
+  z-index: 2;
+}
+
+.glass-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: var(--glass-border-hover);
+  color: var(--white);
+  background: var(--glass-bg-raised);
+  box-shadow: var(--glow-soft);
+}
+
+.glass-btn:hover:not(:disabled)::before {
+  transform: translateX(120%);
+}
+
+.glass-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.97);
+  transition-duration: 0.08s;
+}
+
+.glass-btn:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.glass-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.glass-btn:disabled::before {
+  display: none;
+}
+
+/* ---- Variants ---- */
+
+.glass-btn--primary {
+  border-color: rgba(110, 231, 223, 0.35);
+  background: linear-gradient(180deg, rgba(110, 231, 223, 0.16), rgba(110, 231, 223, 0.05));
+  color: var(--white);
+}
+
+.glass-btn--primary:hover:not(:disabled) {
+  border-color: rgba(110, 231, 223, 0.6);
+  background: linear-gradient(180deg, rgba(110, 231, 223, 0.24), rgba(110, 231, 223, 0.08));
+  box-shadow: var(--glow-teal);
+}
+
+.glass-btn--danger {
+  border-color: rgba(217, 143, 122, 0.28);
+}
+
+.glass-btn--danger:hover:not(:disabled) {
+  border-color: rgba(217, 143, 122, 0.55);
+  color: #f0b7a4;
+  background: rgba(217, 143, 122, 0.08);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4), 0 0 22px rgba(217, 143, 122, 0.16);
+}
+
+/* ---- Sizes ---- */
+
+.glass-btn--sm {
+  min-height: 34px;
+  padding: 0 0.95rem;
+  font-size: 0.78rem;
+}
+
+/* Square-ish icon button — canvas/kanban toolbars. */
+.glass-btn--toolbar {
+  min-height: 40px;
+  min-width: 40px;
+  padding: 0;
+  border-radius: 12px;
+  font-size: 1.05rem;
+}
+
+/* ---- Panel / card ---------------------------------------------------- */
+/* Thin semantic layer over the existing .glass-card (PageShell.css) —
+   same visual language, just named/composable from src/components/ui. */
+
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  padding: 1.15rem 1.25rem;
+  box-shadow: var(--glass-highlight);
+}
+
+/* ---- Toolbar ----------------------------------------------------------- */
+
+.glass-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* ---- Segmented control -------------------------------------------------- */
+/* A pill-shaped group of mutually-exclusive options — bigger, more
+   tactile replacement for a row of loose .btn-pill toggles when the
+   choice is the primary thing on that row (view mode, status filter). */
+
+.glass-segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.28rem;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+}
+
+.glass-segmented-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  border: none;
+  background: none;
+  border-radius: 999px;
+  min-height: 36px;
+  padding: 0.5rem 1rem;
+  color: var(--silver-dim);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.glass-segmented-btn:hover:not(:disabled) {
+  color: var(--white);
+}
+
+.glass-segmented-btn--active {
+  color: var(--white);
+  background: rgba(110, 231, 223, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(110, 231, 223, 0.4);
+}
+
+.glass-segmented-btn:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}

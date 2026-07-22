@@ -8,6 +8,7 @@ import { KanbanColumn } from "./KanbanColumn.jsx";
 import { KanbanDetailDrawer } from "./KanbanDetailDrawer.jsx";
 import { KanbanTaskActions } from "./KanbanTaskActions.jsx";
 import { KanbanObsidianLinks } from "./KanbanObsidianLinks.jsx";
+import { GlassButton } from "../ui/GlassButton.jsx";
 import "./KanbanPage.css";
 
 function NewTaskModal({ preset, onClose, onCreated }) {
@@ -95,12 +96,12 @@ function NewTaskModal({ preset, onClose, onCreated }) {
         {error && <p className="panel-error">{error}</p>}
 
         <div className="job-modal-actions">
-          <button type="button" className="btn-pill" onClick={onClose} disabled={saving}>
+          <GlassButton variant="secondary" onClick={onClose} disabled={saving}>
             cancel
-          </button>
-          <button type="button" className="btn-pill" onClick={onCreate} disabled={saving}>
+          </GlassButton>
+          <GlassButton variant="primary" onClick={onCreate} disabled={saving}>
             {saving ? "creating…" : dispatchAfter ? "create + dispatch" : "create"}
-          </button>
+          </GlassButton>
         </div>
       </motion.div>
     </motion.div>

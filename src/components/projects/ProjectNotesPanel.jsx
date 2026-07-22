@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { plainTextPreview } from "../../lib/markdownLite.js";
+import { GlassButton } from "../ui/GlassButton.jsx";
 
 function ImportNotesModal({ project, notes, onLink, onClose }) {
   const [query, setQuery] = useState("");
@@ -41,9 +42,9 @@ function ImportNotesModal({ project, notes, onLink, onClose }) {
           ))}
         </div>
         <div className="job-modal-actions">
-          <button type="button" className="btn-pill" onClick={onClose}>
+          <GlassButton variant="secondary" onClick={onClose}>
             close
-          </button>
+          </GlassButton>
         </div>
       </motion.div>
     </motion.div>
@@ -89,12 +90,12 @@ function ImportTextModal({ project, onCreate, onClose }) {
           <textarea className="job-modal-textarea mono" value={body} onChange={(e) => setBody(e.target.value)} rows={8} placeholder="Paste or write markdown here…" />
         </label>
         <div className="job-modal-actions">
-          <button type="button" className="btn-pill" onClick={onClose} disabled={saving}>
+          <GlassButton variant="secondary" onClick={onClose} disabled={saving}>
             cancel
-          </button>
-          <button type="button" className="btn-pill" onClick={onImport} disabled={saving}>
+          </GlassButton>
+          <GlassButton variant="primary" onClick={onImport} disabled={saving}>
             {saving ? "saving…" : "create + link"}
-          </button>
+          </GlassButton>
         </div>
       </motion.div>
     </motion.div>

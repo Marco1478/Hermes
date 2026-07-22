@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { GlassButton } from "./ui/GlassButton.jsx";
 
 /*
   ConfirmModal — the one shared dangerous/state-changing action confirm
@@ -22,12 +23,12 @@ export function ConfirmModal({ title, detail, confirmLabel = "confirm", danger =
         <p className="panel-section-title">{title}</p>
         {detail && <p className={danger ? "panel-error" : "panel-empty"}>{detail}</p>}
         <div className="job-modal-actions">
-          <button type="button" className="btn-pill" onClick={onCancel} disabled={busy}>
+          <GlassButton variant="secondary" onClick={onCancel} disabled={busy}>
             cancel
-          </button>
-          <button type="button" className={`btn-pill${danger ? " btn-pill--danger" : ""}`} onClick={onConfirm} disabled={busy}>
+          </GlassButton>
+          <GlassButton variant={danger ? "danger" : "primary"} onClick={onConfirm} disabled={busy}>
             {busy ? "working…" : confirmLabel}
-          </button>
+          </GlassButton>
         </div>
       </motion.div>
     </motion.div>

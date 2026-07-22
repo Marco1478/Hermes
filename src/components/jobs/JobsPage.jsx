@@ -12,6 +12,7 @@ import {
 import { PageShell } from "../PageShell.jsx";
 import { DiagnosticCard } from "../DiagnosticCard.jsx";
 import { ConfirmModal } from "../ConfirmModal.jsx";
+import { GlassButton } from "../ui/GlassButton.jsx";
 import "./JobsPage.css";
 
 function relTime(iso) {
@@ -111,12 +112,12 @@ function EditJobModal({ job, onClose, onSaved }) {
         {error && <p className="panel-error">{error}</p>}
 
         <div className="job-modal-actions">
-          <button type="button" className="btn-pill" onClick={onClose} disabled={saving}>
+          <GlassButton variant="secondary" onClick={onClose} disabled={saving}>
             cancel
-          </button>
-          <button type="button" className="btn-pill" onClick={onSave} disabled={saving}>
+          </GlassButton>
+          <GlassButton variant="primary" onClick={onSave} disabled={saving}>
             {saving ? "saving…" : "save"}
-          </button>
+          </GlassButton>
         </div>
       </motion.div>
     </motion.div>
@@ -194,12 +195,12 @@ function NewJobModal({ onClose, onCreated }) {
         {error && <p className="panel-error">{error}</p>}
 
         <div className="job-modal-actions">
-          <button type="button" className="btn-pill" onClick={onClose} disabled={saving}>
+          <GlassButton variant="secondary" onClick={onClose} disabled={saving}>
             cancel
-          </button>
-          <button type="button" className="btn-pill" onClick={onCreate} disabled={saving}>
+          </GlassButton>
+          <GlassButton variant="primary" onClick={onCreate} disabled={saving}>
             {saving ? "creating…" : "create"}
-          </button>
+          </GlassButton>
         </div>
       </motion.div>
     </motion.div>
