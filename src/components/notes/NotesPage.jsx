@@ -7,6 +7,7 @@ import { VaultStatusChip } from "../VaultStatusChip.jsx";
 import { renderMarkdownLite, wordCount, plainTextPreview } from "../../lib/markdownLite.js";
 import { downloadText, slugify } from "../../lib/exportChat.js";
 import { normalizeTag } from "../../lib/tags.js";
+import { GlassSegmented, GlassSegmentedOption } from "../ui/GlassSegmented.jsx";
 import "./NotesPage.css";
 
 const COLORS = [
@@ -226,12 +227,14 @@ export function NotesPage() {
           />
 
           <div className="notes-filter-row">
-            <button type="button" className={`btn-pill${!showArchived ? " btn-pill--active" : ""}`} onClick={() => setShowArchived(false)}>
-              active
-            </button>
-            <button type="button" className={`btn-pill${showArchived ? " btn-pill--active" : ""}`} onClick={() => setShowArchived(true)}>
-              archived
-            </button>
+            <GlassSegmented>
+              <GlassSegmentedOption active={!showArchived} onClick={() => setShowArchived(false)}>
+                active
+              </GlassSegmentedOption>
+              <GlassSegmentedOption active={showArchived} onClick={() => setShowArchived(true)}>
+                archived
+              </GlassSegmentedOption>
+            </GlassSegmented>
             <select className="notes-sort-select mono" value={sort} onChange={(e) => setSort(e.target.value)}>
               {SORTS.map((s) => (
                 <option key={s.key} value={s.key}>
@@ -242,15 +245,17 @@ export function NotesPage() {
           </div>
 
           <div className="notes-filter-row">
-            <button type="button" className={`btn-pill${linkFilter === "all" ? " btn-pill--active" : ""}`} onClick={() => setLinkFilter("all")}>
-              all
-            </button>
-            <button type="button" className={`btn-pill${linkFilter === "free" ? " btn-pill--active" : ""}`} onClick={() => setLinkFilter("free")}>
-              free
-            </button>
-            <button type="button" className={`btn-pill${linkFilter === "linked" ? " btn-pill--active" : ""}`} onClick={() => setLinkFilter("linked")}>
-              in projects
-            </button>
+            <GlassSegmented>
+              <GlassSegmentedOption active={linkFilter === "all"} onClick={() => setLinkFilter("all")}>
+                all
+              </GlassSegmentedOption>
+              <GlassSegmentedOption active={linkFilter === "free"} onClick={() => setLinkFilter("free")}>
+                free
+              </GlassSegmentedOption>
+              <GlassSegmentedOption active={linkFilter === "linked"} onClick={() => setLinkFilter("linked")}>
+                in projects
+              </GlassSegmentedOption>
+            </GlassSegmented>
           </div>
 
           <div className="notes-folders">

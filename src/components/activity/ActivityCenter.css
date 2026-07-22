@@ -39,20 +39,27 @@
 .activity-row {
   display: flex;
   align-items: flex-start;
-  gap: 0.6rem;
-  padding: 0.6rem 0.8rem;
+  gap: 0.7rem;
+  padding: 0.75rem 1rem;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.activity-row:hover {
+  border-color: var(--glass-border-hover);
+  background: var(--glass-bg-raised);
+  transform: translateX(2px);
 }
 
 .activity-row-body {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.2rem;
   min-width: 0;
 }
 
 .activity-row-title {
   color: var(--white);
-  font-size: 0.76rem;
+  font-size: 0.85rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -61,5 +68,5 @@
 .activity-row-meta {
   color: var(--silver-dim);
   opacity: 0.55;
-  font-size: 0.66rem;
+  font-size: 0.7rem;
 }

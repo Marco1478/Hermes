@@ -10,6 +10,7 @@ import { parseTagsInput } from "../../lib/tags.js";
 import { PROJECT_TEMPLATES } from "../../lib/projectTemplates.js";
 import { writeVaultWorkflow, writeVaultCanvas } from "../../lib/obsidianBridge.js";
 import { GlassButton } from "../ui/GlassButton.jsx";
+import { GlassSegmented, GlassSegmentedOption } from "../ui/GlassSegmented.jsx";
 import "./ProjectsPage.css";
 
 const STATUS_LABEL = {
@@ -333,12 +334,14 @@ export function ProjectsPage() {
       )}
 
       <div className="projects-toolbar">
-        <button type="button" className={`btn-pill${!showArchived ? " btn-pill--active" : ""}`} onClick={() => setShowArchived(false)}>
-          active
-        </button>
-        <button type="button" className={`btn-pill${showArchived ? " btn-pill--active" : ""}`} onClick={() => setShowArchived(true)}>
-          archived
-        </button>
+        <GlassSegmented>
+          <GlassSegmentedOption active={!showArchived} onClick={() => setShowArchived(false)}>
+            active
+          </GlassSegmentedOption>
+          <GlassSegmentedOption active={showArchived} onClick={() => setShowArchived(true)}>
+            archived
+          </GlassSegmentedOption>
+        </GlassSegmented>
         <input
           type="text"
           className="notes-search mono"
