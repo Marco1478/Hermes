@@ -52,6 +52,15 @@ body {
   height: 100%;
 }
 
+/* Every <select> in this app is a bare native element (no custom listbox) —
+   without this, the browser renders the OPEN dropdown's option list using
+   the OS's light UI regardless of how dark the page around it is, since
+   that popup is native chrome, not paintable via ordinary CSS. This is the
+   one property that actually reaches it. */
+:root {
+  color-scheme: dark;
+}
+
 body {
   background: var(--ink-black);
   color: var(--silver);
