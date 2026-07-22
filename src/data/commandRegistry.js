@@ -60,7 +60,7 @@ export const COMMANDS = [
   { name: "cron", category: "tools", description: "List/manage scheduled jobs.", surface: ["telegram", "cli", "ui"], risk: "state-changing", status: "available", note: "Real: GET/POST/DELETE /api/cron/jobs — same as the Jobs page." },
   { name: "curator", category: "tools", description: "Background skill-maintenance status.", surface: ["telegram", "cli"], risk: "safe", status: "unsupported", note: "`hermes curator` exists on the CLI; not exposed to the dashboard bridge." },
   { name: "kanban", category: "tools", description: "List/manage the Kanban board.", surface: ["telegram", "cli", "ui"], risk: "state-changing", status: "available", note: "Real: SSH-exec'd `hermes kanban` CLI — same bridge as the Kanban tab." },
-  { name: "plugins", category: "tools", description: "List/manage installed plugins.", surface: ["telegram", "cli"], risk: "state-changing", status: "unsupported", note: "`hermes plugins` exists on the CLI; not exposed to the dashboard bridge." },
+  { name: "plugins", category: "tools", description: "List/manage installed plugins.", surface: ["telegram", "cli", "ui"], risk: "state-changing", status: "available", note: "Real: SSH-exec'd `hermes plugins` CLI — same bridge as the Plugins section on the Hermes tab." },
 
   // ---- Gateway --------------------------------------------------------------
   { name: "approve", category: "gateway", description: "Approve a pending dangerous action or pairing request.", paramHint: "<id>", surface: ["telegram", "cli"], risk: "dangerous", status: "requires_backend", note: "Real pairing-approval endpoint exists (POST /api/pairing/approve) for DM pairing codes specifically; see the Safety Center (Approvals tab) for what's actually wired." },

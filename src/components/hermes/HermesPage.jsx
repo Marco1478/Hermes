@@ -8,9 +8,8 @@ import {
   toggleSkill,
   fetchHermesMemory,
   fetchHermesLearningGraph,
-  fetchCronJobs,
 } from "../../lib/hermesBridge.js";
-import { useViewMode } from "../../state/ViewMode.jsx";
+import { fetchPluginsStatus, fetchPluginsList, enablePlugin, disablePlugin } from "../../lib/pluginsBridge.js";
 import { PageShell } from "../PageShell.jsx";
 import { DiagnosticCard } from "../DiagnosticCard.jsx";
 import { MemoryGraph } from "./MemoryGraph.jsx";
@@ -139,24 +138,135 @@ function SkillsBrowser({ skills, onToggle, busyName }) {
 }
 
 /*
+  Plugins — derived category, not backend data. The CLI's `list --json`
+  gives name/status/version/description/source only; grouping by name
+  suffix/prefix and description keywords turns an 85-entry flat list into
+  something scannable without inventing anything the backend didn't say.
+*/
+function categorizePlugin(p) {
+  const name = p.name || "";
+  const desc = (p.description || "").toLowerCase();
+  if (name.endsWith("-platform")) return "Messaging platform";
+  if (name.endsWith("-provider")) return "Model provider";
+  if (name.startsWith("browser-")) return "Browser backend";
+  if (name.startsWith("web-")) return "Web search";
+  if (desc.includes("dashboard auth provider")) return "Dashboard auth";
+  if (desc.includes("video generation")) return "Video generation";
+  if (desc.includes("image generation")) return "Image generation";
+  if (desc.includes("observability")) return "Observability";
+  return "Other";
+}
+
+function PluginCard({ plugin, ambiguous, onToggle, busy }) {
+  const enabled = plugin.status === "enabled";
+  return (
+    <div className="glass-card skill-card">
+      <div className="skill-card-head">
+        <span className={`led-dot${enabled ? " led-dot--on led-dot--pulse" : ""}`} title={enabled ? "enabled" : "disabled"} />
+        <span className="skill-name mono">{plugin.name}</span>
+        <label
+          className="toggle-switch skill-toggle"
+          title={
+            ambiguous
+              ? `Multiple installed plugins share the name "${plugin.name}" — the CLI can't tell them apart either, so toggle from the CLI directly: hermes plugins ${enabled ? "disable" : "enable"} ${plugin.name}`
+              : enabled
+                ? "Disable plugin"
+                : "Enable plugin"
+          }
+        >
+          <input type="checkbox" checked={enabled} disabled={busy || ambiguous} onChange={() => onToggle(plugin)} />
+          <span className="toggle-switch-track" />
+        </label>
+      </div>
+      <span className="tag-badge">{categorizePlugin(plugin)}</span>
+      <p className="skill-desc">{plugin.description}</p>
+      <span className="skill-usage mono">
+        v{plugin.version} · {plugin.source}
+        {ambiguous && " · ambiguous name"}
+      </span>
+    </div>
+  );
+}
+
+function PluginsBrowser({ plugins, onToggle, busyName }) {
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("all");
+
+  const nameCounts = useMemo(() => {
+    const counts = new Map();
+    for (const p of plugins) counts.set(p.name, (counts.get(p.name) || 0) + 1);
+    return counts;
+  }, [plugins]);
+
+  const categories = useMemo(() => ["all", ...new Set(plugins.map(categorizePlugin))].sort((a, b) => (a === "all" ? -1 : a.localeCompare(b))), [plugins]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return plugins.filter((p) => {
+      if (category !== "all" && categorizePlugin(p) !== category) return false;
+      if (!q) return true;
+      return p.name.toLowerCase().includes(q) || (p.description || "").toLowerCase().includes(q);
+    });
+  }, [plugins, query, category]);
+
+  const enabledCount = plugins.filter((p) => p.status === "enabled").length;
+
+  return (
+    <div className="skills-browser">
+      <div className="plugins-toolbar">
+        <input
+          type="text"
+          className="skills-search mono"
+          placeholder={`Filter ${plugins.length} plugins (${enabledCount} enabled)…`}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <select className="skills-search mono plugins-category-select" value={category} onChange={(e) => setCategory(e.target.value)}>
+          {categories.map((c) => (
+            <option key={c} value={c}>
+              {c === "all" ? "all categories" : c}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="skills-grid">
+        {filtered.map((p, i) => (
+          <PluginCard
+            key={`${p.name}-${i}`}
+            plugin={p}
+            ambiguous={nameCounts.get(p.name) > 1}
+            onToggle={onToggle}
+            busy={busyName === p.name}
+          />
+        ))}
+        {filtered.length === 0 && <p className="panel-empty">No plugins match "{query}".</p>}
+      </div>
+    </div>
+  );
+}
+
+/*
   HermesPage — the agent's own control room: SOUL.md editor, gateway
   restart, active profile, every skill Hermes has picked up, the memory
-  system (providers + learning graph), and a read-only summary of the
-  automations it runs on its own (full management lives on the Jobs
-  tab — this is "what's set up", not "manage it").
+  system (providers + learning graph), and every installed plugin with a
+  real enable/disable toggle. Automations (cron) intentionally isn't
+  duplicated here — full management already lives on the Jobs tab.
 */
 export function HermesPage() {
-  const { goTo } = useViewMode();
   const [profiles, setProfiles] = useState(null);
   const [skills, setSkills] = useState(null);
   const [memory, setMemory] = useState(null);
   const [graph, setGraph] = useState(null);
-  const [jobs, setJobs] = useState(null);
   const [error, setError] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const [restart, setRestart] = useState("idle"); // idle | busy | done | error
   const [selectedMemory, setSelectedMemory] = useState(null);
   const [busySkill, setBusySkill] = useState(null);
+
+  const [pluginsStatus, setPluginsStatus] = useState(null);
+  const [plugins, setPlugins] = useState(null);
+  const [pluginsError, setPluginsError] = useState(null);
+  const [busyPlugin, setBusyPlugin] = useState(null);
 
   const loadGraph = useCallback(async () => {
     try {
@@ -167,23 +277,41 @@ export function HermesPage() {
     }
   }, []);
 
+  const loadPlugins = useCallback(async () => {
+    try {
+      const st = await fetchPluginsStatus();
+      setPluginsStatus(st);
+      if (!st.configured) {
+        setPlugins([]);
+        return;
+      }
+      const res = await fetchPluginsList();
+      setPlugins(Array.isArray(res.data) ? res.data : []);
+      setPluginsError(null);
+    } catch (err) {
+      setPluginsError(err.message || String(err));
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPlugins();
+  }, [loadPlugins]);
+
   useEffect(() => {
     let mounted = true;
     async function load() {
-      const [profRes, skillsRes, memRes, graphRes, jobsRes] = await Promise.allSettled([
+      const [profRes, skillsRes, memRes, graphRes] = await Promise.allSettled([
         fetchHermesProfiles(),
         fetchSkillsFull(),
         fetchHermesMemory(),
         fetchHermesLearningGraph(),
-        fetchCronJobs(),
       ]);
       if (!mounted) return;
       if (profRes.status === "fulfilled") setProfiles(profRes.value?.profiles || []);
       if (skillsRes.status === "fulfilled") setSkills(Array.isArray(skillsRes.value) ? skillsRes.value : []);
       if (memRes.status === "fulfilled") setMemory(memRes.value);
       if (graphRes.status === "fulfilled") setGraph(graphRes.value);
-      if (jobsRes.status === "fulfilled") setJobs(jobsRes.value || []);
-      if ([profRes, skillsRes, memRes, graphRes, jobsRes].every((r) => r.status === "rejected")) {
+      if ([profRes, skillsRes, memRes, graphRes].every((r) => r.status === "rejected")) {
         setLoadError(profRes.reason?.message || "Could not reach the dashboard.");
       }
     }
@@ -206,6 +334,22 @@ export function HermesPage() {
       setError(err.message || String(err));
     } finally {
       setBusySkill(null);
+    }
+  }, []);
+
+  const onTogglePlugin = useCallback(async (plugin) => {
+    setBusyPlugin(plugin.name);
+    const wasEnabled = plugin.status === "enabled";
+    const nextStatus = wasEnabled ? "not enabled" : "enabled";
+    setPlugins((prev) => prev.map((p) => (p === plugin ? { ...p, status: nextStatus } : p)));
+    try {
+      const result = wasEnabled ? await disablePlugin(plugin.name) : await enablePlugin(plugin.name);
+      if (result?.message) setPluginsError(null);
+    } catch (err) {
+      setPlugins((prev) => prev.map((p) => (p === plugin ? { ...p, status: plugin.status } : p)));
+      setPluginsError(err.message || String(err));
+    } finally {
+      setBusyPlugin(null);
     }
   }, []);
 
@@ -301,25 +445,22 @@ export function HermesPage() {
       <MemoryDetailDrawer entry={selectedMemory} onClose={() => setSelectedMemory(null)} onChanged={loadGraph} />
 
       <div className="panel-section">
-        <div className="automations-head">
-          <p className="panel-section-title" style={{ marginBottom: 0 }}>
-            Automations
-          </p>
-          <button type="button" className="btn-pill" onClick={() => goTo("jobs")}>
-            manage in jobs →
-          </button>
-        </div>
-        {!jobs && !loadError && <p className="panel-empty">Loading…</p>}
-        {jobs && jobs.length === 0 && <p className="panel-empty">No automations created yet.</p>}
-        <div className="automations-list">
-          {jobs?.map((j) => (
-            <div key={j.id} className="automations-row mono">
-              <span className={`job-dot job-dot--${j.enabled ? "ok" : "dim"}`} />
-              <span className="automations-name">{j.name || j.id}</span>
-              <span className="automations-schedule">{j.schedule_display || j.schedule?.expr}</span>
-            </div>
-          ))}
-        </div>
+        <p className="panel-section-title">Plugins</p>
+        {pluginsStatus && !pluginsStatus.configured && (
+          <DiagnosticCard
+            title="Plugins bridge not configured"
+            detail="No HTTP endpoint exists for plugins on this build — the bridge SSHes into the Hermes box and runs the real CLI instead."
+            hint="Set HERMES_SSH_HOST / HERMES_SSH_KEY_PATH in .env.local (see .env.local.example)."
+          />
+        )}
+        {pluginsError && (
+          <DiagnosticCard title="Plugins unavailable" detail={pluginsError} hint="Check the SSH bridge can reach the box and the container is running." />
+        )}
+        {!plugins && !pluginsError && <p className="panel-empty">Loading…</p>}
+        {plugins && plugins.length === 0 && !pluginsError && pluginsStatus?.configured && (
+          <p className="panel-empty">No plugins reported by the CLI.</p>
+        )}
+        {plugins && plugins.length > 0 && <PluginsBrowser plugins={plugins} onToggle={onTogglePlugin} busyName={busyPlugin} />}
       </div>
     </PageShell>
   );

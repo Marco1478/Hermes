@@ -3,6 +3,8 @@ import { ViewModeProvider, useViewMode } from "./state/ViewMode.jsx";
 import { GatewayHealthProvider } from "./state/GatewayHealth.jsx";
 import { UsageProvider } from "./state/Usage.jsx";
 import { ChatProvider } from "./state/Chat.jsx";
+import { NotesProvider } from "./state/Notes.jsx";
+import { ProjectsProvider } from "./state/Projects.jsx";
 import { Hero } from "./components/Hero.jsx";
 import { ChatContainer } from "./components/chat/ChatContainer.jsx";
 import { JobsPage } from "./components/jobs/JobsPage.jsx";
@@ -10,6 +12,8 @@ import { HermesPage } from "./components/hermes/HermesPage.jsx";
 import { ToolsPage } from "./components/tools/ToolsPage.jsx";
 import { SystemOverviewPage } from "./components/system/SystemOverviewPage.jsx";
 import { KanbanPage } from "./components/kanban/KanbanPage.jsx";
+import { NotesPage } from "./components/notes/NotesPage.jsx";
+import { ProjectsPage } from "./components/projects/ProjectsPage.jsx";
 import { CommandPaletteModeProvider } from "./state/CommandPaletteMode.jsx";
 import { CommandPalette } from "./components/commands/CommandPalette.jsx";
 import { SafetyCenter } from "./components/safety/SafetyCenter.jsx";
@@ -23,6 +27,8 @@ const VIEWS = {
   tools: ToolsPage,
   system: SystemOverviewPage,
   kanban: KanbanPage,
+  notes: NotesPage,
+  projects: ProjectsPage,
   safety: SafetyCenter,
   missions: MissionPipeline,
 };
@@ -54,10 +60,14 @@ export function App() {
       <UsageProvider>
         <ViewModeProvider>
           <ChatProvider>
-            <CommandPaletteModeProvider>
-              <Stage />
-              <CommandPalette />
-            </CommandPaletteModeProvider>
+            <NotesProvider>
+              <ProjectsProvider>
+                <CommandPaletteModeProvider>
+                  <Stage />
+                  <CommandPalette />
+                </CommandPaletteModeProvider>
+              </ProjectsProvider>
+            </NotesProvider>
           </ChatProvider>
         </ViewModeProvider>
       </UsageProvider>

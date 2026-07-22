@@ -1,0 +1,248 @@
+/* ---- Toolbar / filters -------------------------------------------------- */
+
+.projects-toolbar {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 0.9rem;
+}
+
+.projects-toolbar .notes-search {
+  flex: 1;
+}
+
+.projects-status-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.projects-status-tabs .btn-pill span {
+  opacity: 0.55;
+  margin-left: 0.3em;
+}
+
+/* ---- Card grid ------------------------------------------------------------ */
+
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.9rem;
+  margin-top: 0.75rem;
+}
+
+.project-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  text-align: left;
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 1rem 1.1rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, background 0.2s ease;
+  overflow: hidden;
+}
+
+.project-card:hover {
+  border-color: var(--glass-border-hover);
+  box-shadow: var(--glow-strong);
+  background: var(--glass-bg-raised);
+  transform: translateY(-2px);
+}
+
+.project-card-stripe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+}
+
+.project-card-stripe--teal {
+  background: var(--teal);
+}
+.project-card-stripe--warn {
+  background: var(--warn);
+}
+.project-card-stripe--bad {
+  background: var(--bad);
+}
+.project-card-stripe--ok {
+  background: var(--ok);
+}
+.project-card-stripe--violet {
+  background: #b6a6e8;
+}
+
+.project-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.project-card-name {
+  color: var(--white);
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.project-card-desc {
+  color: var(--silver-dim);
+  opacity: 0.7;
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+.project-card-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.project-card-progress-track {
+  flex: 1;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.project-card-progress-fill {
+  height: 100%;
+  background: var(--teal);
+}
+
+.project-card-progress span {
+  color: var(--silver-dim);
+  opacity: 0.6;
+  font-size: 0.6rem;
+}
+
+.project-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--silver-dim);
+  opacity: 0.6;
+  font-size: 0.62rem;
+}
+
+.project-priority {
+  text-transform: uppercase;
+}
+
+.project-priority--high {
+  color: var(--bad);
+  border-color: rgba(217, 143, 122, 0.35);
+  background: rgba(217, 143, 122, 0.08);
+}
+
+.project-priority--medium {
+  color: var(--warn);
+  border-color: rgba(217, 180, 106, 0.3);
+  background: rgba(217, 180, 106, 0.06);
+}
+
+.project-overdue {
+  color: var(--bad);
+}
+
+/* ---- Drawer -------------------------------------------------------------- */
+
+.project-drawer-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.project-desc-textarea {
+  min-height: 100px;
+}
+
+.project-section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+/* ---- Linked notes ---------------------------------------------------------- */
+
+.linked-note-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.linked-note-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.linked-note-title {
+  color: var(--silver);
+  font-size: 0.72rem;
+}
+
+.linked-note-preview {
+  color: var(--silver-dim);
+  opacity: 0.55;
+  font-size: 0.64rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Import notes modal ----------------------------------------------------- */
+
+.import-notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 320px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(198, 201, 208, 0.2) transparent;
+}
+
+.import-notes-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 0.5rem 0.65rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.import-notes-item:hover {
+  border-color: rgba(110, 231, 223, 0.35);
+  background: rgba(110, 231, 223, 0.05);
+}
+
+.import-notes-item-title {
+  color: var(--white);
+  font-size: 0.74rem;
+}
+
+.import-notes-item-preview {
+  color: var(--silver-dim);
+  opacity: 0.6;
+  font-size: 0.64rem;
+}

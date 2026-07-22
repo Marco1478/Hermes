@@ -36,6 +36,7 @@
 */
 
 import { createKanbanExec } from "./kanbanBridge.js";
+import { createPluginsExec } from "./pluginsBridge.js";
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -65,6 +66,7 @@ export function hermesBridgePlugin({
   const gatewayConfigured = Boolean(gatewayBaseUrl && gatewayApiKey);
   const dashboardConfigured = Boolean(dashboardBaseUrl && dashboardUsername && dashboardPassword);
   const kanban = createKanbanExec({ sshHost, sshKeyPath });
+  const plugins = createPluginsExec({ sshHost, sshKeyPath });
 
   // ---- Gateway (bearer token, stateless) ---------------------------------
   async function gatewayFetch(path, init = {}) {
@@ -662,6 +664,62 @@ export function hermesBridgePlugin({
         if (body.dryRun) args.push("--dry-run");
         if (body.max != null) args.push("--max", String(Math.max(1, Math.min(5, Number(body.max) || 1))));
         const result = await kanban.runJson(args);
+        sendJson(res, result.ok ? 200 : 502, result);
+      });
+
+      // ---- Plugins: no HTTP surface exists either (same story as Kanban) —
+      // every verb shells out to the real `hermes plugins ...` CLI inside
+      // the container over the SSH bridge. See pluginsBridge.js.
+      use("/local/plugins/status", (req, res) => {
+        sendJson(res, 200, { configured: plugins.configured });
+      });
+
+      use("/local/plugins/list", async (req, res) => {
+        const result = await plugins.runJson(["list", "--json"]);
+        sendJson(res, result.ok ? 200 : 502, result);
+      });
+
+      use("/local/plugins/enable", async (req, res) => {
+        if (req.method !== "POST") {
+          sendJson(res, 405, { ok: false, error: "POST only" });
+          return;
+        }
+        let body;
+        try {
+          body = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid JSON body" });
+          return;
+        }
+        if (!body.name) {
+          sendJson(res, 400, { ok: false, error: "name is required" });
+          return;
+        }
+        // Always non-interactive, and never grants tool-override permission
+        // from a toggle — a plugin that needs to replace a built-in tool
+        // (shell_exec, write_file, ...) has to be enabled from the CLI
+        // directly, where that confirmation prompt actually means something.
+        const result = await plugins.runText(["enable", body.name, "--no-allow-tool-override"]);
+        sendJson(res, result.ok ? 200 : 502, result);
+      });
+
+      use("/local/plugins/disable", async (req, res) => {
+        if (req.method !== "POST") {
+          sendJson(res, 405, { ok: false, error: "POST only" });
+          return;
+        }
+        let body;
+        try {
+          body = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid JSON body" });
+          return;
+        }
+        if (!body.name) {
+          sendJson(res, 400, { ok: false, error: "name is required" });
+          return;
+        }
+        const result = await plugins.runText(["disable", body.name]);
         sendJson(res, result.ok ? 200 : 502, result);
       });
     },
