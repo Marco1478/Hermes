@@ -117,11 +117,12 @@
 .panel-card,
 .glass-card {
   background: var(--glass-bg);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
   border: 1px solid var(--glass-border);
   border-radius: 18px;
   padding: 1.15rem 1.25rem;
+  box-shadow: var(--glass-highlight);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, background 0.2s ease;
 }
 

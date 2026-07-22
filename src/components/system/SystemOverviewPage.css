@@ -1,3 +1,15 @@
+/* ---- Executive-cockpit glass pass ---------------------------------------
+   Teal edge glow on the interactive summary cards (Jobs/Tools/Model/
+   Memory/Vault) instead of the app-wide achromatic --glow-strong — this
+   page specifically wants the instrument-panel feel, not a change to how
+   every other clickable card in the app looks. */
+
+.overview-summary:hover,
+.overview-vault:hover {
+  border-color: rgba(110, 231, 223, 0.32);
+  box-shadow: var(--glow-teal);
+}
+
 /* ---- Gateway ---------------------------------------------------------- */
 
 .overview-gateway {
@@ -5,6 +17,16 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
+  position: relative;
+}
+
+.overview-gateway::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid rgba(110, 231, 223, 0.14);
+  pointer-events: none;
 }
 
 .overview-gateway-meta {

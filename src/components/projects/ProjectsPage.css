@@ -49,8 +49,8 @@
 }
 
 .project-card:hover {
-  border-color: var(--glass-border-hover);
-  box-shadow: var(--glow-strong);
+  border-color: rgba(110, 231, 223, 0.32);
+  box-shadow: var(--glow-teal);
   background: var(--glass-bg-raised);
   transform: translateY(-2px);
 }

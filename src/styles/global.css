@@ -27,8 +27,15 @@
   --glass-bg-raised: rgba(14, 16, 19, 0.65);
   --glass-border: rgba(255, 255, 255, 0.1);
   --glass-border-hover: rgba(255, 255, 255, 0.26);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   --glow-soft: 0 0 22px rgba(210, 220, 240, 0.1);
   --glow-strong: 0 8px 34px rgba(0, 0, 0, 0.45), 0 0 26px rgba(215, 225, 245, 0.16);
+  /* Teal-tinted glow — used deliberately, only for the dense knowledge/
+     workspace surfaces (System Overview, Notes, Projects) that want the
+     "cockpit / library / launchpad" premium-glass feel called for there.
+     Everywhere else keeps the achromatic --glow-strong so this doesn't
+     bleed into pages that weren't asked for it. */
+  --glow-teal: 0 10px 36px rgba(0, 0, 0, 0.5), 0 0 30px rgba(110, 231, 223, 0.22);
   --ok: #8fd6a8;
   --warn: #d9b46a;
   --bad: #d98f7a;
