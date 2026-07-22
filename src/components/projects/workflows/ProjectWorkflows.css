@@ -1,0 +1,87 @@
+.workflow-name-input {
+  flex: 1;
+  min-width: 160px;
+  background: none;
+  border: none;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.14);
+  color: var(--white);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  padding: 0.2rem 0.1rem;
+}
+
+.workflow-name-input:focus {
+  outline: none;
+  border-bottom-color: rgba(110, 231, 223, 0.4);
+}
+
+.workflow-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.workflow-step {
+  display: flex;
+  flex-direction: column;
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--glass-highlight);
+}
+
+.workflow-step-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 0.85rem;
+  cursor: grab;
+  user-select: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.workflow-step-head:active {
+  cursor: grabbing;
+}
+
+.workflow-step-title-display {
+  flex: 1;
+  color: var(--white);
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-step-title-input {
+  font-size: 0.82rem;
+}
+
+.workflow-step-remove {
+  flex: none;
+  background: none;
+  border: none;
+  color: var(--silver-dim);
+  opacity: 0.5;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.workflow-step-remove:hover {
+  opacity: 1;
+  color: var(--bad);
+}
+
+.workflow-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.75rem 0.85rem;
+}
+
+.workflow-step-desc {
+  min-height: 50px;
+}

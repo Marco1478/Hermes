@@ -46,3 +46,7 @@ export const unarchiveVaultProject = (id) => sendJson("/local/obsidian/projects/
 export const fetchVaultCanvases = (projectId) => getJson(`/local/obsidian/canvases/list?project=${encodeURIComponent(projectId)}`);
 export const writeVaultCanvas = (projectId, id, canvas) => sendJson("/local/obsidian/canvases/write", "POST", { project: projectId, id, canvas });
 export const archiveVaultCanvas = (projectId, id) => sendJson("/local/obsidian/canvases/archive", "POST", { project: projectId, id });
+
+export const fetchVaultWorkflows = (projectId) => getJson(`/local/obsidian/workflows/list?project=${encodeURIComponent(projectId)}`);
+export const writeVaultWorkflow = (projectId, id, workflow) => sendJson("/local/obsidian/workflows/write", "POST", { project: projectId, id, workflow });
+export const archiveVaultWorkflow = (projectId, id) => sendJson("/local/obsidian/workflows/archive", "POST", { project: projectId, id });

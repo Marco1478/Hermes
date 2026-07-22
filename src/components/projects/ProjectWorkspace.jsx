@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ProjectOverviewPanel } from "./ProjectOverviewPanel.jsx";
 import { ProjectNotesPanel } from "./ProjectNotesPanel.jsx";
 import { ProjectCanvas } from "./canvas/ProjectCanvas.jsx";
+import { ProjectWorkflows } from "./workflows/ProjectWorkflows.jsx";
 import { WorkspacePlaceholder } from "./WorkspacePlaceholder.jsx";
 
 const SECTIONS = [
@@ -63,9 +64,7 @@ export function ProjectWorkspace({ project, notes, vaultStatus, onBack, onUpdate
         )}
         {section === "notes" && <ProjectNotesPanel project={project} notes={notes} onLinkNote={noteActions.link} onUnlinkNote={noteActions.unlink} onCreateNote={noteActions.create} />}
         {section === "canvas" && <ProjectCanvas project={project} />}
-        {section === "workflows" && (
-          <WorkspacePlaceholder title="Workflows" chunk="CLAUDE-005" detail="Structured step-by-step execution maps land in a later chunk." />
-        )}
+        {section === "workflows" && <ProjectWorkflows project={project} />}
         {section === "kanban" && (
           <WorkspacePlaceholder title="Kanban" chunk="CLAUDE-008" detail="Project-scoped Kanban view (mirroring the main board) lands in a later chunk." />
         )}

@@ -1067,6 +1067,121 @@ export function hermesBridgePlugin({
         const result = await obsidian.move(fromDir, relPath, toDir, relPath);
         sendJson(res, result.ok ? 200 : 502, result);
       });
+
+      // ---- Workflows: JSON files inside a project's workflows/ subfolder,
+      // same shape as canvases above (one project sub-resource kind, same
+      // filesystem contract).
+      use("/local/obsidian/workflows/list", async (req, res) => {
+        if (!obsidian.configured) {
+          sendJson(res, 200, { ok: true, data: [] });
+          return;
+        }
+        const q = new URL(req.url, "http://x").searchParams;
+        const projectRel = safeRelPath(q.get("project") || "");
+        if (!projectRel) {
+          sendJson(res, 400, { ok: false, error: "invalid project" });
+          return;
+        }
+        const dir = `${obsidian.dirs.projects}/${projectRel}/workflows`;
+        const result = await obsidian.listFiles(dir, "flat-json");
+        if (!result.ok) {
+          sendJson(res, 502, result);
+          return;
+        }
+        const data = result.files.map((f) => {
+          try {
+            return { ...JSON.parse(f.raw), id: f.relPath };
+          } catch {
+            return { id: f.relPath, name: f.relPath, error: "invalid JSON in file", version: 1, type: "hermes-project-workflow", steps: [] };
+          }
+        });
+        sendJson(res, 200, { ok: true, data });
+      });
+
+      use("/local/obsidian/workflows/write", async (req, res) => {
+        if (req.method !== "POST") {
+          sendJson(res, 405, { ok: false, error: "POST only" });
+          return;
+        }
+        if (!obsidian.configured) {
+          sendJson(res, 501, { ok: false, error: "Obsidian vault not configured" });
+          return;
+        }
+        let body;
+        try {
+          body = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid JSON body" });
+          return;
+        }
+        const projectRel = safeRelPath(body.project || "");
+        if (!projectRel) {
+          sendJson(res, 400, { ok: false, error: "invalid project" });
+          return;
+        }
+        const dir = `${obsidian.dirs.projects}/${projectRel}/workflows`;
+        const workflow = body.workflow || {};
+        let relPath = body.id ? safeRelPath(body.id) : null;
+        if (body.id && !relPath) {
+          sendJson(res, 400, { ok: false, error: "invalid path" });
+          return;
+        }
+        if (!relPath) {
+          const base = safeFileName(workflow.name);
+          let candidate = `${base}.workflow.json`;
+          for (let n = 2; await obsidian.exists(dir, candidate); n++) {
+            if (n > 200) {
+              sendJson(res, 500, { ok: false, error: "could not find a free filename" });
+              return;
+            }
+            candidate = `${base} (${n}).workflow.json`;
+          }
+          relPath = candidate;
+        }
+        const record = {
+          version: 1,
+          type: "hermes-project-workflow",
+          name: workflow.name || "Untitled workflow",
+          description: workflow.description || "",
+          tags: workflow.tags || [],
+          status: workflow.status || "draft",
+          steps: workflow.steps || [],
+        };
+        const result = await obsidian.writeFile(dir, relPath, JSON.stringify(record, null, 2));
+        if (!result.ok) {
+          sendJson(res, 502, result);
+          return;
+        }
+        sendJson(res, 200, { ok: true, data: { ...record, id: relPath } });
+      });
+
+      use("/local/obsidian/workflows/archive", async (req, res) => {
+        if (req.method !== "POST") {
+          sendJson(res, 405, { ok: false, error: "POST only" });
+          return;
+        }
+        if (!obsidian.configured) {
+          sendJson(res, 501, { ok: false, error: "Obsidian vault not configured" });
+          return;
+        }
+        let body;
+        try {
+          body = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid JSON body" });
+          return;
+        }
+        const projectRel = safeRelPath(body.project || "");
+        const relPath = safeRelPath(body.id || "");
+        if (!projectRel || !relPath) {
+          sendJson(res, 400, { ok: false, error: "invalid path" });
+          return;
+        }
+        const fromDir = `${obsidian.dirs.projects}/${projectRel}/workflows`;
+        const toDir = `${obsidian.dirs.archive}/${projectRel}/workflows`;
+        const result = await obsidian.move(fromDir, relPath, toDir, relPath);
+        sendJson(res, result.ok ? 200 : 502, result);
+      });
     },
   };
 }
