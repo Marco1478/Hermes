@@ -108,10 +108,11 @@ function ImportTextModal({ project, onCreate, onClose }) {
   import-pasted-text — all three just create/reuse a normal global note and
   link it, so nothing here is a project-only note type.
 */
-export function ProjectNotesPanel({ project, notes, onLinkNote, onUnlinkNote, onCreateNote }) {
+export function ProjectNotesPanel({ project, notes, onLinkNote, onUnlinkNote, onCreateNote, tagFilter }) {
   const [linkOpen, setLinkOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const linkedNotes = project.linkedNoteIds.map((id) => notes.find((n) => n.id === id)).filter(Boolean);
+  const linkedNotesAll = project.linkedNoteIds.map((id) => notes.find((n) => n.id === id)).filter(Boolean);
+  const linkedNotes = tagFilter ? linkedNotesAll.filter((n) => (n.tags || []).includes(tagFilter)) : linkedNotesAll;
 
   const onQuickCreate = async () => {
     const id = await onCreateNote({ title: "", body: "" });
@@ -122,7 +123,7 @@ export function ProjectNotesPanel({ project, notes, onLinkNote, onUnlinkNote, on
     <div className="panel-section">
       <div className="project-section-head">
         <p className="panel-section-title" style={{ marginBottom: 0 }}>
-          Notes ({linkedNotes.length})
+          Notes ({linkedNotes.length}{tagFilter ? ` of ${linkedNotesAll.length}` : ""})
         </p>
         <button type="button" className="btn-pill" onClick={onQuickCreate}>
           + new project note
@@ -135,7 +136,11 @@ export function ProjectNotesPanel({ project, notes, onLinkNote, onUnlinkNote, on
         </button>
       </div>
 
-      {linkedNotes.length === 0 && <p className="panel-empty">No notes linked yet. Free notes stay global — linking here doesn't move or copy them.</p>}
+      {linkedNotes.length === 0 && (
+        <p className="panel-empty">
+          {tagFilter ? `No linked notes tagged #${tagFilter}.` : "No notes linked yet. Free notes stay global — linking here doesn't move or copy them."}
+        </p>
+      )}
       <AnimatePresence initial={false}>
         {linkedNotes.map((n) => (
           <motion.div key={n.id} className="linked-note-row" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>

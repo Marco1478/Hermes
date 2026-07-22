@@ -6,6 +6,7 @@ import { PageShell } from "../PageShell.jsx";
 import { VaultStatusChip } from "../VaultStatusChip.jsx";
 import { renderMarkdownLite, wordCount, plainTextPreview } from "../../lib/markdownLite.js";
 import { downloadText, slugify } from "../../lib/exportChat.js";
+import { normalizeTag } from "../../lib/tags.js";
 import "./NotesPage.css";
 
 const COLORS = [
@@ -186,7 +187,7 @@ export function NotesPage() {
   };
 
   const addTag = () => {
-    const t = newTag.trim();
+    const t = normalizeTag(newTag);
     if (!t || !selected) return;
     if (!(selected.tags || []).includes(t)) updateNote(selected.id, { tags: [...(selected.tags || []), t] });
     setNewTag("");

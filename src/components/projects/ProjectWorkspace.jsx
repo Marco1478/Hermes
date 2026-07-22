@@ -4,6 +4,7 @@ import { ProjectNotesPanel } from "./ProjectNotesPanel.jsx";
 import { ProjectCanvas } from "./canvas/ProjectCanvas.jsx";
 import { ProjectWorkflows } from "./workflows/ProjectWorkflows.jsx";
 import { ProjectChatPanel } from "./ProjectChatPanel.jsx";
+import { ProjectTagExplorer } from "./ProjectTagExplorer.jsx";
 import { WorkspacePlaceholder } from "./WorkspacePlaceholder.jsx";
 
 const SECTIONS = [
@@ -25,6 +26,7 @@ const SECTIONS = [
 */
 export function ProjectWorkspace({ project, notes, vaultStatus, onBack, onUpdate, onDelete, onToggleArchive, milestoneActions, noteActions }) {
   const [section, setSection] = useState("overview");
+  const [activeTag, setActiveTag] = useState(null);
 
   return (
     <div className="project-workspace">
@@ -51,6 +53,7 @@ export function ProjectWorkspace({ project, notes, vaultStatus, onBack, onUpdate
       </aside>
 
       <div className="project-workspace-content">
+        <ProjectTagExplorer project={project} notes={notes} activeTag={activeTag} onSelectTag={setActiveTag} />
         {section === "overview" && (
           <ProjectOverviewPanel
             project={project}
@@ -63,9 +66,11 @@ export function ProjectWorkspace({ project, notes, vaultStatus, onBack, onUpdate
             onRemoveMilestone={milestoneActions.remove}
           />
         )}
-        {section === "notes" && <ProjectNotesPanel project={project} notes={notes} onLinkNote={noteActions.link} onUnlinkNote={noteActions.unlink} onCreateNote={noteActions.create} />}
-        {section === "canvas" && <ProjectCanvas project={project} />}
-        {section === "workflows" && <ProjectWorkflows project={project} />}
+        {section === "notes" && (
+          <ProjectNotesPanel project={project} notes={notes} onLinkNote={noteActions.link} onUnlinkNote={noteActions.unlink} onCreateNote={noteActions.create} tagFilter={activeTag} />
+        )}
+        {section === "canvas" && <ProjectCanvas project={project} tagFilter={activeTag} />}
+        {section === "workflows" && <ProjectWorkflows project={project} tagFilter={activeTag} />}
         {section === "kanban" && (
           <WorkspacePlaceholder title="Kanban" chunk="CLAUDE-008" detail="Project-scoped Kanban view (mirroring the main board) lands in a later chunk." />
         )}

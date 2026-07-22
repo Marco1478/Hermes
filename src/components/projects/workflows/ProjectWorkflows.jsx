@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, Reorder, useDragControls } from "framer-motion";
 import { useNotes } from "../../../state/Notes.jsx";
 import { fetchVaultCanvases, fetchVaultWorkflows, writeVaultWorkflow, archiveVaultWorkflow } from "../../../lib/obsidianBridge.js";
+import { parseTagsInput } from "../../../lib/tags.js";
 import "./ProjectWorkflows.css";
 
 const OWNERS = ["marco", "hermes", "claude", "external"];
@@ -206,13 +207,14 @@ function WorkflowEditor({ projectId, workflow, notes, canvases, onBack, onSaved 
   shape as canvases — see vite-plugins/obsidianBridge.js). Steps drag-
   reorder from a real header bar, not a tiny handle, per the brief.
 */
-export function ProjectWorkflows({ project }) {
+export function ProjectWorkflows({ project, tagFilter }) {
   const { notes } = useNotes();
   const [canvases, setCanvases] = useState([]);
   const [workflows, setWorkflows] = useState(null);
   const [error, setError] = useState(null);
   const [openId, setOpenId] = useState(null);
   const [newName, setNewName] = useState("");
+  const [newTags, setNewTags] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -230,12 +232,15 @@ export function ProjectWorkflows({ project }) {
   }, [load]);
 
   const openWorkflow = workflows?.find((w) => w.id === openId) || null;
+  const visibleWorkflows = tagFilter ? workflows?.filter((w) => (w.tags || []).includes(tagFilter)) : workflows;
 
   const onCreate = async () => {
     if (!newName.trim()) return;
     try {
-      const res = await writeVaultWorkflow(project.id, null, { name: newName.trim(), steps: [] });
+      const tags = parseTagsInput(newTags);
+      const res = await writeVaultWorkflow(project.id, null, { name: newName.trim(), tags, steps: [] });
       setNewName("");
+      setNewTags("");
       await load();
       setOpenId(res.data.id);
     } catch (err) {
@@ -275,19 +280,22 @@ export function ProjectWorkflows({ project }) {
           Workflows
         </p>
         <input className="job-modal-input canvas-new-input" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="New workflow name…" onKeyDown={(e) => e.key === "Enter" && onCreate()} />
+        <input className="job-modal-input canvas-new-input" value={newTags} onChange={(e) => setNewTags(e.target.value)} placeholder="tags, comma, separated" onKeyDown={(e) => e.key === "Enter" && onCreate()} />
         <button type="button" className="btn-pill" onClick={onCreate}>
           + create
         </button>
       </div>
       {error && <p className="panel-error">{error}</p>}
       {!workflows && !error && <p className="panel-empty">Loading…</p>}
-      {workflows && workflows.length === 0 && <p className="panel-empty">No workflows yet — create one above.</p>}
+      {workflows && visibleWorkflows.length === 0 && (
+        <p className="panel-empty">{tagFilter ? `No workflows tagged #${tagFilter}.` : "No workflows yet — create one above."}</p>
+      )}
       <div className="canvas-list">
-        {workflows?.map((w) => (
+        {visibleWorkflows?.map((w) => (
           <div key={w.id} className="canvas-list-item">
             <button type="button" className="canvas-list-open" onClick={() => setOpenId(w.id)}>
               <span className="canvas-list-name">
-                {w.name} <span className="tag-badge">{w.status}</span>
+                {w.name} <span className="tag-badge">{w.status}</span> {(w.tags || []).map((t) => <span key={t} className="tag-badge">#{t}</span>)}
               </span>
               <span className="mono canvas-list-meta">{w.steps?.length || 0} steps</span>
             </button>

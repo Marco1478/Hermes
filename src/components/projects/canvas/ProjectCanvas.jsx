@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useNotes } from "../../../state/Notes.jsx";
 import { fetchVaultCanvases, writeVaultCanvas, archiveVaultCanvas } from "../../../lib/obsidianBridge.js";
+import { parseTagsInput } from "../../../lib/tags.js";
 import "./ProjectCanvas.css";
 
 const NODE_TYPES = [
@@ -329,11 +330,12 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
   edits save debounced (600ms) so it feels alive without hammering the
   vault on every pixel of movement.
 */
-export function ProjectCanvas({ project }) {
+export function ProjectCanvas({ project, tagFilter }) {
   const [canvases, setCanvases] = useState(null);
   const [error, setError] = useState(null);
   const [openId, setOpenId] = useState(null);
   const [newName, setNewName] = useState("");
+  const [newTags, setNewTags] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -350,12 +352,15 @@ export function ProjectCanvas({ project }) {
   }, [load]);
 
   const openCanvas = canvases?.find((c) => c.id === openId) || null;
+  const visibleCanvases = tagFilter ? canvases?.filter((c) => (c.tags || []).includes(tagFilter)) : canvases;
 
   const onCreate = async () => {
     if (!newName.trim()) return;
     try {
-      const res = await writeVaultCanvas(project.id, null, { name: newName.trim(), nodes: [], edges: [] });
+      const tags = parseTagsInput(newTags);
+      const res = await writeVaultCanvas(project.id, null, { name: newName.trim(), tags, nodes: [], edges: [] });
       setNewName("");
+      setNewTags("");
       await load();
       setOpenId(res.data.id);
     } catch (err) {
@@ -393,18 +398,23 @@ export function ProjectCanvas({ project }) {
           Canvases
         </p>
         <input className="job-modal-input canvas-new-input" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="New canvas name…" onKeyDown={(e) => e.key === "Enter" && onCreate()} />
+        <input className="job-modal-input canvas-new-input" value={newTags} onChange={(e) => setNewTags(e.target.value)} placeholder="tags, comma, separated" onKeyDown={(e) => e.key === "Enter" && onCreate()} />
         <button type="button" className="btn-pill" onClick={onCreate}>
           + create
         </button>
       </div>
       {error && <p className="panel-error">{error}</p>}
       {!canvases && !error && <p className="panel-empty">Loading…</p>}
-      {canvases && canvases.length === 0 && <p className="panel-empty">No canvases yet — create one above.</p>}
+      {canvases && visibleCanvases.length === 0 && (
+        <p className="panel-empty">{tagFilter ? `No canvases tagged #${tagFilter}.` : "No canvases yet — create one above."}</p>
+      )}
       <div className="canvas-list">
-        {canvases?.map((c) => (
+        {visibleCanvases?.map((c) => (
           <div key={c.id} className="canvas-list-item">
             <button type="button" className="canvas-list-open" onClick={() => setOpenId(c.id)}>
-              <span className="canvas-list-name">{c.name}</span>
+              <span className="canvas-list-name">
+                {c.name} {(c.tags || []).map((t) => <span key={t} className="tag-badge">#{t}</span>)}
+              </span>
               <span className="mono canvas-list-meta">{c.nodes?.length || 0} nodes</span>
             </button>
             <button type="button" className="btn-pill" onClick={() => onArchive(c.id)}>

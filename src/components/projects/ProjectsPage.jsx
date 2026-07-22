@@ -6,6 +6,7 @@ import { PageShell } from "../PageShell.jsx";
 import { VaultStatusChip } from "../VaultStatusChip.jsx";
 import { ProjectWorkspace } from "./ProjectWorkspace.jsx";
 import { plainTextPreview } from "../../lib/markdownLite.js";
+import { parseTagsInput } from "../../lib/tags.js";
 import "./ProjectsPage.css";
 
 const STATUS_LABEL = {
@@ -86,10 +87,7 @@ function NewProjectModal({ onCreate, onClose }) {
     setSaving(true);
     setError(null);
     try {
-      const tags = tagsText
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean);
+      const tags = parseTagsInput(tagsText);
       await onCreate({ name: name.trim(), description, status, color, tags });
       onClose();
     } catch (err) {

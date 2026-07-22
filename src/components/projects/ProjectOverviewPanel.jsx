@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { STATUSES, PRIORITIES } from "../../state/Projects.jsx";
+import { normalizeTag } from "../../lib/tags.js";
 
 const STATUS_LABEL = { planning: "Planning", active: "Active", on_hold: "On hold", done: "Done" };
 
@@ -30,7 +31,7 @@ export function ProjectOverviewPanel({ project, vaultStatus, onUpdate, onDelete,
   const progress = progressOf(project);
 
   const addTag = () => {
-    const t = newTag.trim();
+    const t = normalizeTag(newTag);
     if (!t) return;
     if (!project.tags.includes(t)) onUpdate({ tags: [...project.tags, t] });
     setNewTag("");
