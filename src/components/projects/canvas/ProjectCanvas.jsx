@@ -46,6 +46,49 @@ const ASSET_EXTENSIONS = {
   file: ["pdf", "md", "txt", "docx"],
 };
 const ASSET_MAX_BYTES = 25 * 1024 * 1024;
+const ALL_ASSET_EXTENSIONS = Object.values(ASSET_EXTENSIONS).flat();
+
+// Asset library (CLAUDE-008) — filters use the server's mediaType vocabulary
+// (image/video/audio/document, see assetMediaType in hermesBridge.js) plus
+// "other" for a real file sitting in assets/ whose extension this build
+// doesn't recognize (e.g. dropped in directly via Obsidian, not through
+// Upload) — that file still exists and should still be visible, just
+// unfiltered into any of the known buckets.
+const ASSET_LIBRARY_FILTERS = [
+  { key: "all", label: "All" },
+  { key: "image", label: "Images" },
+  { key: "video", label: "Video" },
+  { key: "audio", label: "Audio" },
+  { key: "document", label: "Documents" },
+  { key: "other", label: "Other" },
+];
+
+function formatAssetSize(bytes) {
+  if (!bytes) return "0 B";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function assetGlyph(mediaType) {
+  if (mediaType === "image") return "🖼";
+  if (mediaType === "video") return "🎬";
+  if (mediaType === "audio") return "🎵";
+  if (mediaType === "document") return "📄";
+  return "📁";
+}
+
+// The library's mediaType vocabulary (image/video/audio/document/null) maps
+// onto a smaller set of Canvas node types — there's no separate "document"
+// node type, "file" already covers any vault-relative reference generically
+// (see its inspector section), so document AND unrecognized-other both land
+// there.
+function mediaTypeToNodeType(mediaType) {
+  if (mediaType === "image") return "image";
+  if (mediaType === "video") return "video";
+  if (mediaType === "audio") return "audio";
+  return "file";
+}
 
 const COLORS = ["teal", "warn", "bad", "ok", "violet"];
 const GRID = 20;
@@ -528,9 +571,9 @@ function AssetPicker({ projectId, onPick }) {
           {!error && assets && assets.length === 0 && (
             <p className="panel-empty">Nothing in this project's assets/ folder yet — drop a file into it in the vault, then browse again.</p>
           )}
-          {assets?.map((name) => (
-            <button key={name} type="button" className="canvas-asset-picker-item mono" onClick={() => onPick(`assets/${name}`)}>
-              {name}
+          {assets?.map((asset) => (
+            <button key={asset.name} type="button" className="canvas-asset-picker-item mono" onClick={() => onPick(`assets/${asset.name}`)}>
+              {asset.name}
             </button>
           ))}
         </div>
@@ -550,7 +593,11 @@ function AssetPicker({ projectId, onPick }) {
 function AssetUploadButton({ projectId, mediaType, onUploaded, pushToast }) {
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
-  const allowedExts = ASSET_EXTENSIONS[mediaType] || [];
+  // "any" (the asset library's upload button, CLAUDE-008) accepts every
+  // extension this build recognizes across all media types, since the
+  // library isn't scoped to one node's ref field the way a node inspector's
+  // upload button is.
+  const allowedExts = mediaType === "any" ? ALL_ASSET_EXTENSIONS : ASSET_EXTENSIONS[mediaType] || [];
   const accept = allowedExts.map((e) => `.${e}`).join(",");
 
   const onFileChosen = async (e) => {
@@ -586,6 +633,132 @@ function AssetUploadButton({ projectId, mediaType, onUploaded, pushToast }) {
         {uploading ? "uploading…" : "upload file"}
       </button>
     </div>
+  );
+}
+
+// Project asset library (CLAUDE-008) — the canvas-wide counterpart to
+// AssetPicker/AssetUploadButton above: those are scoped to one selected
+// node's ref field, this is a standalone drawer listing everything real
+// that's actually sitting in the project's assets/ vault folder, with a
+// size/type/thumbnail per card and drag-to-canvas / click-to-insert /
+// copy-path actions. Fetches fresh on mount (drawer open) and again after
+// every upload, so it never shows a stale list.
+function AssetLibraryPanel({ projectId, onClose, onInsert, pushToast }) {
+  const [assets, setAssets] = useState(null);
+  const [error, setError] = useState(null);
+  const [filter, setFilter] = useState("all");
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetchProjectAssets(projectId);
+      setAssets(res.data || []);
+      setError(null);
+    } catch (err) {
+      setError(err.message || String(err));
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const filtered = (assets || []).filter((a) => {
+    if (filter === "all") return true;
+    if (filter === "other") return !a.mediaType;
+    return a.mediaType === filter;
+  });
+
+  const copyPath = async (relPath) => {
+    try {
+      await navigator.clipboard.writeText(relPath);
+      pushToast("Path copied", { duration: 1400 });
+    } catch {
+      pushToast("Couldn't copy — clipboard unavailable", { tone: "error", duration: 2400 });
+    }
+  };
+
+  return (
+    <aside className="canvas-inspector canvas-asset-library">
+      <div className="canvas-inspector-head">
+        <p className="canvas-inspector-type mono">Asset library</p>
+        <button type="button" className="btn-pill" onClick={onClose}>
+          close
+        </button>
+      </div>
+
+      <div className="canvas-inspector-section">
+        <AssetUploadButton projectId={projectId} mediaType="any" pushToast={pushToast} onUploaded={load} />
+        <p className="panel-empty canvas-inspector-hint">
+          Every real file in this project's <code>assets/</code> vault folder. Drag a card onto the canvas, or click
+          one to insert it at the center.
+        </p>
+      </div>
+
+      <div className="canvas-asset-library-filters" role="tablist" aria-label="Filter assets by type">
+        {ASSET_LIBRARY_FILTERS.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            role="tab"
+            aria-selected={filter === f.key}
+            className={`canvas-asset-filter-btn${filter === f.key ? " canvas-asset-filter-btn--active" : ""}`}
+            onClick={() => setFilter(f.key)}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="canvas-asset-library-list">
+        {error && <p className="panel-error">Couldn't list assets: {error}</p>}
+        {!error && assets === null && <p className="panel-empty">Loading…</p>}
+        {!error && assets && assets.length === 0 && (
+          <p className="panel-empty">No assets uploaded yet — use "upload file" above to add the first one.</p>
+        )}
+        {!error && assets && assets.length > 0 && filtered.length === 0 && <p className="panel-empty">Nothing in this filter yet.</p>}
+        {filtered.map((asset) => {
+          const relPath = `assets/${asset.name}`;
+          return (
+            <div
+              key={asset.name}
+              className="canvas-asset-card"
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData("application/x-hermes-asset", JSON.stringify(asset));
+                e.dataTransfer.effectAllowed = "copy";
+              }}
+              onClick={() => onInsert(asset)}
+              title="Drag onto the canvas, or click to insert"
+            >
+              <div className="canvas-asset-card-thumb">
+                {asset.mediaType === "image" ? (
+                  <img src={assetReadUrl(projectId, relPath)} alt="" loading="lazy" />
+                ) : (
+                  <span aria-hidden="true">{assetGlyph(asset.mediaType)}</span>
+                )}
+              </div>
+              <div className="canvas-asset-card-body">
+                <p className="canvas-asset-card-name mono">{asset.name}</p>
+                <p className="canvas-asset-card-meta mono">
+                  {asset.mediaType || "other"} · {formatAssetSize(asset.size)}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="canvas-asset-card-copy"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  copyPath(relPath);
+                }}
+                title="Copy vault path"
+              >
+                copy
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </aside>
   );
 }
 
@@ -780,6 +953,11 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
   const [mode, setMode] = useState("select");
   const [showModeHelp, setShowModeHelp] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  // Asset library drawer (CLAUDE-008) shares the same right-hand drawer
+  // slot as the node inspector — only one can be open at a time, so
+  // selecting a node closes the library and opening the library deselects
+  // whatever node was selected. See selectNode/toggleAssetLibrary below.
+  const [showAssetLibrary, setShowAssetLibrary] = useState(false);
   const panRef = useRef(null);
   const viewportRef = useRef(null);
   const saveTimer = useRef(null);
@@ -883,12 +1061,31 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
     if (editingId && editingId !== selectedId) setEditingId(null);
   }, [selectedId, editingId]);
 
+  // Selection and the asset library drawer share one right-hand drawer slot
+  // (CLAUDE-008) — routing every "select a node" path through this instead
+  // of the raw setSelectedId setter keeps that exclusive: picking a node
+  // always closes the library rather than leaving it stacked behind the
+  // inspector. Deselecting (id === null) leaves the library's own state
+  // alone, since that path never opens it.
+  const selectNode = (id) => {
+    setSelectedId(id);
+    if (id) setShowAssetLibrary(false);
+  };
+
+  const toggleAssetLibrary = () => {
+    setShowAssetLibrary((s) => {
+      const next = !s;
+      if (next) setSelectedId(null);
+      return next;
+    });
+  };
+
   const addNode = (type) => {
     const centerX = (240 - pan.x) / zoom;
     const centerY = (200 - pan.y) / zoom;
     const node = newNode(type, snap(centerX, snapEnabled), snap(centerY, snapEnabled));
     commit([...nodes, node], edges);
-    setSelectedId(node.id);
+    selectNode(node.id);
     pushToast(`${NODE_TYPES.find((t) => t.key === type)?.label || "Node"} added`, { duration: 1600 });
   };
 
@@ -902,16 +1099,34 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
     const p = clientToWorld(clientX, clientY);
     const node = { ...newNode(type, snap(p.x - 110, snapEnabled), snap(p.y - 40, snapEnabled)), ...patch };
     commit([...nodes, node], edges);
-    setSelectedId(node.id);
+    selectNode(node.id);
     pushToast(`${NODE_TYPES.find((t) => t.key === type)?.label || "Node"} added`, { duration: 1600 });
     return node;
+  };
+
+  // Click-to-insert from the asset library (CLAUDE-008) — same shape as
+  // addNode's toolbar placement (fixed near-center spot, not a click
+  // position, since a library card click carries no canvas coordinate),
+  // just pre-filled with the asset's ref instead of an empty one.
+  const insertAssetNode = (asset) => {
+    const centerX = (240 - pan.x) / zoom;
+    const centerY = (200 - pan.y) / zoom;
+    const type = mediaTypeToNodeType(asset.mediaType);
+    const node = {
+      ...newNode(type, snap(centerX, snapEnabled), snap(centerY, snapEnabled)),
+      title: asset.name,
+      ref: { url: `assets/${asset.name}`, mediaType: asset.mediaType, size: asset.size },
+    };
+    commit([...nodes, node], edges);
+    selectNode(node.id);
+    pushToast(`${asset.name} added to canvas`, { duration: 1600 });
   };
 
   const duplicateNode = () => {
     if (!selected) return;
     const copy = { ...selected, id: uid(), x: selected.x + 24, y: selected.y + 24, checklist: selected.checklist.map((c) => ({ ...c })) };
     commit([...nodes, copy], edges);
-    setSelectedId(copy.id);
+    selectNode(copy.id);
     pushToast("Node duplicated", { duration: 1600 });
   };
 
@@ -967,11 +1182,12 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
       }
       if (isTyping()) return;
       if (e.key === "Escape") {
-        if (mode !== "select" || selectedId) {
+        if (mode !== "select" || selectedId || showAssetLibrary) {
           e.preventDefault();
           e.stopPropagation();
           setMode("select");
           setSelectedId(null);
+          setShowAssetLibrary(false);
         }
         return;
       }
@@ -1007,7 +1223,7 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
       window.removeEventListener("keydown", onKeyDown, { capture: true });
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [undo, redo, mode, selectedId, deleteNode]);
+  }, [undo, redo, mode, selectedId, showAssetLibrary, deleteNode]);
 
   // One undo snapshot per drag gesture (dragStart), not per tick — see
   // commit()'s header comment. Ticks after the first call commit with
@@ -1136,13 +1352,19 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
     setZoom((z) => Math.min(2, Math.max(0.4, z - e.deltaY * 0.001)));
   };
 
-  // Drag-and-drop (CLAUDE-006) — a dropped URL/text becomes real node
-  // content immediately; a dropped OS file gets an honest "can't do that"
-  // message instead of silently doing nothing OR pretending to import it.
-  // There genuinely is no upload route on this backend (see hermesBridge.js
-  // assets/list comment) — dataTransfer.files is non-empty for real file
-  // drops (Explorer/Finder) but empty for text/URL drags, which is exactly
-  // the distinction that matters here.
+  // Drag-and-drop (CLAUDE-006, extended CLAUDE-007/008 once real upload
+  // existed) — three sources land here, checked in order:
+  //   1. A card dragged out of the asset library panel (identified by the
+  //      internal "application/x-hermes-asset" MIME, set in
+  //      AssetLibraryPanel's onDragStart) — already-uploaded, just needs a
+  //      node at the drop point.
+  //   2. A real OS file (Explorer/Finder — dataTransfer.files is non-empty).
+  //      This now genuinely uploads through the same route the library's
+  //      upload button uses, rather than the old "can't import" message,
+  //      which stopped being true the moment CLAUDE-007 added a real
+  //      upload endpoint — leaving it would have been exactly the kind of
+  //      dishonest UX this whole pass exists to remove.
+  //   3. Plain text/a URL — unchanged from CLAUDE-006.
   const [dropNotice, setDropNotice] = useState(null);
   useEffect(() => {
     if (!dropNotice) return;
@@ -1154,10 +1376,46 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
     e.preventDefault();
   };
 
-  const onCanvasDrop = (e) => {
+  const onCanvasDrop = async (e) => {
     e.preventDefault();
+    const assetPayload = e.dataTransfer.getData("application/x-hermes-asset");
+    if (assetPayload) {
+      try {
+        const asset = JSON.parse(assetPayload);
+        addNodeAt(mediaTypeToNodeType(asset.mediaType), e.clientX, e.clientY, {
+          title: asset.name,
+          ref: { url: `assets/${asset.name}`, mediaType: asset.mediaType, size: asset.size },
+        });
+      } catch {
+        /* malformed internal payload — silently ignore rather than crash the drop */
+      }
+      return;
+    }
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setDropNotice("Can't import that file — this build has no upload endpoint. Paste a URL instead, or reference an existing project asset from the node inspector.");
+      const file = e.dataTransfer.files[0];
+      const ext = (file.name.split(".").pop() || "").toLowerCase();
+      if (!ALL_ASSET_EXTENSIONS.includes(ext)) {
+        setDropNotice(`Can't add "${file.name}" — unsupported file type. Accepted: ${ALL_ASSET_EXTENSIONS.join("/")}.`);
+        return;
+      }
+      if (file.size > ASSET_MAX_BYTES) {
+        setDropNotice(`"${file.name}" is ${(file.size / 1024 / 1024).toFixed(1)}MB, over the 25MB upload limit.`);
+        return;
+      }
+      const dropX = e.clientX;
+      const dropY = e.clientY;
+      setDropNotice(`Uploading ${file.name}…`);
+      try {
+        const res = await uploadProjectAsset(projectId, file);
+        addNodeAt(mediaTypeToNodeType(res.data.mediaType), dropX, dropY, {
+          title: file.name,
+          ref: { url: res.data.path, mediaType: res.data.mediaType, size: res.data.size },
+        });
+        setDropNotice(null);
+        pushToast(`Uploaded ${file.name}`, { tone: "ok", duration: 1800 });
+      } catch (err) {
+        setDropNotice(`Upload failed — ${err.message || "unknown error"}`);
+      }
       return;
     }
     const text = (e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain") || "").trim();
@@ -1229,6 +1487,9 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
             title="Snap to grid"
           >
             # snap
+          </GlassButton>
+          <GlassButton variant={showAssetLibrary ? "primary" : "secondary"} size="sm" onClick={toggleAssetLibrary} title="Project asset library">
+            🖼 assets
           </GlassButton>
         </GlassToolbar>
       </div>
@@ -1329,7 +1590,7 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
                   selected={n.id === selectedId}
                   isConnectSource={connecting?.fromId === n.id}
                   isConnectTarget={n.id === connectHoverTargetId}
-                  onSelect={setSelectedId}
+                  onSelect={selectNode}
                   onDragStart={onDragNodeStart}
                   onDrag={onDragNode}
                   onStartConnect={onStartConnect}
@@ -1406,25 +1667,29 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
               .canvas-viewport specifically, not project-canvas-body, so it
               never overlaps the toolbar above it. */}
           <AnimatePresence>
-            {selected && (
+            {(selected || showAssetLibrary) && (
               <motion.div
-                key={selected.id}
+                key={selected ? selected.id : "asset-library"}
                 className="canvas-inspector-drawer"
                 initial={{ x: 24, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 exit={{ x: 24, opacity: 0 }}
                 transition={{ type: "spring", stiffness: 420, damping: 36 }}
               >
-                <NodeInspector
-                  node={selected}
-                  notes={notes}
-                  projectId={projectId}
-                  onChange={updateSelectedNode}
-                  onDelete={deleteNode}
-                  onDuplicate={duplicateNode}
-                  onClose={() => setSelectedId(null)}
-                  pushToast={pushToast}
-                />
+                {selected ? (
+                  <NodeInspector
+                    node={selected}
+                    notes={notes}
+                    projectId={projectId}
+                    onChange={updateSelectedNode}
+                    onDelete={deleteNode}
+                    onDuplicate={duplicateNode}
+                    onClose={() => setSelectedId(null)}
+                    pushToast={pushToast}
+                  />
+                ) : (
+                  <AssetLibraryPanel projectId={projectId} onClose={() => setShowAssetLibrary(false)} onInsert={insertAssetNode} pushToast={pushToast} />
+                )}
               </motion.div>
             )}
           </AnimatePresence>

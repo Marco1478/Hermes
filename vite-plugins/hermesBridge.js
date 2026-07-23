@@ -1177,10 +1177,14 @@ export function hermesBridgePlugin({
         sendJson(res, result.ok ? 200 : 502, result);
       });
 
-      // ---- Assets: filenames only (never content — see listDir's comment)
-      // inside a project's assets/ subfolder, so Canvas image/file reference
-      // nodes can point at something that's actually THERE instead of a
-      // manually-typed guess.
+      // ---- Assets: name + size + inferred mediaType (never content — see
+      // listDirWithSizes's comment) inside a project's assets/ subfolder.
+      // Powers both the Canvas image/file reference picker (CLAUDE-006) and
+      // the asset library panel (CLAUDE-008), which needs real sizes and
+      // types for its cards/filters — `mediaType: null` means a real file is
+      // sitting there (e.g. dropped in directly via Obsidian) whose
+      // extension isn't one this build recognizes; the library surfaces
+      // those under "other" rather than hiding them.
       use("/local/obsidian/assets/list", async (req, res) => {
         if (!obsidian.configured) {
           sendJson(res, 200, { ok: true, data: [] });
@@ -1193,12 +1197,13 @@ export function hermesBridgePlugin({
           return;
         }
         const dir = `${obsidian.dirs.projects}/${projectRel}/assets`;
-        const result = await obsidian.listDir(dir);
+        const result = await obsidian.listDirWithSizes(dir);
         if (!result.ok) {
           sendJson(res, 502, result);
           return;
         }
-        sendJson(res, 200, { ok: true, data: result.files });
+        const data = result.files.map((f) => ({ name: f.name, size: f.size, mediaType: assetMediaType(f.name) }));
+        sendJson(res, 200, { ok: true, data });
       });
 
       // ---- Real asset upload (CLAUDE-007) — body arrives as base64 in

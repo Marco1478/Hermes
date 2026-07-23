@@ -993,3 +993,133 @@
   padding-top: 0.9rem;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
+
+/* ---- Asset library (CLAUDE-008) -------------------------------------------
+   Shares .canvas-inspector's card chrome (same drawer slot, see JSX) —
+   these rules only add what's specific to the library: filter pills and the
+   asset card grid. */
+
+.canvas-asset-library-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding: 0.3rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  width: fit-content;
+}
+
+.canvas-asset-filter-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  background: none;
+  color: var(--silver-dim);
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.canvas-asset-filter-btn:hover {
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.canvas-asset-filter-btn--active {
+  color: var(--white);
+  background: rgba(110, 231, 223, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(110, 231, 223, 0.4);
+}
+
+.canvas-asset-library-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+}
+
+.canvas-asset-card {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.55rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: grab;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.canvas-asset-card:hover {
+  background: rgba(110, 231, 223, 0.06);
+  border-color: rgba(110, 231, 223, 0.3);
+  transform: translateY(-1px);
+}
+
+.canvas-asset-card:active {
+  cursor: grabbing;
+}
+
+.canvas-asset-card-thumb {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 1.2rem;
+}
+
+.canvas-asset-card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.canvas-asset-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.canvas-asset-card-name {
+  color: var(--white);
+  font-size: 0.74rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-asset-card-meta {
+  color: var(--silver-dim);
+  font-size: 0.64rem;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.canvas-asset-card-copy {
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 0.3rem 0.6rem;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--silver-dim);
+  font-size: 0.64rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.canvas-asset-card-copy:hover {
+  color: var(--white);
+  background: rgba(110, 231, 223, 0.1);
+  border-color: rgba(110, 231, 223, 0.35);
+}

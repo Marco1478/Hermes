@@ -288,6 +288,32 @@ export function createObsidianExec({ sshHost, sshKeyPath, vaultPath, notesDir, p
     return { ok: true, files };
   }
 
+  // Same shallow listing as listDir, plus a byte count per file (CLAUDE-008
+  // asset library — cards need a real size, not just a name). `wc -c` on
+  // stdin (not `wc -c "$f"`) so the output is a bare number with no
+  // filename column to re-parse — portable across GNU and BusyBox coreutils,
+  // unlike `find -printf` or `stat`, whose flags differ between the two and
+  // whichever ships inside the Hermes container isn't guaranteed. Tab is a
+  // safe delimiter because safeFileName already strips control characters
+  // (including \t) from every name that can reach the filesystem this way.
+  async function listDirWithSizes(dir) {
+    const script = `find ${shQuote(dir)} -mindepth 1 -maxdepth 1 -type f 2>/dev/null | sort | while IFS= read -r f; do printf '%s\t%s\n' "$(wc -c < "$f" 2>/dev/null | tr -d ' ')" "$f"; done`;
+    const result = await execRemote(script);
+    if (!result.ok) return { ok: false, error: result.stderr || "list failed" };
+    const files = result.stdout
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const tabIdx = line.indexOf("\t");
+        const sizeStr = tabIdx >= 0 ? line.slice(0, tabIdx) : "";
+        const abs = tabIdx >= 0 ? line.slice(tabIdx + 1) : line;
+        const name = abs.startsWith(`${dir}/`) ? abs.slice(dir.length + 1) : abs;
+        return { name, size: parseInt(sizeStr, 10) || 0 };
+      });
+    return { ok: true, files };
+  }
+
   /* Project workspace skeleton — notes/canvases/workflows/assets are real
      subfolders a project owns from creation, so Marco can drop files into
      them directly in Obsidian even before the UI chunk that manages them
@@ -319,6 +345,7 @@ export function createObsidianExec({ sshHost, sshKeyPath, vaultPath, notesDir, p
     status,
     listFiles,
     listDir,
+    listDirWithSizes,
     readFile,
     readFileBinary,
     writeFile,
