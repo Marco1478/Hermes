@@ -313,7 +313,7 @@ export function ProjectsPage() {
 
   if (openProject) {
     return (
-      <PageShell title="Projects" wide>
+      <PageShell title="Projects" edge>
         <ProjectWorkspace
           project={openProject}
           notes={notes}
@@ -345,7 +345,7 @@ export function ProjectsPage() {
   }
 
   return (
-    <PageShell title="Projects" wide>
+    <PageShell title="Projects" edge>
       <VaultStatusChip status={vaultStatus} error={vaultError} />
 
       {vaultStatus === "connected" && orphanedLocalProjects.length > 0 && (

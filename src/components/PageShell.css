@@ -602,3 +602,30 @@
     max-width: min(96vw, 1760px);
   }
 }
+
+/* ---- Edge-to-edge workspace surfaces (CLAUDE-002, consolidation pass) -----
+   Notes/Projects/Project Workspace/Canvas are full operating surfaces, not
+   reading-width documents — even --wide's min(96vw, 1760px) cap plus its
+   own auto-centering margin left real, measured dead space at ordinary
+   desktop widths (confirmed via getBoundingClientRect during the CLAUDE-001
+   audit, not just eyeballed), and that same auto-margin is what read as an
+   "awkward gap" between the global rail and the project sidebar — the
+   sidebar was never actually touching the rail, it was floating inside a
+   centered container with its own padding on top. --edge drops both the
+   cap and the centering; only a slim, deliberate edge margin remains so
+   the workspace still breathes without pretending to be a centered card.
+   Declared last (after the rail media query above) so it wins the cascade
+   against .page-constrain's own desktop max-width override regardless of
+   viewport width — same specificity, so source order decides. */
+.page-constrain--edge {
+  max-width: none;
+  margin: 0;
+  padding: clamp(1.1rem, 2vw, 1.6rem) clamp(0.85rem, 1.4vw, 1.35rem) 2rem;
+}
+
+@media (min-width: 861px) {
+  .page-constrain--edge {
+    max-width: none;
+    padding-top: clamp(1.4rem, 2.6vw, 2rem);
+  }
+}

@@ -16,7 +16,7 @@ import "./PageShell.css";
   visually below that width, where the nav is already a compact scrolling
   strip, not a rail.
 */
-export function PageShell({ title, headerExtra, children, wide = false }) {
+export function PageShell({ title, headerExtra, children, wide = false, edge = false }) {
   const { enterHero } = useViewMode();
   const { openPalette } = useCommandPaletteMode();
   const { collapsed, toggle } = useRailCollapse();
@@ -52,7 +52,7 @@ export function PageShell({ title, headerExtra, children, wide = false }) {
         </div>
       </header>
       <div className="page-scroll">
-        <div className={`page-constrain${wide ? " page-constrain--wide" : ""}`}>{children}</div>
+        <div className={`page-constrain${wide ? " page-constrain--wide" : ""}${edge ? " page-constrain--edge" : ""}`}>{children}</div>
       </div>
     </div>
   );

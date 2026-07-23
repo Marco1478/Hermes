@@ -238,7 +238,7 @@ export function NotesPage() {
   const doneCount = selected ? selected.checklist.filter((c) => c.done).length : 0;
 
   return (
-    <PageShell title="Notes" wide>
+    <PageShell title="Notes" edge>
       <div className="notes-shell">
         <aside className="notes-sidebar">
           <VaultStatusChip status={vaultStatus} error={vaultError} />
