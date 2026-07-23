@@ -85,7 +85,18 @@ function snap(value, enabled) {
   return enabled ? Math.round(value / GRID) * GRID : value;
 }
 
-function NodeShell({ node, zoom, mode, selected, onSelect, onDrag, onDragStart, onStartConnect, onResizeStart, onStartEdit, children }) {
+// A little forgiveness on the drop target (CLAUDE-006) — landing a pointer
+// on the exact pixel of another node's edge is fiddly, especially at low
+// zoom, and missing by one pixel used to silently do nothing. This same
+// padded hit-test drives BOTH the live "valid target" highlight while
+// dragging a connection AND the actual drop-target check on release, so
+// what visually lights up as connectable is always exactly what connects.
+const CONNECT_HIT_PADDING = 14;
+function nodeContainsPoint(n, x, y, padding = 0) {
+  return x >= n.x - padding && x <= n.x + n.w + padding && y >= n.y - padding && y <= n.y + n.h + padding;
+}
+
+function NodeShell({ node, zoom, mode, selected, isConnectSource, isConnectTarget, onSelect, onDrag, onDragStart, onStartConnect, onResizeStart, onStartEdit, children }) {
   // Position is authoritatively left/top (React state, persisted to the
   // vault) — x/y are ONLY the live, uncommitted offset of an in-progress
   // drag gesture. Without owning these motion values explicitly and
@@ -130,7 +141,15 @@ function NodeShell({ node, zoom, mode, selected, onSelect, onDrag, onDragStart, 
     if (mode === "pan") return; // don't select/drag — let it bubble to the viewport's own pan handler
     if (mode === "connect") {
       e.stopPropagation(); // a node click in Connect mode must never also reach the background pan handler
-      onSelect(node.id);
+      // Deliberately NOT onSelect(node.id) here (CLAUDE-006) — that opens
+      // the full editing inspector as a side effect, which then floats on
+      // top of the board and can cover the very target node you're trying
+      // to drag onto (confirmed live: dragging toward an overlapping node
+      // was untestable because the inspector drawer sat directly over it).
+      // isConnectSource (derived from `connecting.fromId`, see CanvasEditor)
+      // already gives the source its own distinct pulsing highlight below
+      // — that's the "clear source selection" this mode needs, without the
+      // inspector's screen-space cost.
       onStartConnect(node.id, e);
       return;
     }
@@ -164,7 +183,7 @@ function NodeShell({ node, zoom, mode, selected, onSelect, onDrag, onDragStart, 
 
   return (
     <motion.div
-      className={`canvas-node canvas-node--${node.type}${selected ? " canvas-node--selected" : ""}${node.color ? ` canvas-node--${node.color}` : ""}`}
+      className={`canvas-node canvas-node--${node.type}${selected ? " canvas-node--selected" : ""}${node.color ? ` canvas-node--${node.color}` : ""}${isConnectSource ? " canvas-node--connect-source" : ""}${isConnectTarget ? " canvas-node--connect-target" : ""}`}
       style={{ left: node.x, top: node.y, width: node.w, height: node.h, x, y, cursor: mode === "connect" ? "crosshair" : mode === "pan" ? "inherit" : undefined }}
       onPointerDown={onNodePointerDown}
       onDoubleClick={onNodeDoubleClick}
@@ -911,16 +930,33 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
     };
     const onUp = (ev) => {
       const p = clientToWorld(ev.clientX, ev.clientY);
-      const target = nodes.find((n) => p.x >= n.x && p.x <= n.x + n.w && p.y >= n.y && p.y <= n.y + n.h);
+      // Excludes the source node from the search itself (not just checked
+      // after) — matters when nodes overlap or sit close together: without
+      // this, .find() could match the SOURCE node first (its own bounds
+      // also satisfy the hit-test at a point that's also over a different,
+      // intended target) and stop there, silently landing on "cancelled"
+      // even though the live hover highlight had correctly shown the OTHER
+      // node as connectable at that exact spot (confirmed live: this
+      // mismatch was real, not hypothetical — this is the same padded
+      // hit-test the live highlight uses, and it needs the exact same
+      // exclusion to ever agree with what was highlighted).
+      const target = nodes.find((n) => n.id !== fromId && nodeContainsPoint(n, p.x, p.y, CONNECT_HIT_PADDING));
       setConnecting(null);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
-      if (target && target.id !== fromId) {
+      if (target) {
         const exists = edges.some((e) => (e.from === fromId && e.to === target.id) || (e.from === target.id && e.to === fromId));
-        if (!exists) {
+        if (exists) {
+          pushToast("Already connected", { duration: 1600 });
+        } else {
           commit(nodes, [...edges, { id: uid(), from: fromId, to: target.id }]);
           pushToast("Nodes connected", { duration: 1600 });
         }
+      } else {
+        // Dropped on empty canvas or back on the source node itself —
+        // not an error, just a cancelled gesture, so this stays quiet and
+        // brief rather than reading as a failure.
+        pushToast("Connection cancelled", { duration: 1200 });
       }
     };
     window.addEventListener("pointermove", onMove);
@@ -993,6 +1029,15 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
       addNodeAt("text", e.clientX, e.clientY, { body: text });
     }
   };
+
+  // Live "valid target" highlight while dragging a connection (CLAUDE-006)
+  // — derived straight from `connecting`'s own live x/y on every render
+  // rather than tracked as separate state, so it can never drift out of
+  // sync with the exact same padded hit-test onStartConnect's onUp uses to
+  // decide what actually connects on release.
+  const connectHoverTargetId = connecting
+    ? nodes.find((n) => n.id !== connecting.fromId && nodeContainsPoint(n, connecting.x, connecting.y, CONNECT_HIT_PADDING))?.id ?? null
+    : null;
 
   // HUD zoom controls (CLAUDE-004) — the wheel already zooms, but "no tiny
   // raw text controls" means the zoom% readout needs real +/-/reset buttons
@@ -1143,6 +1188,8 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
                   zoom={zoom}
                   mode={mode}
                   selected={n.id === selectedId}
+                  isConnectSource={connecting?.fromId === n.id}
+                  isConnectTarget={n.id === connectHoverTargetId}
                   onSelect={setSelectedId}
                   onDragStart={onDragNodeStart}
                   onDrag={onDragNode}
