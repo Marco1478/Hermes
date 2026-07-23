@@ -275,6 +275,13 @@
   background-size: 100% 100%, 22px 22px;
   box-shadow: inset 0 0 90px rgba(0, 0, 0, 0.4);
   cursor: grab;
+  /* Scoped to the canvas board only (not app-wide) — dragging a node or
+     panning the background must never leave a native text selection
+     behind (confirmed live: it did, before this). The inline-edit
+     title/body fields explicitly opt back into selection below, since
+     editable text must stay selectable while actually editing. */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .canvas-viewport:active {
@@ -506,6 +513,11 @@
   width: 100%;
   height: 100%;
   cursor: default;
+  /* Opts back into selection inside the canvas board's otherwise
+     user-select:none scope (see .canvas-viewport) — editable text must
+     stay selectable/editable while actually in edit mode. */
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .canvas-node-edit-title {

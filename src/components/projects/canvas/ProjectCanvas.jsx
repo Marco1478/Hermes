@@ -127,6 +127,16 @@ function NodeShell({ node, zoom, mode, selected, onSelect, onDrag, onDragStart, 
     // click does — see CanvasEditor's onBackgroundPointerDown).
     onSelect(node.id);
     dragControls.start(e);
+    // preventDefault AFTER dragControls.start(), not before — framer's own
+    // gesture engagement silently no-ops on an already-defaultPrevented
+    // event (confirmed live: calling this first made drags stop moving
+    // the node at all, ~99% of the requested delta just vanished). Called
+    // here, it still successfully suppresses the native text-selection
+    // that a pointerdown-then-move landing on rendered text would
+    // otherwise start (confirmed live too: window.getSelection() returned
+    // the node's own title text after a drag before this existed at all),
+    // it just has to happen after framer has already read the event.
+    e.preventDefault();
   };
 
   // Double-click drops into inline editing (title/body directly on the
@@ -155,7 +165,32 @@ function NodeShell({ node, zoom, mode, selected, onSelect, onDrag, onDragStart, 
         draggingRef.current = true;
         onDragStart(node.id);
       }}
-      onDrag={(e, info) => onDrag(node.id, info.delta.x / zoom, info.delta.y / zoom)}
+      onDrag={(e, info) => {
+        // The node's rendered position is `left/top` (React state,
+        // committed every tick below) PLUS this `x`/`y` motion-value
+        // transform — framer keeps its OWN running total of pointer
+        // offset since drag-start in x/y regardless of what we do with
+        // left/top, so committing the delta to `left/top` on every tick
+        // WITHOUT also re-zeroing x/y here applies the same movement
+        // TWICE (left/top already moved by the delta, then x/y transform
+        // ALSO renders that same accumulated offset on top of it) —
+        // confirmed live: a precise 100px screen-space drag moved the
+        // node ~120px, a consistent ~20% overshoot, not the double-
+        // magnitude you'd expect from a naive read of the numbers because
+        // framer's own delta calc is itself derived from raw pointer
+        // history, not from x/y, so the drift compounds sub-linearly
+        // tick over tick rather than as a clean 2x. Resetting x/y to 0
+        // immediately after reading THIS tick's delta is safe — framer
+        // computes `info.delta` from the pointer's own movement history,
+        // not by diffing the current motion-value state, so zeroing them
+        // here doesn't corrupt the NEXT tick's delta. This leaves
+        // left/top (state) as the single source of truth for position
+        // during the whole gesture, which is what makes the node track
+        // the cursor exactly instead of drifting.
+        onDrag(node.id, info.delta.x / zoom, info.delta.y / zoom);
+        x.set(0);
+        y.set(0);
+      }}
       onDragEnd={() => {
         draggingRef.current = false;
         x.set(0);
