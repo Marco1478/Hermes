@@ -32,9 +32,15 @@ const NODE_GROUPS = [
 
 const COLORS = ["teal", "warn", "bad", "ok", "violet"];
 const GRID = 20;
-const MIN_W = 100;
-const MIN_H = 70;
+const MIN_W = 130;
+const MIN_H = 90;
 const MAX_HISTORY = 50;
+
+// Types whose content is a plain title+body (NodeContent's fallback branch)
+// support inline double-click editing directly on the node — the ref-backed
+// types (image/file/note/kanban/checklist) have structured fields that
+// don't reduce to "edit some text in place", so those stay inspector-only.
+const INLINE_EDIT_TYPES = ["text", "sticky", "card", "decision", "circle"];
 
 // Explicit interaction modes (CLAUDE-003) — Select/Move stays the default
 // and the connector dot / resize handle keep working exactly as before
@@ -59,14 +65,14 @@ function uid() {
 
 function newNode(type, x, y) {
   const bigger = type === "circle" || type === "decision";
-  return { id: uid(), type, x, y, w: type === "decision" ? 240 : 220, h: bigger ? 160 : 130, title: "", body: "", color: "teal", tags: [], checklist: [], ref: null };
+  return { id: uid(), type, x, y, w: type === "decision" ? 260 : 240, h: bigger ? 180 : 150, title: "", body: "", color: "teal", tags: [], checklist: [], ref: null };
 }
 
 function snap(value, enabled) {
   return enabled ? Math.round(value / GRID) * GRID : value;
 }
 
-function NodeShell({ node, zoom, mode, selected, onSelect, onDrag, onDragStart, onStartConnect, onResizeStart, children }) {
+function NodeShell({ node, zoom, mode, selected, onSelect, onDrag, onDragStart, onStartConnect, onResizeStart, onStartEdit, children }) {
   // Position is authoritatively left/top (React state, persisted to the
   // vault) — x/y are ONLY the live, uncommitted offset of an in-progress
   // drag gesture. Without owning these motion values explicitly and
@@ -122,11 +128,23 @@ function NodeShell({ node, zoom, mode, selected, onSelect, onDrag, onDragStart, 
     dragControls.start(e);
   };
 
+  // Double-click drops into inline editing (title/body directly on the
+  // node) instead of requiring a trip to the inspector — only meaningful
+  // in Select mode, since Connect/Text/Shape/Pan double-clicks already
+  // mean something else (or nothing) there.
+  const onNodeDoubleClick = (e) => {
+    if (mode !== "select" || !onStartEdit) return;
+    e.stopPropagation();
+    onSelect(node.id);
+    onStartEdit(node.id);
+  };
+
   return (
     <motion.div
       className={`canvas-node canvas-node--${node.type}${selected ? " canvas-node--selected" : ""}${node.color ? ` canvas-node--${node.color}` : ""}`}
       style={{ left: node.x, top: node.y, width: node.w, height: node.h, x, y, cursor: mode === "connect" ? "crosshair" : mode === "pan" ? "inherit" : undefined }}
       onPointerDown={onNodePointerDown}
+      onDoubleClick={onNodeDoubleClick}
       drag={mode !== "pan" && mode !== "connect"}
       dragListener={false}
       dragControls={dragControls}
@@ -271,6 +289,59 @@ function NodeContent({ node, notes }) {
       {node.title && <p className="canvas-node-title">{node.title}</p>}
       {node.body && <p className="canvas-node-body">{node.body}</p>}
     </>
+  );
+}
+
+// Inline title/body editing (CLAUDE-005) — double-click on a text/sticky/
+// card/decision/circle node drops straight into this instead of requiring
+// a trip to the inspector drawer. Title Enter/Escape and body Escape exit
+// edit mode explicitly; clicking away also exits it, via CanvasEditor's own
+// effect that clears editingId whenever selection changes away from it —
+// so there's no separate "click outside" listener to wire up here.
+function NodeInlineEdit({ node, onChange, onDone }) {
+  const titleRef = useRef(null);
+  useEffect(() => {
+    titleRef.current?.focus();
+    titleRef.current?.select();
+  }, []);
+  return (
+    <div className="canvas-node-edit" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+      <input
+        ref={titleRef}
+        className="canvas-node-edit-title"
+        value={node.title}
+        placeholder="Title…"
+        onChange={(e) => onChange({ title: e.target.value })}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === "Escape") {
+            e.preventDefault();
+            // Without this, Escape still bubbles past this handler up to
+            // PageShell's own global (bubble-phase) Escape-to-home listener
+            // — confirmed live: typing Escape here navigated all the way
+            // to the hero page instead of just closing the edit box, same
+            // family of bug as CanvasEditor's own top-level Escape handler
+            // (see its comment), just reachable through a different path
+            // this time since THIS handler runs directly on the input, not
+            // through the capture-phase window listener that fix relies on.
+            e.stopPropagation();
+            onDone();
+          }
+        }}
+      />
+      <textarea
+        className="canvas-node-edit-body mono"
+        value={node.body}
+        placeholder="Text…"
+        onChange={(e) => onChange({ body: e.target.value })}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            e.preventDefault();
+            e.stopPropagation();
+            onDone();
+          }
+        }}
+      />
+    </div>
   );
 }
 
@@ -450,6 +521,7 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
   const [connecting, setConnecting] = useState(null); // { fromId, x, y } in world coords
   const [mode, setMode] = useState("select");
   const [showModeHelp, setShowModeHelp] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const panRef = useRef(null);
   const viewportRef = useRef(null);
   const saveTimer = useRef(null);
@@ -511,18 +583,29 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
     scheduleSave(next.nodes, next.edges);
   }, [nodes, edges, scheduleSave]);
 
-  // Inspector field edits (title/body/ref/color/checklist) intentionally
-  // don't push undo history — undo covers structural actions (add/delete/
-  // duplicate node, drag, resize, connect), not every keystroke, or typing
-  // one word into a title would bury the drag you actually want to undo
-  // under dozens of one-character text-edit steps.
-  const updateSelectedNode = (patch) => {
+  // Inspector field edits AND inline node editing (title/body/ref/color/
+  // checklist) intentionally don't push undo history — undo covers
+  // structural actions (add/delete/duplicate node, drag, resize, connect),
+  // not every keystroke, or typing one word into a title would bury the
+  // drag you actually want to undo under dozens of one-character text-edit
+  // steps.
+  const updateNode = (id, patch) => {
     commit(
-      nodes.map((n) => (n.id === selectedId ? { ...n, ...patch } : n)),
+      nodes.map((n) => (n.id === id ? { ...n, ...patch } : n)),
       edges,
       { pushHistory: false }
     );
   };
+  const updateSelectedNode = (patch) => updateNode(selectedId, patch);
+
+  // Inline editing only ever applies to the currently selected node (see
+  // NodeShell's onNodeDoubleClick, which selects before it starts editing)
+  // — so the moment selection moves elsewhere (another node, background
+  // click, Escape, delete), editing state should go with it rather than
+  // silently keeping some OTHER node's edit box open off-screen.
+  useEffect(() => {
+    if (editingId && editingId !== selectedId) setEditingId(null);
+  }, [selectedId, editingId]);
 
   const addNode = (type) => {
     const centerX = (240 - pan.x) / zoom;
@@ -847,24 +930,33 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
         <div ref={viewportRef} className={`canvas-viewport canvas-viewport--mode-${mode}`} onPointerDown={onBackgroundPointerDown} onWheel={onWheel}>
           <div ref={panRef} className={`canvas-world${snapEnabled ? " canvas-world--grid" : ""}`} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}>
             <EdgeLayer nodes={nodes} edges={edges} connecting={connecting} onDeleteEdge={deleteEdge} />
-            {nodes.map((n) => (
-              <NodeShell
-                key={n.id}
-                node={n}
-                zoom={zoom}
-                mode={mode}
-                selected={n.id === selectedId}
-                onSelect={setSelectedId}
-                onDragStart={onDragNodeStart}
-                onDrag={onDragNode}
-                onStartConnect={onStartConnect}
-                onResizeStart={onResizeStart}
-              >
-                <div className="canvas-node-inner">
-                  <NodeContent node={n} notes={notes} />
-                </div>
-              </NodeShell>
-            ))}
+            {nodes.map((n) => {
+              const canInlineEdit = INLINE_EDIT_TYPES.includes(n.type);
+              const isEditing = canInlineEdit && n.id === editingId;
+              return (
+                <NodeShell
+                  key={n.id}
+                  node={n}
+                  zoom={zoom}
+                  mode={mode}
+                  selected={n.id === selectedId}
+                  onSelect={setSelectedId}
+                  onDragStart={onDragNodeStart}
+                  onDrag={onDragNode}
+                  onStartConnect={onStartConnect}
+                  onResizeStart={onResizeStart}
+                  onStartEdit={canInlineEdit ? setEditingId : undefined}
+                >
+                  <div className={`canvas-node-inner${isEditing ? " canvas-node-inner--editing" : ""}`}>
+                    {isEditing ? (
+                      <NodeInlineEdit node={n} onChange={(patch) => updateNode(n.id, patch)} onDone={() => setEditingId(null)} />
+                    ) : (
+                      <NodeContent node={n} notes={notes} />
+                    )}
+                  </div>
+                </NodeShell>
+              );
+            })}
           </div>
 
           {nodes.length === 0 && (
