@@ -85,3 +85,28 @@
 .workflow-step-desc {
   min-height: 50px;
 }
+
+/* ---- Cross-linking (CLAUDE-004) — "open" action next to a step's linked
+   note/canvas/Kanban field. .notes-meta-label is a flex row already (label
+   text + the select/input), so this just becomes a third item in that row
+   rather than needing its own wrapper. */
+.workflow-step-open-link {
+  background: none;
+  border: none;
+  color: var(--teal);
+  font-size: 0.68rem;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.workflow-step-open-link:hover {
+  text-decoration: underline;
+}
+
+.workflow-step-stale {
+  color: var(--bad);
+  opacity: 0.75;
+  font-size: 0.62rem;
+  white-space: nowrap;
+}

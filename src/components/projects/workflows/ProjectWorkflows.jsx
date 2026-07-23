@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, Reorder, useDragControls } from "framer-motion";
 import { useNotes } from "../../../state/Notes.jsx";
+import { useViewMode } from "../../../state/ViewMode.jsx";
 import { fetchVaultCanvases, fetchVaultWorkflows, writeVaultWorkflow, archiveVaultWorkflow } from "../../../lib/obsidianBridge.js";
 import { parseTagsInput } from "../../../lib/tags.js";
 import "./ProjectWorkflows.css";
@@ -18,7 +19,7 @@ function newStep() {
   return { id: uid(), title: "", description: "", owner: "marco", status: "todo", linkedNoteId: null, linkedCanvasId: null, linkedTaskId: "", command: "" };
 }
 
-function StepCard({ step, notes, canvases, onChange, onRemove }) {
+function StepCard({ step, notes, canvases, onChange, onRemove, onOpenNote, onOpenCanvas, onOpenKanban }) {
   const controls = useDragControls();
   return (
     <Reorder.Item as="div" value={step.id} dragListener={false} dragControls={controls} className="workflow-step">
@@ -77,6 +78,12 @@ function StepCard({ step, notes, canvases, onChange, onRemove }) {
                 </option>
               ))}
             </select>
+            {step.linkedNoteId && notes.some((n) => n.id === step.linkedNoteId) && (
+              <button type="button" className="workflow-step-open-link" onClick={() => onOpenNote(step.linkedNoteId)}>
+                open →
+              </button>
+            )}
+            {step.linkedNoteId && !notes.some((n) => n.id === step.linkedNoteId) && <span className="workflow-step-stale">not found</span>}
           </label>
           <label className="notes-meta-label mono">
             linked canvas
@@ -88,12 +95,23 @@ function StepCard({ step, notes, canvases, onChange, onRemove }) {
                 </option>
               ))}
             </select>
+            {step.linkedCanvasId && canvases.some((c) => c.id === step.linkedCanvasId) && (
+              <button type="button" className="workflow-step-open-link" onClick={() => onOpenCanvas(step.linkedCanvasId)}>
+                open →
+              </button>
+            )}
+            {step.linkedCanvasId && !canvases.some((c) => c.id === step.linkedCanvasId) && <span className="workflow-step-stale">not found</span>}
           </label>
         </div>
         <div className="project-drawer-row">
           <label className="notes-meta-label mono">
             kanban task id
             <input className="notes-meta-select mono" value={step.linkedTaskId} onChange={(e) => onChange({ linkedTaskId: e.target.value })} placeholder="t_xxxxxxxx" />
+            {step.linkedTaskId?.trim() && (
+              <button type="button" className="workflow-step-open-link" onClick={onOpenKanban}>
+                open Kanban board →
+              </button>
+            )}
           </label>
         </div>
         <label className="job-modal-label mono">
@@ -105,7 +123,7 @@ function StepCard({ step, notes, canvases, onChange, onRemove }) {
   );
 }
 
-function WorkflowEditor({ projectId, workflow, notes, canvases, onBack, onSaved }) {
+function WorkflowEditor({ projectId, workflow, notes, canvases, onBack, onSaved, onOpenNote, onOpenCanvas, onOpenKanban }) {
   const [steps, setSteps] = useState(workflow.steps || []);
   const [name, setName] = useState(workflow.name);
   const [description, setDescription] = useState(workflow.description);
@@ -189,6 +207,9 @@ function WorkflowEditor({ projectId, workflow, notes, canvases, onBack, onSaved 
               canvases={canvases}
               onChange={(patch) => updateSteps(steps.map((s) => (s.id === step.id ? { ...s, ...patch } : s)))}
               onRemove={() => updateSteps(steps.filter((s) => s.id !== step.id))}
+              onOpenNote={onOpenNote}
+              onOpenCanvas={onOpenCanvas}
+              onOpenKanban={onOpenKanban}
             />
           ))}
         </AnimatePresence>
@@ -207,8 +228,18 @@ function WorkflowEditor({ projectId, workflow, notes, canvases, onBack, onSaved 
   shape as canvases — see vite-plugins/obsidianBridge.js). Steps drag-
   reorder from a real header bar, not a tiny handle, per the brief.
 */
-export function ProjectWorkflows({ project, tagFilter }) {
-  const { notes } = useNotes();
+export function ProjectWorkflows({ project, tagFilter, onOpenCanvas }) {
+  const { notes, requestSelectNote } = useNotes();
+  const { goTo } = useViewMode();
+  // Cross-linking (CLAUDE-004) — same "open" semantics as the canvas's own
+  // note-ref/kanban-ref nodes (see ProjectCanvas.jsx's CanvasEditor):
+  // notes/Kanban stay real global/board objects, so "open" navigates there
+  // for real rather than previewing anything locally.
+  const onOpenNote = (noteId) => {
+    requestSelectNote(noteId);
+    goTo("notes");
+  };
+  const onOpenKanban = () => goTo("kanban");
   const [canvases, setCanvases] = useState([]);
   const [workflows, setWorkflows] = useState(null);
   const [error, setError] = useState(null);
@@ -269,6 +300,9 @@ export function ProjectWorkflows({ project, tagFilter }) {
           load();
         }}
         onSaved={(data) => setWorkflows((prev) => prev.map((w) => (w.id === data.id ? data : w)))}
+        onOpenNote={onOpenNote}
+        onOpenCanvas={onOpenCanvas}
+        onOpenKanban={onOpenKanban}
       />
     );
   }

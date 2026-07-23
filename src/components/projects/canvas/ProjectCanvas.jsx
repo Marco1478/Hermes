@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence, useMotionValue, useDragControls } from "framer-motion";
 import { useNotes } from "../../../state/Notes.jsx";
+import { useViewMode } from "../../../state/ViewMode.jsx";
 import { fetchVaultCanvases, writeVaultCanvas, archiveVaultCanvas, fetchProjectAssets, uploadProjectAsset, assetReadUrl } from "../../../lib/obsidianBridge.js";
 import { parseTagsInput } from "../../../lib/tags.js";
 import { GlassButton } from "../../ui/GlassButton.jsx";
@@ -375,7 +376,7 @@ function AudioPreview({ projectId, url }) {
   return <audio className="canvas-node-audio" src={src} controls onError={() => setFailed(true)} onPointerDown={(e) => e.stopPropagation()} />;
 }
 
-function NodeContent({ node, notes, projectId }) {
+function NodeContent({ node, notes, projectId, onOpenNote, onOpenKanban }) {
   if (node.type === "checklist") {
     const done = node.checklist.filter((c) => c.done).length;
     return (
@@ -400,6 +401,11 @@ function NodeContent({ node, notes, projectId }) {
       <>
         <p className="canvas-node-title">🔗 {node.title || "Note reference"}</p>
         <p className="canvas-node-sub">{linked ? linked.title || "Untitled" : node.ref?.noteId ? "note not found" : "no note selected"}</p>
+        {linked && (
+          <button type="button" className="canvas-node-open-link" onPointerDown={(e) => e.stopPropagation()} onClick={() => onOpenNote(linked.id)}>
+            open note →
+          </button>
+        )}
       </>
     );
   }
@@ -408,6 +414,11 @@ function NodeContent({ node, notes, projectId }) {
       <>
         <p className="canvas-node-title">▤ {node.title || "Kanban reference"}</p>
         <p className="canvas-node-sub mono">{node.ref?.taskId || "no task id set"}</p>
+        {node.ref?.taskId && (
+          <button type="button" className="canvas-node-open-link" onPointerDown={(e) => e.stopPropagation()} onClick={onOpenKanban}>
+            open Kanban board →
+          </button>
+        )}
       </>
     );
   }
@@ -762,7 +773,7 @@ function AssetLibraryPanel({ projectId, onClose, onInsert, pushToast }) {
   );
 }
 
-function NodeInspector({ node, notes, projectId, onChange, onDelete, onDuplicate, onClose, pushToast }) {
+function NodeInspector({ node, notes, projectId, onChange, onDelete, onDuplicate, onClose, pushToast, onOpenNote, onOpenKanban }) {
   return (
     <aside className="canvas-inspector">
       <div className="canvas-inspector-head">
@@ -812,23 +823,39 @@ function NodeInspector({ node, notes, projectId, onChange, onDelete, onDuplicate
           </>
         )}
         {node.type === "note" && (
-          <label className="job-modal-label mono">
-            Linked note
-            <select className="notes-meta-select mono" value={node.ref?.noteId || ""} onChange={(e) => onChange({ ref: { noteId: e.target.value || null } })}>
-              <option value="">none</option>
-              {notes.map((n) => (
-                <option key={n.id} value={n.id}>
-                  {n.title || "Untitled"}
-                </option>
-              ))}
-            </select>
-          </label>
+          <>
+            <label className="job-modal-label mono">
+              Linked note
+              <select className="notes-meta-select mono" value={node.ref?.noteId || ""} onChange={(e) => onChange({ ref: { noteId: e.target.value || null } })}>
+                <option value="">none</option>
+                {notes.map((n) => (
+                  <option key={n.id} value={n.id}>
+                    {n.title || "Untitled"}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {node.ref?.noteId && notes.some((n) => n.id === node.ref.noteId) ? (
+              <button type="button" className="btn-pill" onClick={() => onOpenNote(node.ref.noteId)}>
+                open note →
+              </button>
+            ) : (
+              node.ref?.noteId && <p className="panel-error">Note not found — it may have been archived or deleted.</p>
+            )}
+          </>
         )}
         {node.type === "kanban" && (
-          <label className="job-modal-label mono">
-            Kanban task ID
-            <input className="job-modal-input mono" value={node.ref?.taskId || ""} onChange={(e) => onChange({ ref: { taskId: e.target.value } })} placeholder="t_xxxxxxxx" />
-          </label>
+          <>
+            <label className="job-modal-label mono">
+              Kanban task ID
+              <input className="job-modal-input mono" value={node.ref?.taskId || ""} onChange={(e) => onChange({ ref: { taskId: e.target.value } })} placeholder="t_xxxxxxxx" />
+            </label>
+            {node.ref?.taskId && (
+              <button type="button" className="btn-pill" onClick={onOpenKanban}>
+                open Kanban board →
+              </button>
+            )}
+          </>
         )}
         {node.type === "checklist" && (
           <ChecklistEditor items={node.checklist} onChange={(checklist) => onChange({ checklist })} />
@@ -937,7 +964,21 @@ function EdgeLayer({ nodes, edges, connecting, onDeleteEdge }) {
 }
 
 function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
-  const { notes } = useNotes();
+  const { notes, requestSelectNote } = useNotes();
+  const { goTo } = useViewMode();
+  // Cross-linking (CLAUDE-004) — a note-ref/kanban-ref node's "open"
+  // action. Notes stay a real global object (see NodeContent's own header
+  // comment for the note-type branch), so "open" here means the same
+  // thing it means everywhere else in this workspace: select it in the
+  // real Notes editor and navigate there — not a canvas-local preview.
+  // Kanban has no per-task deep view in this build, so "open" goes to the
+  // real board where the task genuinely lives; if the id is stale, the
+  // board itself is what tells the truth about that, not a guess made here.
+  const onOpenNote = (noteId) => {
+    requestSelectNote(noteId);
+    goTo("notes");
+  };
+  const onOpenKanban = () => goTo("kanban");
   // Array.isArray, not just `|| []` — the backend already guarantees this
   // shape (see sanitizeCanvasRecord in hermesBridge.js), but a truthy
   // non-array here (an old cached response, a future schema change) would
@@ -1601,7 +1642,7 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
                     {isEditing ? (
                       <NodeInlineEdit node={n} onChange={(patch) => updateNode(n.id, patch)} onDone={() => setEditingId(null)} />
                     ) : (
-                      <NodeContent node={n} notes={notes} projectId={projectId} />
+                      <NodeContent node={n} notes={notes} projectId={projectId} onOpenNote={onOpenNote} onOpenKanban={onOpenKanban} />
                     )}
                   </div>
                 </NodeShell>
@@ -1686,6 +1727,8 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
                     onDuplicate={duplicateNode}
                     onClose={() => setSelectedId(null)}
                     pushToast={pushToast}
+                    onOpenNote={onOpenNote}
+                    onOpenKanban={onOpenKanban}
                   />
                 ) : (
                   <AssetLibraryPanel projectId={projectId} onClose={() => setShowAssetLibrary(false)} onInsert={insertAssetNode} pushToast={pushToast} />
@@ -1708,7 +1751,7 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
   UI-created data (V2) — connect two nodes by dragging from a selected
   node's connector dot onto another node.
 */
-export function ProjectCanvas({ project, tagFilter }) {
+export function ProjectCanvas({ project, tagFilter, initialOpenId, onConsumeInitialOpen }) {
   const [canvases, setCanvases] = useState(null);
   const [error, setError] = useState(null);
   const [openId, setOpenId] = useState(null);
@@ -1728,6 +1771,19 @@ export function ProjectCanvas({ project, tagFilter }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Cross-linking (CLAUDE-004) — a note's "+ canvas" or a workflow step's
+  // "open canvas" jumps here with a specific target id (see ProjectWorkspace's
+  // pendingCanvasId). Only fires once canvases have actually loaded, so it
+  // can find the target; consumes itself via onConsumeInitialOpen so
+  // navigating back to the canvas list and picking a different one later
+  // doesn't keep re-triggering this same jump.
+  useEffect(() => {
+    if (initialOpenId && canvases) {
+      setOpenId(initialOpenId);
+      onConsumeInitialOpen?.();
+    }
+  }, [initialOpenId, canvases, onConsumeInitialOpen]);
 
   const openCanvas = canvases?.find((c) => c.id === openId) || null;
   const visibleCanvases = tagFilter ? canvases?.filter((c) => (c.tags || []).includes(tagFilter)) : canvases;

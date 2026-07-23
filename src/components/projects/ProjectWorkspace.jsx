@@ -45,6 +45,19 @@ export function ProjectWorkspace({ project, notes, vaultStatus, onBack, onUpdate
   const [section, setSection] = useState("overview");
   const [activeTag, setActiveTag] = useState(null);
   const [navCollapsed, setNavCollapsed] = useState(loadNavCollapsed);
+  // Cross-linking (CLAUDE-004) — opening a SPECIFIC canvas from another tab
+  // (a note's "+ canvas", a workflow step's "open canvas") is the one link
+  // target that stays inside this workspace instead of navigating to a
+  // whole different top-level page, so it's the one case that needs state
+  // lifted here: switch section to "canvas" AND tell ProjectCanvas which
+  // one to auto-open. ProjectCanvas clears this via onConsumeInitialOpen
+  // once it's acted on it, so re-opening the canvas tab manually later
+  // doesn't keep jumping back to the same one.
+  const [pendingCanvasId, setPendingCanvasId] = useState(null);
+  const openCanvas = (canvasId) => {
+    setPendingCanvasId(canvasId);
+    setSection("canvas");
+  };
 
   const toggleNav = () => {
     setNavCollapsed((c) => {
@@ -111,10 +124,20 @@ export function ProjectWorkspace({ project, notes, vaultStatus, onBack, onUpdate
           />
         )}
         {section === "notes" && (
-          <ProjectNotesPanel project={project} notes={notes} onLinkNote={noteActions.link} onUnlinkNote={noteActions.unlink} onCreateNote={noteActions.create} tagFilter={activeTag} />
+          <ProjectNotesPanel
+            project={project}
+            notes={notes}
+            onLinkNote={noteActions.link}
+            onUnlinkNote={noteActions.unlink}
+            onCreateNote={noteActions.create}
+            onOpenCanvas={openCanvas}
+            tagFilter={activeTag}
+          />
         )}
-        {section === "canvas" && <ProjectCanvas project={project} tagFilter={activeTag} />}
-        {section === "workflows" && <ProjectWorkflows project={project} tagFilter={activeTag} />}
+        {section === "canvas" && (
+          <ProjectCanvas project={project} tagFilter={activeTag} initialOpenId={pendingCanvasId} onConsumeInitialOpen={() => setPendingCanvasId(null)} />
+        )}
+        {section === "workflows" && <ProjectWorkflows project={project} tagFilter={activeTag} onOpenCanvas={openCanvas} />}
         {section === "kanban" && <ProjectKanbanPanel project={project} onLinkTask={taskActions.link} onUnlinkTask={taskActions.unlink} />}
         {section === "chat" && <ProjectChatPanel project={project} notes={notes} />}
         {section === "intelligence" && <ProjectIntelligencePanel project={project} notes={notes} onOpenChat={() => setSection("chat")} />}

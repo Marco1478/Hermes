@@ -3,7 +3,13 @@ import { AnimatePresence, motion } from "framer-motion";
 import { plainTextPreview } from "../../lib/markdownLite.js";
 import { useNotes } from "../../state/Notes.jsx";
 import { useViewMode } from "../../state/ViewMode.jsx";
+import { fetchVaultCanvases, writeVaultCanvas } from "../../lib/obsidianBridge.js";
 import { GlassButton } from "../ui/GlassButton.jsx";
+
+function uid() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  return `node-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
 
 function ImportNotesModal({ project, notes, onLink, onClose }) {
   const [query, setQuery] = useState("");
@@ -111,9 +117,11 @@ function ImportTextModal({ project, onCreate, onClose }) {
   import-pasted-text — all three just create/reuse a normal global note and
   link it, so nothing here is a project-only note type.
 */
-export function ProjectNotesPanel({ project, notes, onLinkNote, onUnlinkNote, onCreateNote, tagFilter }) {
+export function ProjectNotesPanel({ project, notes, onLinkNote, onUnlinkNote, onCreateNote, onOpenCanvas, tagFilter }) {
   const [linkOpen, setLinkOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [sendingToCanvasId, setSendingToCanvasId] = useState(null);
+  const [linkError, setLinkError] = useState(null);
   const { requestSelectNote } = useNotes();
   const { goTo } = useViewMode();
   const linkedNotesAll = project.linkedNoteIds.map((id) => notes.find((n) => n.id === id)).filter(Boolean);
@@ -128,6 +136,36 @@ export function ProjectNotesPanel({ project, notes, onLinkNote, onUnlinkNote, on
     onLinkNote(id);
     requestSelectNote(id);
     goTo("notes");
+  };
+
+  // Cross-linking (CLAUDE-004) — "create canvas node from note": drops a
+  // real note-ref node (same shape ProjectCanvas's own "Note ref" toolbar
+  // button creates) onto this project's first canvas, creating one first
+  // if none exist yet, then jumps straight there via onOpenCanvas. Reuses
+  // the exact same writeVaultCanvas call the Canvas tab itself uses — no
+  // separate write path to drift out of sync with.
+  const onSendToCanvas = async (note) => {
+    setSendingToCanvasId(note.id);
+    setLinkError(null);
+    try {
+      const res = await fetchVaultCanvases(project.id);
+      const canvases = res.data || [];
+      const noteNode = { id: uid(), type: "note", x: 60, y: 60, w: 240, h: 150, title: note.title || "Untitled", body: "", color: "teal", tags: [], checklist: [], ref: { noteId: note.id } };
+      let targetId;
+      if (canvases.length > 0) {
+        const target = canvases[0];
+        const write = await writeVaultCanvas(project.id, target.id, { ...target, nodes: [...(target.nodes || []), noteNode] });
+        targetId = write.data.id;
+      } else {
+        const write = await writeVaultCanvas(project.id, null, { name: "Canvas", tags: [], nodes: [noteNode], edges: [] });
+        targetId = write.data.id;
+      }
+      onOpenCanvas(targetId);
+    } catch (err) {
+      setLinkError(err.message || String(err));
+    } finally {
+      setSendingToCanvasId(null);
+    }
   };
 
   return (
@@ -147,6 +185,8 @@ export function ProjectNotesPanel({ project, notes, onLinkNote, onUnlinkNote, on
         </button>
       </div>
 
+      {linkError && <p className="panel-error">Couldn't send note to canvas: {linkError}</p>}
+
       {linkedNotes.length === 0 && (
         <p className="panel-empty">
           {tagFilter ? `No linked notes tagged #${tagFilter}.` : "No notes linked yet. Free notes stay global — linking here doesn't move or copy them."}
@@ -159,9 +199,14 @@ export function ProjectNotesPanel({ project, notes, onLinkNote, onUnlinkNote, on
               <span className="linked-note-title">{n.title || "Untitled"}</span>
               <span className="linked-note-preview">{plainTextPreview(n.body, 90)}</span>
             </div>
-            <button type="button" className="btn-pill" onClick={() => onUnlinkNote(n.id)}>
-              unlink
-            </button>
+            <div className="linked-note-actions">
+              <button type="button" className="btn-pill" disabled={sendingToCanvasId === n.id} onClick={() => onSendToCanvas(n)} title="Create a canvas node referencing this note">
+                {sendingToCanvasId === n.id ? "sending…" : "+ canvas"}
+              </button>
+              <button type="button" className="btn-pill" onClick={() => onUnlinkNote(n.id)}>
+                unlink
+              </button>
+            </div>
           </motion.div>
         ))}
       </AnimatePresence>

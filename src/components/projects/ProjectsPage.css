@@ -263,6 +263,12 @@
   white-space: nowrap;
 }
 
+.linked-note-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.4rem;
+}
+
 /* ---- Import notes modal ----------------------------------------------------- */
 
 .import-notes-list {

@@ -844,6 +844,25 @@
   text-decoration: underline;
 }
 
+/* ---- Cross-linking (CLAUDE-004) — "open" action on a note-ref/kanban-ref
+   node's own face, not just its inspector. Plain text button, not
+   .btn-pill: it sits inside the node's already-dense content area and
+   needs to read as part of that content, not a separate chrome control. */
+.canvas-node-open-link {
+  align-self: flex-start;
+  margin-top: 0.2rem;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--teal);
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+
+.canvas-node-open-link:hover {
+  text-decoration: underline;
+}
+
 .canvas-inspector-hint {
   margin-top: -0.5rem;
   font-size: 0.7rem;
