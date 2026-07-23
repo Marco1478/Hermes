@@ -498,3 +498,159 @@
   padding-bottom: 0.75rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
+
+/* ---- Project Operating System: scale + ergonomics pass (CLAUDE-002) ------
+   Everything below is scoped under .project-workspace on purpose: .btn-pill,
+   .notes-meta-select, .status-badge, .tag-badge, .canvas-list-item, and
+   .panel-empty are all shared primitives also used by Notes, Kanban, System
+   Overview, and Jobs — pages outside this instruction file's scope, tuned
+   separately, and not to be disturbed. Scoping the bigger sizing to the
+   workspace subtree (rather than editing those base rules) grows exactly
+   the surfaces the audit flagged without rippling anywhere else. Canvas's
+   own board chrome (toolbar/mode-bar/nodes) uses dedicated classes, not
+   these shared ones, so the board itself keeps the density already tuned
+   in Instructions 008 — only Canvas's incidental buttons (upload, browse
+   assets) and its canvas-picker list grow along with the rest. */
+
+.project-workspace .btn-pill {
+  min-height: 42px;
+  padding: 0.6rem 1.05rem;
+  font-size: 0.78rem;
+  gap: 0.5em;
+}
+
+.project-workspace .btn-pill--icon {
+  padding: 0.5rem 0.7rem;
+}
+
+.project-workspace-tab {
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+  font-size: 0.92rem;
+  display: flex;
+  align-items: center;
+}
+
+.project-workspace--nav-collapsed .project-workspace-tab {
+  min-height: 42px;
+  padding: 0.75rem 0.4rem;
+  font-size: 0.72rem;
+}
+
+.project-workspace .notes-meta-select {
+  padding: 0.5rem 0.8rem;
+  font-size: 0.8rem;
+  min-height: 38px;
+}
+
+.project-workspace .notes-meta-label {
+  font-size: 0.7rem;
+  gap: 0.6rem;
+}
+
+.project-workspace .status-badge {
+  font-size: 0.7rem;
+  padding: 0.32rem 0.75rem;
+}
+
+.project-workspace .tag-badge {
+  font-size: 0.7rem;
+  padding: 0.3rem 0.7rem;
+}
+
+.project-workspace .panel-empty {
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.project-workspace .panel-section-title {
+  font-size: 0.86rem;
+}
+
+.project-workspace .canvas-list-item {
+  padding: 0.85rem 0.9rem;
+  min-height: 52px;
+}
+
+.project-workspace .canvas-list-name {
+  font-size: 0.85rem;
+}
+
+.project-workspace .canvas-list-meta {
+  font-size: 0.72rem;
+}
+
+.project-workspace .linked-note-row {
+  padding: 0.85rem 0.5rem;
+}
+
+.project-workspace .linked-note-title {
+  font-size: 0.85rem;
+}
+
+.project-workspace .linked-note-preview {
+  font-size: 0.76rem;
+}
+
+.project-workspace .project-section-head {
+  gap: 0.9rem;
+}
+
+.project-workspace .kanban-action-input {
+  min-height: 42px;
+  font-size: 0.82rem;
+}
+
+/* Overview/Intelligence state tiles — this pass also fixes a confirmed bug
+   from the CLAUDE-001 audit: ProjectIntelligencePanel.jsx has always
+   rendered these classes, but they were only ever defined in
+   SystemOverviewPage.css — a different code-split page's stylesheet that
+   ProjectsPage.jsx never loads — so they rendered as unstyled run-on text
+   ("ACTIVE NOTES1") instead of a real tile grid. Defined for real here,
+   scoped under .project-workspace so they can't collide with System
+   Overview's own same-named-but-differently-sized tiles if both chunks
+   happen to be loaded in the same browser session. */
+.project-workspace .overview-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.project-workspace .overview-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.project-workspace .overview-tile-label {
+  color: var(--silver-dim);
+  opacity: 0.7;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.project-workspace .overview-tile-value {
+  color: var(--white);
+  font-size: 1.6rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.project-workspace .overview-tile-sub {
+  color: var(--silver-dim);
+  opacity: 0.6;
+  font-size: 0.68rem;
+}
+
+.project-workspace .overview-tile--ok .overview-tile-value {
+  color: var(--ok);
+}
+
+.project-workspace .overview-tile--bad .overview-tile-value {
+  color: var(--bad);
+}
