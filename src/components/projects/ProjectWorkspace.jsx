@@ -6,6 +6,7 @@ import { ProjectWorkflows } from "./workflows/ProjectWorkflows.jsx";
 import { ProjectKanbanPanel } from "./ProjectKanbanPanel.jsx";
 import { ProjectChatPanel } from "./ProjectChatPanel.jsx";
 import { ProjectIntelligencePanel } from "./ProjectIntelligencePanel.jsx";
+import { ProjectActivityPanel } from "./ProjectActivityPanel.jsx";
 import { ProjectTagExplorer } from "./ProjectTagExplorer.jsx";
 
 const SECTIONS = [
@@ -14,6 +15,7 @@ const SECTIONS = [
   { key: "canvas", label: "Canvas" },
   { key: "workflows", label: "Workflows" },
   { key: "kanban", label: "Kanban" },
+  { key: "activity", label: "Activity" },
   { key: "chat", label: "Chat" },
   { key: "intelligence", label: "Intelligence" },
 ];
@@ -139,6 +141,7 @@ export function ProjectWorkspace({ project, notes, vaultStatus, onBack, onUpdate
         )}
         {section === "workflows" && <ProjectWorkflows project={project} tagFilter={activeTag} onOpenCanvas={openCanvas} />}
         {section === "kanban" && <ProjectKanbanPanel project={project} onLinkTask={taskActions.link} onUnlinkTask={taskActions.unlink} />}
+        {section === "activity" && <ProjectActivityPanel project={project} />}
         {section === "chat" && <ProjectChatPanel project={project} notes={notes} />}
         {section === "intelligence" && <ProjectIntelligencePanel project={project} notes={notes} onOpenChat={() => setSection("chat")} />}
       </div>

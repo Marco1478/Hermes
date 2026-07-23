@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { fetchObsidianStatus, fetchVaultProjects, writeVaultProject, archiveVaultProject, unarchiveVaultProject } from "../lib/obsidianBridge.js";
+import { fetchObsidianStatus, fetchVaultProjects, writeVaultProject, archiveVaultProject, unarchiveVaultProject, logProjectActivity } from "../lib/obsidianBridge.js";
 
 /*
   Projects — Obsidian-vault-backed when configured, local-storage-backed as
@@ -175,6 +175,7 @@ export function ProjectsProvider({ children }) {
         const res = await writeVaultProject(null, project);
         vaultBackedIds.current.add(res.data.id);
         setProjects((prev) => [res.data, ...prev.filter((p) => p.id !== res.data.id)]);
+        logProjectActivity(res.data.id, "project", "Project created");
         return res.data.id;
       } catch (err) {
         setVaultError(err.message || String(err));
@@ -254,15 +255,17 @@ export function ProjectsProvider({ children }) {
 
   // ---- Note linking ------------------------------------------------------------
   const linkNote = useCallback(
-    (projectId, noteId) => {
+    (projectId, noteId, noteTitle) => {
       updateProject(projectId, (p) => (p.linkedNoteIds.includes(noteId) ? p : { linkedNoteIds: [...p.linkedNoteIds, noteId] }));
+      logProjectActivity(projectId, "note", `Linked note "${noteTitle || noteId}"`);
     },
     [updateProject]
   );
 
   const unlinkNote = useCallback(
-    (projectId, noteId) => {
+    (projectId, noteId, noteTitle) => {
       updateProject(projectId, (p) => ({ linkedNoteIds: p.linkedNoteIds.filter((id) => id !== noteId) }));
+      logProjectActivity(projectId, "note", `Unlinked note "${noteTitle || noteId}"`);
     },
     [updateProject]
   );
@@ -271,8 +274,9 @@ export function ProjectsProvider({ children }) {
   // relation lives here (linkedKanbanIds), not as an invented field on the
   // real Kanban task. -------------------------------------------------------
   const linkTask = useCallback(
-    (projectId, taskId) => {
+    (projectId, taskId, taskTitle) => {
       updateProject(projectId, (p) => ((p.linkedKanbanIds || []).includes(taskId) ? p : { linkedKanbanIds: [...(p.linkedKanbanIds || []), taskId] }));
+      logProjectActivity(projectId, "kanban", `Linked task ${taskTitle ? `"${taskTitle}"` : taskId}`);
     },
     [updateProject]
   );

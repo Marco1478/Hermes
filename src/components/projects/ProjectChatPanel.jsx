@@ -2,6 +2,7 @@ import { useChat } from "../../state/Chat.jsx";
 import { useViewMode } from "../../state/ViewMode.jsx";
 import { useProjectSignals } from "../../lib/useProjectSignals.js";
 import { buildProjectContextMessage } from "../../lib/projectContext.js";
+import { logProjectActivity } from "../../lib/obsidianBridge.js";
 import { GlassButton } from "../ui/GlassButton.jsx";
 
 // Contextual Hermes actions (CLAUDE-005) — no /local route for
@@ -76,11 +77,12 @@ export function ProjectChatPanel({ project, notes }) {
   const linkedNotes = project.linkedNoteIds.map((id) => notes.find((n) => n.id === id)).filter(Boolean);
   const signals = { linkedNotes, canvases, workflows, tasks, assets };
 
-  const onAction = (instruction) => {
+  const onAction = (label, instruction) => {
     const message = buildProjectContextMessage(project, linkedNotes, canvases, workflows, tasks, assets, instruction);
     newChat();
     setDraft(message);
     goTo("chat");
+    logProjectActivity(project.id, "hermes", `Hermes action launched: ${label}`);
   };
 
   return (
@@ -97,7 +99,7 @@ export function ProjectChatPanel({ project, notes }) {
             <GlassButton
               key={a.key}
               variant={a.key === "ask" ? "primary" : "secondary"}
-              onClick={() => onAction(a.instruction)}
+              onClick={() => onAction(a.label, a.instruction)}
               disabled={disabled}
               title={disabled && !loading ? a.disabledReason : undefined}
             >

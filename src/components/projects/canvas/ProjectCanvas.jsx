@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence, useMotionValue, useDragControls } from "framer-motion";
 import { useNotes } from "../../../state/Notes.jsx";
 import { useViewMode } from "../../../state/ViewMode.jsx";
-import { fetchVaultCanvases, writeVaultCanvas, archiveVaultCanvas, fetchProjectAssets, uploadProjectAsset, assetReadUrl } from "../../../lib/obsidianBridge.js";
+import { fetchVaultCanvases, writeVaultCanvas, archiveVaultCanvas, fetchProjectAssets, uploadProjectAsset, assetReadUrl, logProjectActivity } from "../../../lib/obsidianBridge.js";
 import { parseTagsInput } from "../../../lib/tags.js";
 import { GlassButton } from "../../ui/GlassButton.jsx";
 import { GlassToolbar } from "../../ui/GlassToolbar.jsx";
@@ -1797,6 +1797,7 @@ export function ProjectCanvas({ project, tagFilter, initialOpenId, onConsumeInit
       setNewTags("");
       await load();
       setOpenId(res.data.id);
+      logProjectActivity(project.id, "canvas", `Canvas created "${newName.trim()}"`);
     } catch (err) {
       setError(err.message || String(err));
     }

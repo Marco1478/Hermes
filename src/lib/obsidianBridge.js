@@ -63,7 +63,9 @@ function fileToBase64(file) {
 
 export async function uploadProjectAsset(projectId, file) {
   const dataBase64 = await fileToBase64(file);
-  return sendJson("/local/obsidian/assets/upload", "POST", { project: projectId, filename: file.name, mimeType: file.type, dataBase64 });
+  const res = await sendJson("/local/obsidian/assets/upload", "POST", { project: projectId, filename: file.name, mimeType: file.type, dataBase64 });
+  logProjectActivity(projectId, "asset", `Uploaded "${file.name}"`);
+  return res;
 }
 
 // A plain URL, not a fetch wrapper — this is meant to sit directly in an
@@ -74,3 +76,15 @@ export const assetReadUrl = (projectId, relPath) =>
 export const fetchVaultWorkflows = (projectId) => getJson(`/local/obsidian/workflows/list?project=${encodeURIComponent(projectId)}`);
 export const writeVaultWorkflow = (projectId, id, workflow) => sendJson("/local/obsidian/workflows/write", "POST", { project: projectId, id, workflow });
 export const archiveVaultWorkflow = (projectId, id) => sendJson("/local/obsidian/workflows/archive", "POST", { project: projectId, id });
+
+export const fetchProjectActivity = (projectId) => getJson(`/local/obsidian/activity/list?project=${encodeURIComponent(projectId)}`);
+
+// Fire-and-forget by design (CLAUDE-006) — logging an activity entry is
+// never allowed to block or fail the real action it's describing (linking
+// a note still succeeds even if the vault write for its log line fails).
+// Callers don't await this; failures are swallowed here, not surfaced.
+export function logProjectActivity(projectId, type, label) {
+  sendJson("/local/obsidian/activity/append", "POST", { project: projectId, type, label }).catch(() => {
+    /* best-effort — the real action already happened */
+  });
+}

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, Reorder, useDragControls } from "framer-motion";
 import { useNotes } from "../../../state/Notes.jsx";
 import { useViewMode } from "../../../state/ViewMode.jsx";
-import { fetchVaultCanvases, fetchVaultWorkflows, writeVaultWorkflow, archiveVaultWorkflow } from "../../../lib/obsidianBridge.js";
+import { fetchVaultCanvases, fetchVaultWorkflows, writeVaultWorkflow, archiveVaultWorkflow, logProjectActivity } from "../../../lib/obsidianBridge.js";
 import { parseTagsInput } from "../../../lib/tags.js";
 import "./ProjectWorkflows.css";
 
@@ -274,6 +274,7 @@ export function ProjectWorkflows({ project, tagFilter, onOpenCanvas }) {
       setNewTags("");
       await load();
       setOpenId(res.data.id);
+      logProjectActivity(project.id, "workflow", `Workflow created "${newName.trim()}"`);
     } catch (err) {
       setError(err.message || String(err));
     }

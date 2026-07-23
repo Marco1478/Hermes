@@ -40,7 +40,7 @@ function ImportNotesModal({ project, notes, onLink, onClose }) {
               type="button"
               className="import-notes-item"
               onClick={() => {
-                onLink(n.id);
+                onLink(n.id, n.title);
                 onClose();
               }}
             >
@@ -203,7 +203,7 @@ export function ProjectNotesPanel({ project, notes, onLinkNote, onUnlinkNote, on
               <button type="button" className="btn-pill" disabled={sendingToCanvasId === n.id} onClick={() => onSendToCanvas(n)} title="Create a canvas node referencing this note">
                 {sendingToCanvasId === n.id ? "sending…" : "+ canvas"}
               </button>
-              <button type="button" className="btn-pill" onClick={() => onUnlinkNote(n.id)}>
+              <button type="button" className="btn-pill" onClick={() => onUnlinkNote(n.id, n.title)}>
                 unlink
               </button>
             </div>

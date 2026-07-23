@@ -1427,6 +1427,100 @@ export function hermesBridgePlugin({
         const result = await obsidian.move(fromDir, relPath, toDir, relPath);
         sendJson(res, result.ok ? 200 : 502, result);
       });
+
+      // ---- Activity (CLAUDE-006) — a compact, explicit event log per
+      // project. Canvases/workflows/assets carry no modification
+      // timestamp anywhere else in this build (see
+      // ProjectOverviewPanel.jsx's "Latest changes" section), so there is
+      // no way to derive "what happened and when" from existing metadata
+      // alone — this is a real, vault-backed log, not a client-only fake.
+      // Stored as one bounded JSON array (last 50 entries) at
+      // Hermes/Projects/<Project>/activity.json. Append is read-modify-
+      // write, same pattern as every other JSON-blob route above — fine
+      // for a single local user, no concurrent-writer scenario here.
+      const ACTIVITY_MAX_ENTRIES = 50;
+
+      use("/local/obsidian/activity/list", async (req, res) => {
+        if (!obsidian.configured) {
+          sendJson(res, 200, { ok: true, data: [] });
+          return;
+        }
+        const q = new URL(req.url, "http://x").searchParams;
+        const projectRel = safeRelPath(q.get("project") || "");
+        if (!projectRel) {
+          sendJson(res, 400, { ok: false, error: "invalid project" });
+          return;
+        }
+        const dir = `${obsidian.dirs.projects}/${projectRel}`;
+        if (!(await obsidian.exists(dir, "activity.json"))) {
+          sendJson(res, 200, { ok: true, data: [] });
+          return;
+        }
+        const result = await obsidian.readFile(dir, "activity.json");
+        if (!result.ok) {
+          sendJson(res, 502, result);
+          return;
+        }
+        let data = [];
+        try {
+          data = JSON.parse(result.raw);
+          if (!Array.isArray(data)) data = [];
+        } catch {
+          data = [];
+        }
+        sendJson(res, 200, { ok: true, data });
+      });
+
+      use("/local/obsidian/activity/append", async (req, res) => {
+        if (req.method !== "POST") {
+          sendJson(res, 405, { ok: false, error: "POST only" });
+          return;
+        }
+        if (!obsidian.configured) {
+          sendJson(res, 501, { ok: false, error: "Obsidian vault not configured" });
+          return;
+        }
+        let body;
+        try {
+          body = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid JSON body" });
+          return;
+        }
+        const projectRel = safeRelPath(body.project || "");
+        if (!projectRel) {
+          sendJson(res, 400, { ok: false, error: "invalid project" });
+          return;
+        }
+        // Compact and bounded on purpose — this is a timeline label, not a
+        // place to dump note bodies/chat transcripts/file contents.
+        const type = typeof body.type === "string" && body.type ? body.type.slice(0, 40) : "event";
+        const label = typeof body.label === "string" ? body.label.slice(0, 200) : "";
+        if (!label) {
+          sendJson(res, 400, { ok: false, error: "missing label" });
+          return;
+        }
+        const dir = `${obsidian.dirs.projects}/${projectRel}`;
+        let existing = [];
+        if (await obsidian.exists(dir, "activity.json")) {
+          const read = await obsidian.readFile(dir, "activity.json");
+          if (read.ok) {
+            try {
+              existing = JSON.parse(read.raw);
+              if (!Array.isArray(existing)) existing = [];
+            } catch {
+              existing = [];
+            }
+          }
+        }
+        const next = [...existing, { ts: Date.now(), type, label }].slice(-ACTIVITY_MAX_ENTRIES);
+        const result = await obsidian.writeFile(dir, "activity.json", JSON.stringify(next, null, 2));
+        if (!result.ok) {
+          sendJson(res, 502, result);
+          return;
+        }
+        sendJson(res, 200, { ok: true, data: next });
+      });
     },
   };
 }
