@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence, useMotionValue, useDragControls } from "framer-motion";
 import { useNotes } from "../../../state/Notes.jsx";
-import { fetchVaultCanvases, writeVaultCanvas, archiveVaultCanvas, fetchProjectAssets } from "../../../lib/obsidianBridge.js";
+import { fetchVaultCanvases, writeVaultCanvas, archiveVaultCanvas, fetchProjectAssets, uploadProjectAsset, assetReadUrl } from "../../../lib/obsidianBridge.js";
 import { parseTagsInput } from "../../../lib/tags.js";
 import { GlassButton } from "../../ui/GlassButton.jsx";
 import { GlassToolbar } from "../../ui/GlassToolbar.jsx";
@@ -15,7 +15,9 @@ const NODE_TYPES = [
   { key: "decision", label: "Decision", glyph: "◆" },
   { key: "circle", label: "Circle", glyph: "●" },
   { key: "checklist", label: "Checklist", glyph: "☑" },
-  { key: "image", label: "Image ref", glyph: "🖼" },
+  { key: "image", label: "Image", glyph: "🖼" },
+  { key: "video", label: "Video", glyph: "🎬" },
+  { key: "audio", label: "Audio", glyph: "🎵" },
   { key: "file", label: "File ref", glyph: "📄" },
   { key: "note", label: "Note ref", glyph: "🔗" },
   { key: "kanban", label: "Kanban ref", glyph: "▤" },
@@ -23,13 +25,27 @@ const NODE_TYPES = [
 
 // Grouped purely for toolbar presentation (CLAUDE-004) — same NODE_TYPES
 // data, just clustered so the toolbar reads as "notes / shapes / structure
-// / references" instead of one flat row of ten buttons.
+// / media / references" instead of one flat row of buttons.
 const NODE_GROUPS = [
   { label: "Notes", keys: ["text", "sticky", "card"] },
   { label: "Shapes", keys: ["decision", "circle"] },
   { label: "Structure", keys: ["checklist"] },
-  { label: "References", keys: ["image", "file", "note", "kanban"] },
+  { label: "Media", keys: ["image", "video", "audio"] },
+  { label: "References", keys: ["file", "note", "kanban"] },
 ];
+
+// Real upload support (CLAUDE-007) — extensions accepted per media type,
+// mirrored from the server's own allow-list (vite-plugins/hermesBridge.js)
+// so a client-side reject happens instantly instead of round-tripping to
+// the server just to be told no. Kept as the single source of truth for
+// both the file-picker's `accept` attribute and the pre-upload check.
+const ASSET_EXTENSIONS = {
+  image: ["png", "jpg", "jpeg", "webp", "gif", "svg"],
+  video: ["mp4", "webm", "mov"],
+  audio: ["mp3", "wav", "ogg", "m4a"],
+  file: ["pdf", "md", "txt", "docx"],
+};
+const ASSET_MAX_BYTES = 25 * 1024 * 1024;
 
 const COLORS = ["teal", "warn", "bad", "ok", "violet"];
 const GRID = 20;
@@ -263,26 +279,60 @@ function isHttpUrl(url) {
   return typeof url === "string" && /^https?:\/\//i.test(url.trim());
 }
 
-// There's no upload endpoint on this backend (a real one would need a new
-// server route to write binary files into the vault over the SSH bridge) —
-// so this stays a URL/path field, not a fake "upload" button. What it was
-// actually missing was ANY feedback on whether what you typed resolves to
-// something real: a live thumbnail (or a clear "couldn't load" state) so
-// you're not just guessing whether a path is right.
-function ImagePreview({ url }) {
+// A real upload (CLAUDE-007) lands as a vault-relative "assets/…" path,
+// not a URL the browser can fetch directly — resolveAssetSrc is what
+// bridges that: a real https:// link passes through unchanged, an
+// "assets/…" path becomes a real, working GET against the new read-back
+// route (see assets/read in hermesBridge.js), and anything else (some
+// other vault-relative guess the read route can't serve, or empty) comes
+// back null so callers fall through to the honest "no preview" state
+// instead of trying to load a URL that was never going to work.
+function resolveAssetSrc(projectId, url) {
+  if (!url) return null;
+  if (isHttpUrl(url)) return url;
+  if (url.startsWith("assets/")) return assetReadUrl(projectId, url);
+  return null;
+}
+
+function ImagePreview({ projectId, url }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [url]);
-  if (failed) {
+  const src = resolveAssetSrc(projectId, url);
+  if (failed || !src) {
     return <p className="canvas-node-sub canvas-node-ref canvas-node-img-error">couldn't load "{url}" — check the URL/path</p>;
   }
   return (
     <div className="canvas-node-img-wrap">
-      <img className="canvas-node-img" src={url} alt="" onError={() => setFailed(true)} draggable={false} />
+      <img className="canvas-node-img" src={src} alt="" onError={() => setFailed(true)} draggable={false} />
     </div>
   );
 }
 
-function NodeContent({ node, notes }) {
+function VideoPreview({ projectId, url }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [url]);
+  const src = resolveAssetSrc(projectId, url);
+  if (failed || !src) {
+    return <p className="canvas-node-sub canvas-node-ref canvas-node-img-error">couldn't load "{url}" — check the URL/path</p>;
+  }
+  return (
+    <div className="canvas-node-img-wrap">
+      <video className="canvas-node-video" src={src} controls onError={() => setFailed(true)} onPointerDown={(e) => e.stopPropagation()} />
+    </div>
+  );
+}
+
+function AudioPreview({ projectId, url }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [url]);
+  const src = resolveAssetSrc(projectId, url);
+  if (failed || !src) {
+    return <p className="canvas-node-sub canvas-node-ref canvas-node-img-error">couldn't load "{url}" — check the URL/path</p>;
+  }
+  return <audio className="canvas-node-audio" src={src} controls onError={() => setFailed(true)} onPointerDown={(e) => e.stopPropagation()} />;
+}
+
+function NodeContent({ node, notes, projectId }) {
   if (node.type === "checklist") {
     const done = node.checklist.filter((c) => c.done).length;
     return (
@@ -322,24 +372,55 @@ function NodeContent({ node, notes }) {
     const url = node.ref?.url;
     return (
       <>
-        <p className="canvas-node-title">🖼 {node.title || "Image reference"}</p>
+        <p className="canvas-node-title">🖼 {node.title || "Image"}</p>
         {url ? (
-          <ImagePreview url={url} />
+          <ImagePreview projectId={projectId} url={url} />
         ) : (
-          <p className="canvas-node-sub canvas-node-ref">no URL/path set</p>
+          <p className="canvas-node-sub canvas-node-ref">no image set</p>
+        )}
+      </>
+    );
+  }
+  if (node.type === "video") {
+    const url = node.ref?.url;
+    return (
+      <>
+        <p className="canvas-node-title">🎬 {node.title || "Video"}</p>
+        {url ? (
+          <VideoPreview projectId={projectId} url={url} />
+        ) : (
+          <p className="canvas-node-sub canvas-node-ref">no video set</p>
+        )}
+      </>
+    );
+  }
+  if (node.type === "audio") {
+    const url = node.ref?.url;
+    return (
+      <>
+        <p className="canvas-node-title">🎵 {node.title || "Audio"}</p>
+        {url ? (
+          <AudioPreview projectId={projectId} url={url} />
+        ) : (
+          <p className="canvas-node-sub canvas-node-ref">no audio set</p>
         )}
       </>
     );
   }
   if (node.type === "file") {
     const url = node.ref?.url;
-    const isLink = isHttpUrl(url);
+    // A real upload's "assets/…" path IS openable now — resolveAssetSrc
+    // turns it into a real GET against the read-back route, so this gets
+    // a genuine link instead of the old "stored as a reference but can't
+    // be opened from here" text (that limitation was real before there
+    // was any way to read a vault-relative path back out at all).
+    const href = resolveAssetSrc(projectId, url);
     return (
       <>
         <p className="canvas-node-title">📄 {node.title || "File reference"}</p>
         {url ? (
-          isLink ? (
-            <a className="canvas-node-sub canvas-node-ref canvas-node-link" href={url} target="_blank" rel="noreferrer" onPointerDown={(e) => e.stopPropagation()}>
+          href ? (
+            <a className="canvas-node-sub canvas-node-ref canvas-node-link" href={href} target="_blank" rel="noreferrer" onPointerDown={(e) => e.stopPropagation()}>
               {url} ↗
             </a>
           ) : (
@@ -458,7 +539,57 @@ function AssetPicker({ projectId, onPick }) {
   );
 }
 
-function NodeInspector({ node, notes, projectId, onChange, onDelete, onDuplicate, onClose }) {
+// Real upload (CLAUDE-007) — a plain hidden <input type="file">, not a
+// drop zone or anything fancier; the file-picker + a visible button is the
+// least surprising way to trigger it, and reuses the OS's own picker
+// instead of reinventing one. Validates size/extension client-side first
+// so a wrong file gets instant feedback instead of a round trip to the
+// server just to be told no — the server re-validates the same rules
+// regardless, since a client-side check is a convenience, not a security
+// boundary.
+function AssetUploadButton({ projectId, mediaType, onUploaded, pushToast }) {
+  const inputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const allowedExts = ASSET_EXTENSIONS[mediaType] || [];
+  const accept = allowedExts.map((e) => `.${e}`).join(",");
+
+  const onFileChosen = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // otherwise re-picking the SAME file fires no change event next time
+    if (!file) return;
+    const ext = (file.name.split(".").pop() || "").toLowerCase();
+    if (!allowedExts.includes(ext)) {
+      pushToast(`Unsupported file type — expected ${allowedExts.join("/")}`, { tone: "error", duration: 4000 });
+      return;
+    }
+    if (file.size > ASSET_MAX_BYTES) {
+      pushToast(`File too large — ${(file.size / 1024 / 1024).toFixed(1)}MB exceeds the 25MB limit`, { tone: "error", duration: 4000 });
+      return;
+    }
+    setUploading(true);
+    pushToast(`Uploading ${file.name}…`, { duration: 2600 });
+    try {
+      const res = await uploadProjectAsset(projectId, file);
+      onUploaded(res.data);
+      pushToast(`Uploaded ${file.name}`, { tone: "ok", duration: 1800 });
+    } catch (err) {
+      pushToast(`Upload failed — ${err.message || "unknown error"}`, { tone: "error", duration: 5000 });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="canvas-asset-upload">
+      <input ref={inputRef} type="file" accept={accept} className="canvas-asset-upload-input" onChange={onFileChosen} tabIndex={-1} />
+      <button type="button" className="btn-pill" disabled={uploading} onClick={() => inputRef.current?.click()}>
+        {uploading ? "uploading…" : "upload file"}
+      </button>
+    </div>
+  );
+}
+
+function NodeInspector({ node, notes, projectId, onChange, onDelete, onDuplicate, onClose, pushToast }) {
   return (
     <aside className="canvas-inspector">
       <div className="canvas-inspector-head">
@@ -480,21 +611,29 @@ function NodeInspector({ node, notes, projectId, onChange, onDelete, onDuplicate
             <textarea className="job-modal-textarea mono" rows={4} value={node.body} onChange={(e) => onChange({ body: e.target.value })} />
           </label>
         )}
-        {(node.type === "image" || node.type === "file") && (
+        {(node.type === "image" || node.type === "video" || node.type === "audio" || node.type === "file") && (
           <>
+            <AssetUploadButton
+              projectId={projectId}
+              mediaType={node.type}
+              pushToast={pushToast}
+              onUploaded={(data) => onChange({ ref: { url: data.path, mediaType: data.mediaType, size: data.size } })}
+            />
             <label className="job-modal-label mono">
-              {node.type === "image" ? "Image URL" : "File URL / vault path"}
-              <input className="job-modal-input" value={node.ref?.url || ""} onChange={(e) => onChange({ ref: { url: e.target.value } })} placeholder="https://…" />
+              {node.type === "image" ? "Image URL" : node.type === "video" ? "Video URL" : node.type === "audio" ? "Audio URL" : "File URL / vault path"}
+              <input className="job-modal-input" value={node.ref?.url || ""} onChange={(e) => onChange({ ref: { url: e.target.value } })} placeholder="https:// or assets/…" />
             </label>
             <p className="panel-empty canvas-inspector-hint">
-              {node.type === "image"
-                ? "A public image URL — pasted, it previews live below. There's no upload on this build; a vault-relative path won't render here (the browser can't reach it), only a real https:// link will."
-                : "A link (https://…) opens in a new tab from the node. A vault-relative path (e.g. Hermes/Projects/…/assets/file.pdf) is stored as a reference but can't be opened from here — there's no upload/open-from-vault on this build."}
+              Upload writes a real file into this project's <code>assets/</code> vault folder and previews it right
+              here. A public https:// link previews the same way without uploading anything. A vault-relative path
+              you type by hand (not uploaded) only resolves if a file with that exact name already exists there.
             </p>
             <AssetPicker projectId={projectId} onPick={(relPath) => onChange({ ref: { url: relPath } })} />
-            {node.type === "image" && node.ref?.url && (
+            {node.ref?.url && (
               <div className="canvas-inspector-preview">
-                <ImagePreview url={node.ref.url} />
+                {node.type === "image" && <ImagePreview projectId={projectId} url={node.ref.url} />}
+                {node.type === "video" && <VideoPreview projectId={projectId} url={node.ref.url} />}
+                {node.type === "audio" && <AudioPreview projectId={projectId} url={node.ref.url} />}
               </div>
             )}
           </>
@@ -1201,7 +1340,7 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
                     {isEditing ? (
                       <NodeInlineEdit node={n} onChange={(patch) => updateNode(n.id, patch)} onDone={() => setEditingId(null)} />
                     ) : (
-                      <NodeContent node={n} notes={notes} />
+                      <NodeContent node={n} notes={notes} projectId={projectId} />
                     )}
                   </div>
                 </NodeShell>
@@ -1284,6 +1423,7 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
                   onDelete={deleteNode}
                   onDuplicate={duplicateNode}
                   onClose={() => setSelectedId(null)}
+                  pushToast={pushToast}
                 />
               </motion.div>
             )}

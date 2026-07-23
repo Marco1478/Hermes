@@ -101,6 +101,47 @@ function sanitizeCanvasRecord(input) {
   };
 }
 
+// Real asset upload (CLAUDE-007) — size/type policy from the instruction
+// file. Kept pragmatic on purpose: no image resize/compress in this pass
+// (would need a new image-processing dependency this project doesn't have;
+// the instruction file explicitly allows deferring that and just enforcing
+// the size limit instead), no video/audio transcoding, documents stored
+// as opaque file references only — never parsed.
+const ASSET_MAX_BYTES = 25 * 1024 * 1024; // 25MB
+const ASSET_EXTENSIONS = {
+  image: ["png", "jpg", "jpeg", "webp", "gif", "svg"],
+  video: ["mp4", "webm", "mov"],
+  audio: ["mp3", "wav", "ogg", "m4a"],
+  document: ["pdf", "md", "txt", "docx"],
+};
+function assetMediaType(filename) {
+  const ext = (filename.split(".").pop() || "").toLowerCase();
+  for (const [mediaType, exts] of Object.entries(ASSET_EXTENSIONS)) {
+    if (exts.includes(ext)) return mediaType;
+  }
+  return null;
+}
+
+const ASSET_MIME_TYPES = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  gif: "image/gif",
+  svg: "image/svg+xml",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  mov: "video/quicktime",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  ogg: "audio/ogg",
+  m4a: "audio/mp4",
+  pdf: "application/pdf",
+  md: "text/markdown",
+  txt: "text/plain",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+};
+
 export function hermesBridgePlugin({
   gatewayBaseUrl,
   gatewayApiKey,
@@ -1139,10 +1180,7 @@ export function hermesBridgePlugin({
       // ---- Assets: filenames only (never content — see listDir's comment)
       // inside a project's assets/ subfolder, so Canvas image/file reference
       // nodes can point at something that's actually THERE instead of a
-      // manually-typed guess. Read-only: there's no write/upload counterpart
-      // here on purpose (CLAUDE-006) — this backend has no route that
-      // accepts binary uploads, so pretending one exists would mean silently
-      // failing to persist whatever the user thinks they just imported.
+      // manually-typed guess.
       use("/local/obsidian/assets/list", async (req, res) => {
         if (!obsidian.configured) {
           sendJson(res, 200, { ok: true, data: [] });
@@ -1161,6 +1199,113 @@ export function hermesBridgePlugin({
           return;
         }
         sendJson(res, 200, { ok: true, data: result.files });
+      });
+
+      // ---- Real asset upload (CLAUDE-007) — body arrives as base64 in
+      // JSON (not multipart) to match every other route here; the ~33%
+      // size overhead that costs is a fine trade for not adding a
+      // multipart-parsing dependency. The actual write is binary-safe
+      // through the SAME writeFile/execRemote path everything else uses —
+      // see the comment on execRemote's stdin.write() in obsidianBridge.js.
+      // safeFileName strips `/` along with the other unsafe characters, so
+      // there's no path-traversal surface in `filename` even before it
+      // reaches safeRelPath-style validation.
+      use("/local/obsidian/assets/upload", async (req, res) => {
+        if (req.method !== "POST") {
+          sendJson(res, 405, { ok: false, error: "POST only" });
+          return;
+        }
+        if (!obsidian.configured) {
+          sendJson(res, 501, { ok: false, error: "Obsidian vault not configured" });
+          return;
+        }
+        let body;
+        try {
+          body = JSON.parse((await readBody(req)) || "{}");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid JSON body" });
+          return;
+        }
+        const projectRel = safeRelPath(body.project || "");
+        if (!projectRel) {
+          sendJson(res, 400, { ok: false, error: "invalid project" });
+          return;
+        }
+        const filename = safeFileName(body.filename || "");
+        const mediaType = assetMediaType(filename);
+        if (!mediaType) {
+          sendJson(res, 415, { ok: false, error: "Unsupported file type — images (png/jpg/webp/gif/svg), video (mp4/webm/mov), audio (mp3/wav/ogg/m4a), or documents (pdf/md/txt/docx) only." });
+          return;
+        }
+        if (typeof body.dataBase64 !== "string" || !body.dataBase64) {
+          sendJson(res, 400, { ok: false, error: "missing file data" });
+          return;
+        }
+        let buffer;
+        try {
+          buffer = Buffer.from(body.dataBase64, "base64");
+        } catch {
+          sendJson(res, 400, { ok: false, error: "invalid file data" });
+          return;
+        }
+        if (buffer.length === 0) {
+          sendJson(res, 400, { ok: false, error: "empty file" });
+          return;
+        }
+        if (buffer.length > ASSET_MAX_BYTES) {
+          sendJson(res, 413, { ok: false, error: `File too large — ${(buffer.length / 1024 / 1024).toFixed(1)}MB exceeds the 25MB limit.` });
+          return;
+        }
+        const dir = `${obsidian.dirs.projects}/${projectRel}/assets`;
+        const dot = filename.lastIndexOf(".");
+        const base = dot > 0 ? filename.slice(0, dot) : filename;
+        const ext = dot > 0 ? filename.slice(dot) : "";
+        let finalName = filename;
+        for (let n = 2; await obsidian.exists(dir, finalName); n++) {
+          if (n > 200) {
+            sendJson(res, 500, { ok: false, error: "could not find a free filename" });
+            return;
+          }
+          finalName = `${base} (${n})${ext}`;
+        }
+        const result = await obsidian.writeFile(dir, finalName, buffer, { timeoutMs: 45000 });
+        if (!result.ok) {
+          sendJson(res, 502, result);
+          return;
+        }
+        sendJson(res, 200, { ok: true, data: { path: `assets/${finalName}`, mediaType, size: buffer.length, mimeType: body.mimeType || "" } });
+      });
+
+      // ---- Read an uploaded asset back out (CLAUDE-007) — GET so it can
+      // sit directly in an <img>/<video>/<audio> src. `path` must start
+      // with "assets/" (checked below) and pass safeRelPath, same
+      // traversal guard as everywhere else — this route otherwise streams
+      // arbitrary file bytes straight into the response, so it's the one
+      // place in this bridge where that guard is load-bearing rather than
+      // just tidy.
+      use("/local/obsidian/assets/read", async (req, res) => {
+        if (!obsidian.configured) {
+          sendJson(res, 404, { ok: false, error: "Obsidian vault not configured" });
+          return;
+        }
+        const q = new URL(req.url, "http://x").searchParams;
+        const projectRel = safeRelPath(q.get("project") || "");
+        const relPath = safeRelPath(q.get("path") || "");
+        if (!projectRel || !relPath || !relPath.startsWith("assets/")) {
+          sendJson(res, 400, { ok: false, error: "invalid path" });
+          return;
+        }
+        const dir = `${obsidian.dirs.projects}/${projectRel}`;
+        const result = await obsidian.readFileBinary(dir, relPath);
+        if (!result.ok) {
+          sendJson(res, 404, result);
+          return;
+        }
+        const ext = (relPath.split(".").pop() || "").toLowerCase();
+        res.statusCode = 200;
+        res.setHeader("Content-Type", ASSET_MIME_TYPES[ext] || "application/octet-stream");
+        res.setHeader("Cache-Control", "no-store");
+        res.end(result.buffer);
       });
 
       // ---- Workflows: JSON files inside a project's workflows/ subfolder,

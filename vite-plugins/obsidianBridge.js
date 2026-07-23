@@ -143,7 +143,7 @@ export function createObsidianExec({ sshHost, sshKeyPath, vaultPath, notesDir, p
   const hasSsh = Boolean(sshHost && sshKeyPath);
   const configured = Boolean(vaultPath);
 
-  function execRemote(script, { input } = {}) {
+  function execRemote(script, { input, timeoutMs: timeoutOverride, binary } = {}) {
     return new Promise((resolve) => {
       const wantsStdin = input !== undefined;
       let command;
@@ -158,14 +158,30 @@ export function createObsidianExec({ sshHost, sshKeyPath, vaultPath, notesDir, p
         command = "docker";
         argv = ["exec", ...(wantsStdin ? ["-i"] : []), "hermes", "sh", "-c", script];
       }
-      const child = execFile(command, argv, { timeout: timeoutMs, maxBuffer: 16 * 1024 * 1024 }, (err, stdout, stderr) => {
+      // `binary: true` (CLAUDE-007's read-back route, for actually
+      // previewing an uploaded asset) requests execFile's raw-Buffer mode
+      // instead of its default utf8-decoded string — decoding arbitrary
+      // binary bytes as utf8 first would corrupt them before we ever see
+      // them. Both stdout AND stderr come back as Buffers in this mode, so
+      // stderr needs an explicit .toString() before the normal string
+      // handling below.
+      const execOpts = { timeout: timeoutOverride ?? timeoutMs, maxBuffer: 30 * 1024 * 1024 };
+      if (binary) execOpts.encoding = "buffer";
+      const child = execFile(command, argv, execOpts, (err, stdout, stderr) => {
+        const stderrText = Buffer.isBuffer(stderr) ? stderr.toString("utf8") : stderr || "";
         if (err) {
-          resolve({ ok: false, stdout: stdout || "", stderr: (stderr || err.message || "").trim() });
+          resolve({ ok: false, stdout: stdout || (binary ? Buffer.alloc(0) : ""), stderr: (stderrText || err.message || "").trim() });
           return;
         }
-        resolve({ ok: true, stdout: stdout || "", stderr: (stderr || "").trim() });
+        resolve({ ok: true, stdout: stdout || (binary ? Buffer.alloc(0) : ""), stderr: stderrText.trim() });
       });
       if (wantsStdin) {
+        // `input` is either a string (text files — noteToMarkdown etc.) or a
+        // Buffer (real asset uploads — CLAUDE-007). Node ignores the
+        // "utf8" encoding argument entirely when chunk is already a
+        // Buffer and writes the raw bytes as-is, so this same call is
+        // binary-safe for both without a separate code path — the
+        // encoding only ever applies to the string case.
         child.stdin.write(input, "utf8");
         child.stdin.end();
       }
@@ -229,10 +245,23 @@ export function createObsidianExec({ sshHost, sshKeyPath, vaultPath, notesDir, p
     return { ok: true, raw: result.stdout };
   }
 
-  async function writeFile(dir, relPath, content) {
+  // Binary counterpart of readFile (CLAUDE-007) — for actually PREVIEWING
+  // an uploaded image/video/audio asset in the browser, not just knowing
+  // it exists. Real uploads with no way to see them again would be only
+  // half-honest — "it's in the vault" isn't the same as "the preview
+  // works," and the verification gate for this chunk explicitly asks for
+  // the latter.
+  async function readFileBinary(dir, relPath) {
+    const script = `cat ${shQuote(`${dir}/${relPath}`)}`;
+    const result = await execRemote(script, { binary: true });
+    if (!result.ok) return { ok: false, error: result.stderr || "read failed" };
+    return { ok: true, buffer: result.stdout };
+  }
+
+  async function writeFile(dir, relPath, content, { timeoutMs: timeoutOverride } = {}) {
     const full = `${dir}/${relPath}`;
     const script = `mkdir -p ${shQuote(full.slice(0, full.lastIndexOf("/")))} && cat > ${shQuote(full)}`;
-    const result = await execRemote(script, { input: content });
+    const result = await execRemote(script, { input: content, timeoutMs: timeoutOverride });
     if (!result.ok) return { ok: false, error: result.stderr || "write failed" };
     return { ok: true };
   }
@@ -291,6 +320,7 @@ export function createObsidianExec({ sshHost, sshKeyPath, vaultPath, notesDir, p
     listFiles,
     listDir,
     readFile,
+    readFileBinary,
     writeFile,
     exists,
     move,

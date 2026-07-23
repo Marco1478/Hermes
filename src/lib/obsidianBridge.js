@@ -49,6 +49,28 @@ export const archiveVaultCanvas = (projectId, id) => sendJson("/local/obsidian/c
 
 export const fetchProjectAssets = (projectId) => getJson(`/local/obsidian/assets/list?project=${encodeURIComponent(projectId)}`);
 
+// readAsDataURL gives "data:<mime>;base64,<data>" — the server only wants
+// the base64 payload itself (mimeType travels as its own field), so this
+// strips everything up to and including the first comma.
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+    reader.onerror = () => reject(reader.error || new Error("failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+export async function uploadProjectAsset(projectId, file) {
+  const dataBase64 = await fileToBase64(file);
+  return sendJson("/local/obsidian/assets/upload", "POST", { project: projectId, filename: file.name, mimeType: file.type, dataBase64 });
+}
+
+// A plain URL, not a fetch wrapper — this is meant to sit directly in an
+// <img>/<video>/<audio> src, which needs it to be tag-safe on its own.
+export const assetReadUrl = (projectId, relPath) =>
+  `/local/obsidian/assets/read?project=${encodeURIComponent(projectId)}&path=${encodeURIComponent(relPath)}`;
+
 export const fetchVaultWorkflows = (projectId) => getJson(`/local/obsidian/workflows/list?project=${encodeURIComponent(projectId)}`);
 export const writeVaultWorkflow = (projectId, id, workflow) => sendJson("/local/obsidian/workflows/write", "POST", { project: projectId, id, workflow });
 export const archiveVaultWorkflow = (projectId, id) => sendJson("/local/obsidian/workflows/archive", "POST", { project: projectId, id });
