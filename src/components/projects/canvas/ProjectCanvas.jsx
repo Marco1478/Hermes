@@ -1830,7 +1830,7 @@ export function ProjectCanvas({ project, tagFilter, initialOpenId, onConsumeInit
     <div className="panel-section">
       <div className="project-section-head">
         <p className="panel-section-title" style={{ marginBottom: 0 }}>
-          Canvases
+          Canvases {canvases && <span className="mono">({visibleCanvases.length}{tagFilter ? ` of ${canvases.length}` : ""})</span>}
         </p>
         <input className="job-modal-input canvas-new-input" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="New canvas name…" onKeyDown={(e) => e.key === "Enter" && onCreate()} />
         <input className="job-modal-input canvas-new-input" value={newTags} onChange={(e) => setNewTags(e.target.value)} placeholder="tags, comma, separated" onKeyDown={(e) => e.key === "Enter" && onCreate()} />

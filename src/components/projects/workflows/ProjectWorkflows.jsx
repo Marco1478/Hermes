@@ -312,7 +312,7 @@ export function ProjectWorkflows({ project, tagFilter, onOpenCanvas }) {
     <div className="panel-section">
       <div className="project-section-head">
         <p className="panel-section-title" style={{ marginBottom: 0 }}>
-          Workflows
+          Workflows {workflows && <span className="mono">({visibleWorkflows.length}{tagFilter ? ` of ${workflows.length}` : ""})</span>}
         </p>
         <input className="job-modal-input canvas-new-input" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="New workflow name…" onKeyDown={(e) => e.key === "Enter" && onCreate()} />
         <input className="job-modal-input canvas-new-input" value={newTags} onChange={(e) => setNewTags(e.target.value)} placeholder="tags, comma, separated" onKeyDown={(e) => e.key === "Enter" && onCreate()} />
