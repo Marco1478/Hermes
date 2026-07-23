@@ -495,10 +495,6 @@
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.canvas-node--selected .canvas-node-inner {
-  border-color: rgba(110, 231, 223, 0.5);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4), 0 0 26px rgba(110, 231, 223, 0.24);
-}
 
 .canvas-node-inner--editing {
   cursor: text;
@@ -622,6 +618,17 @@
   justify-content: center;
   text-align: center;
   padding: 1.6rem 2.4rem;
+  /* backdrop-filter + clip-path on the same element renders as solid
+     black in this engine instead of a blurred-translucent fill (a real,
+     reproduced browser compositing bug, not a false alarm — confirmed
+     live: a fresh decision node was an unreadable black diamond).
+     Every OTHER preset relies on backdrop-filter for its glass look, but
+     only decision also clips to a non-rectangular shape, which is what
+     triggers it — dropping backdrop-filter here in favor of a flatter but
+     reliably-opaque fill is the fix, not a stylistic downgrade. */
+  background: rgba(19, 22, 27, 0.95);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .canvas-node--sticky .canvas-node-inner {
@@ -670,6 +677,23 @@
 }
 .canvas-node--violet .canvas-node-inner {
   border-color: rgba(182, 166, 232, 0.35);
+}
+
+/* Selected state (CLAUDE-004) — declared AFTER the color variants above on
+   purpose. Both this selector and each `.canvas-node--<color> .canvas-node-
+   inner` selector have identical specificity (two classes), so whichever
+   is later in the file wins the cascade for the properties they share
+   (border-color) — this was declared BEFORE the color rules until now,
+   which meant selecting any node using the default "teal" appearance
+   color silently kept its normal 0.35-opacity border instead of the
+   brighter 0.5 this rule asks for (confirmed live via computed style: the
+   selected node's border-color was teal's plain value, not this one's).
+   The glow half of the box-shadow was never affected — nothing else sets
+   box-shadow on .canvas-node-inner — only the border-color half was
+   silently losing. */
+.canvas-node--selected .canvas-node-inner {
+  border-color: rgba(110, 231, 223, 0.5);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4), 0 0 26px rgba(110, 231, 223, 0.24);
 }
 
 .canvas-node-title {
