@@ -243,6 +243,22 @@ export function createObsidianExec({ sshHost, sshKeyPath, vaultPath, notesDir, p
     return result.ok && result.stdout.trim() === "YES";
   }
 
+  // Filenames only, no content — used for the Canvas "reference an existing
+  // project asset" picker (CLAUDE-006). Deliberately shallow (maxdepth 1,
+  // no recursion into subfolders) and doesn't read file bytes at all, so it
+  // stays cheap and safe for arbitrary binary files sitting in assets/.
+  async function listDir(dir) {
+    const script = `find ${shQuote(dir)} -mindepth 1 -maxdepth 1 -type f 2>/dev/null | sort`;
+    const result = await execRemote(script);
+    if (!result.ok) return { ok: false, error: result.stderr || "list failed" };
+    const files = result.stdout
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((abs) => (abs.startsWith(`${dir}/`) ? abs.slice(dir.length + 1) : abs));
+    return { ok: true, files };
+  }
+
   /* Project workspace skeleton — notes/canvases/workflows/assets are real
      subfolders a project owns from creation, so Marco can drop files into
      them directly in Obsidian even before the UI chunk that manages them
@@ -273,6 +289,7 @@ export function createObsidianExec({ sshHost, sshKeyPath, vaultPath, notesDir, p
     dirs: { notes: absDir("notes"), projects: absDir("projects"), archive: absDir("archive") },
     status,
     listFiles,
+    listDir,
     readFile,
     writeFile,
     exists,

@@ -720,6 +720,83 @@
   height: 180px;
 }
 
+/* ---- Asset picker (CLAUDE-006) ------------------------------------------- */
+
+.canvas-asset-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.canvas-asset-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 160px;
+  overflow-y: auto;
+  padding: 0.5rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.canvas-asset-picker-item {
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  color: var(--silver);
+  font-size: 0.72rem;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.canvas-asset-picker-item:hover {
+  background: rgba(110, 231, 223, 0.08);
+  color: var(--white);
+}
+
+/* ---- Drag-and-drop notice (CLAUDE-006) ------------------------------------ */
+
+.canvas-drop-notice {
+  position: absolute;
+  top: 0.85rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  max-width: min(480px, calc(100% - 1.7rem));
+  padding: 0.65rem 0.7rem 0.65rem 1rem;
+  border-radius: 12px;
+  background: rgba(217, 143, 122, 0.12);
+  border: 1px solid rgba(217, 143, 122, 0.35);
+  color: var(--silver);
+  font-size: 0.76rem;
+  line-height: 1.45;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+}
+
+.canvas-drop-notice-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--silver-dim);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.1rem 0.3rem;
+}
+
+.canvas-drop-notice-close:hover {
+  color: var(--white);
+}
+
 /* ---- Inspector (floating drawer, not a grid column — see JSX comment) ----- */
 
 .canvas-inspector-drawer {

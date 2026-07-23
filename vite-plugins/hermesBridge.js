@@ -1090,6 +1090,33 @@ export function hermesBridgePlugin({
         sendJson(res, result.ok ? 200 : 502, result);
       });
 
+      // ---- Assets: filenames only (never content — see listDir's comment)
+      // inside a project's assets/ subfolder, so Canvas image/file reference
+      // nodes can point at something that's actually THERE instead of a
+      // manually-typed guess. Read-only: there's no write/upload counterpart
+      // here on purpose (CLAUDE-006) — this backend has no route that
+      // accepts binary uploads, so pretending one exists would mean silently
+      // failing to persist whatever the user thinks they just imported.
+      use("/local/obsidian/assets/list", async (req, res) => {
+        if (!obsidian.configured) {
+          sendJson(res, 200, { ok: true, data: [] });
+          return;
+        }
+        const q = new URL(req.url, "http://x").searchParams;
+        const projectRel = safeRelPath(q.get("project") || "");
+        if (!projectRel) {
+          sendJson(res, 400, { ok: false, error: "invalid project" });
+          return;
+        }
+        const dir = `${obsidian.dirs.projects}/${projectRel}/assets`;
+        const result = await obsidian.listDir(dir);
+        if (!result.ok) {
+          sendJson(res, 502, result);
+          return;
+        }
+        sendJson(res, 200, { ok: true, data: result.files });
+      });
+
       // ---- Workflows: JSON files inside a project's workflows/ subfolder,
       // same shape as canvases above (one project sub-resource kind, same
       // filesystem contract).

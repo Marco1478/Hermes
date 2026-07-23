@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence, useMotionValue, useDragControls } from "framer-motion";
 import { useNotes } from "../../../state/Notes.jsx";
-import { fetchVaultCanvases, writeVaultCanvas, archiveVaultCanvas } from "../../../lib/obsidianBridge.js";
+import { fetchVaultCanvases, writeVaultCanvas, archiveVaultCanvas, fetchProjectAssets } from "../../../lib/obsidianBridge.js";
 import { parseTagsInput } from "../../../lib/tags.js";
 import { GlassButton } from "../../ui/GlassButton.jsx";
 import { GlassToolbar } from "../../ui/GlassToolbar.jsx";
@@ -345,7 +345,53 @@ function NodeInlineEdit({ node, onChange, onDone }) {
   );
 }
 
-function NodeInspector({ node, notes, onChange, onDelete, onDuplicate, onClose }) {
+// Reference-an-existing-file flow (CLAUDE-006) — lists what's REALLY sitting
+// in this project's assets/ vault folder (filenames only, fetched on demand)
+// instead of asking Marco to type a path blind. There's deliberately no
+// upload here: this backend has no route that accepts binary bytes, so a
+// picker that only ever shows what's already really there is the honest
+// version of "import" for this build.
+function AssetPicker({ projectId, onPick }) {
+  const [open, setOpen] = useState(false);
+  const [assets, setAssets] = useState(null);
+  const [error, setError] = useState(null);
+
+  const load = async () => {
+    setOpen(true);
+    if (assets !== null) return;
+    try {
+      const res = await fetchProjectAssets(projectId);
+      setAssets(res.data || []);
+      setError(null);
+    } catch (err) {
+      setError(err.message || String(err));
+    }
+  };
+
+  return (
+    <div className="canvas-asset-picker">
+      <button type="button" className="btn-pill" onClick={() => (open ? setOpen(false) : load())}>
+        {open ? "hide project assets" : "browse project assets"}
+      </button>
+      {open && (
+        <div className="canvas-asset-picker-list">
+          {error && <p className="panel-error">Couldn't list assets: {error}</p>}
+          {!error && assets === null && <p className="panel-empty">Loading…</p>}
+          {!error && assets && assets.length === 0 && (
+            <p className="panel-empty">Nothing in this project's assets/ folder yet — drop a file into it in the vault, then browse again.</p>
+          )}
+          {assets?.map((name) => (
+            <button key={name} type="button" className="canvas-asset-picker-item mono" onClick={() => onPick(`assets/${name}`)}>
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NodeInspector({ node, notes, projectId, onChange, onDelete, onDuplicate, onClose }) {
   return (
     <aside className="canvas-inspector">
       <div className="canvas-inspector-head">
@@ -378,6 +424,7 @@ function NodeInspector({ node, notes, onChange, onDelete, onDuplicate, onClose }
                 ? "A public image URL — pasted, it previews live below. There's no upload on this build; a vault-relative path won't render here (the browser can't reach it), only a real https:// link will."
                 : "A link (https://…) opens in a new tab from the node. A vault-relative path (e.g. Hermes/Projects/…/assets/file.pdf) is stored as a reference but can't be opened from here — there's no upload/open-from-vault on this build."}
             </p>
+            <AssetPicker projectId={projectId} onPick={(relPath) => onChange({ ref: { url: relPath } })} />
             {node.type === "image" && node.ref?.url && (
               <div className="canvas-inspector-preview">
                 <ImagePreview url={node.ref.url} />
@@ -618,12 +665,15 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
   // Text/Shape modes place the new node exactly where the user clicked
   // (world coords via clientToWorld, defined below) instead of the
   // toolbar's fixed near-center spot — the whole point of a placement
-  // mode is that you pick the spot.
-  const addNodeAt = (type, clientX, clientY) => {
+  // mode is that you pick the spot. `patch` lets a caller (drag-and-drop —
+  // see onCanvasDrop) seed the new node's content in the same commit,
+  // instead of creating it empty and immediately editing it.
+  const addNodeAt = (type, clientX, clientY, patch = {}) => {
     const p = clientToWorld(clientX, clientY);
-    const node = newNode(type, snap(p.x - 110, snapEnabled), snap(p.y - 40, snapEnabled));
+    const node = { ...newNode(type, snap(p.x - 110, snapEnabled), snap(p.y - 40, snapEnabled)), ...patch };
     commit([...nodes, node], edges);
     setSelectedId(node.id);
+    return node;
   };
 
   const duplicateNode = () => {
@@ -832,6 +882,39 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
     setZoom((z) => Math.min(2, Math.max(0.4, z - e.deltaY * 0.001)));
   };
 
+  // Drag-and-drop (CLAUDE-006) — a dropped URL/text becomes real node
+  // content immediately; a dropped OS file gets an honest "can't do that"
+  // message instead of silently doing nothing OR pretending to import it.
+  // There genuinely is no upload route on this backend (see hermesBridge.js
+  // assets/list comment) — dataTransfer.files is non-empty for real file
+  // drops (Explorer/Finder) but empty for text/URL drags, which is exactly
+  // the distinction that matters here.
+  const [dropNotice, setDropNotice] = useState(null);
+  useEffect(() => {
+    if (!dropNotice) return;
+    const t = setTimeout(() => setDropNotice(null), 5000);
+    return () => clearTimeout(t);
+  }, [dropNotice]);
+
+  const onCanvasDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const onCanvasDrop = (e) => {
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      setDropNotice("Can't import that file — this build has no upload endpoint. Paste a URL instead, or reference an existing project asset from the node inspector.");
+      return;
+    }
+    const text = (e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain") || "").trim();
+    if (!text) return;
+    if (isHttpUrl(text)) {
+      addNodeAt("image", e.clientX, e.clientY, { title: "Image reference", ref: { url: text } });
+    } else {
+      addNodeAt("text", e.clientX, e.clientY, { body: text });
+    }
+  };
+
   // HUD zoom controls (CLAUDE-004) — the wheel already zooms, but "no tiny
   // raw text controls" means the zoom% readout needs real +/-/reset buttons
   // next to it, not just a passive label.
@@ -927,7 +1010,14 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
       </GlassToolbar>
 
       <div className="project-canvas-body">
-        <div ref={viewportRef} className={`canvas-viewport canvas-viewport--mode-${mode}`} onPointerDown={onBackgroundPointerDown} onWheel={onWheel}>
+        <div
+          ref={viewportRef}
+          className={`canvas-viewport canvas-viewport--mode-${mode}`}
+          onPointerDown={onBackgroundPointerDown}
+          onWheel={onWheel}
+          onDragOver={onCanvasDragOver}
+          onDrop={onCanvasDrop}
+        >
           <div ref={panRef} className={`canvas-world${snapEnabled ? " canvas-world--grid" : ""}`} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}>
             <EdgeLayer nodes={nodes} edges={edges} connecting={connecting} onDeleteEdge={deleteEdge} />
             {nodes.map((n) => {
@@ -985,6 +1075,15 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
             </div>
           )}
 
+          {dropNotice && (
+            <div className="canvas-drop-notice" role="status">
+              <span>{dropNotice}</span>
+              <button type="button" className="canvas-drop-notice-close" onClick={() => setDropNotice(null)} aria-label="Dismiss">
+                ×
+              </button>
+            </div>
+          )}
+
           <div className="canvas-hud">
             <button type="button" className="canvas-hud-btn" onClick={zoomOut} title="Zoom out">
               –
@@ -1018,6 +1117,7 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
                 <NodeInspector
                   node={selected}
                   notes={notes}
+                  projectId={projectId}
                   onChange={updateSelectedNode}
                   onDelete={deleteNode}
                   onDuplicate={duplicateNode}
