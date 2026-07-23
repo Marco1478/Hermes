@@ -411,6 +411,20 @@
   background: rgba(110, 231, 223, 0.1);
 }
 
+/* Zoom +/- at the 40%/200% clamp (CLAUDE-009) — was a silent dead click
+   before, same class of bug the undo/redo buttons already avoid via their
+   own `disabled` prop. */
+.canvas-hud-btn:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.canvas-hud-btn:disabled:hover {
+  color: var(--silver);
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+}
+
 .canvas-hud-reset {
   font-size: 0.72rem;
 }

@@ -1645,11 +1645,11 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
           )}
 
           <div className="canvas-hud">
-            <button type="button" className="canvas-hud-btn" onClick={zoomOut} title="Zoom out">
+            <button type="button" className="canvas-hud-btn" onClick={zoomOut} disabled={zoom <= 0.4} title="Zoom out">
               –
             </button>
             <span className="canvas-hud-zoom mono">{Math.round(zoom * 100)}%</span>
-            <button type="button" className="canvas-hud-btn" onClick={zoomIn} title="Zoom in">
+            <button type="button" className="canvas-hud-btn" onClick={zoomIn} disabled={zoom >= 2} title="Zoom in">
               +
             </button>
             <button type="button" className="canvas-hud-btn canvas-hud-reset" onClick={zoomReset} title="Reset view">
