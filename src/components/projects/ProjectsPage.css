@@ -735,3 +735,12 @@ button.overview-tile:hover {
   font-size: 0.7rem !important;
   opacity: 0.5;
 }
+
+/* ---- Contextual Hermes actions (CLAUDE-005) ------------------------------- */
+
+.project-chat-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
