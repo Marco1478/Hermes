@@ -212,6 +212,8 @@
   z-index: 20;
   width: 300px;
   max-width: calc(100vw - 3rem);
+  max-height: min(28rem, calc(100vh - 8rem));
+  overflow-y: auto;
   padding: 1rem;
   border-radius: 14px;
   background: var(--glass-bg);
@@ -226,6 +228,12 @@
   flex-direction: column;
   gap: 0.55rem;
   margin-top: 0.5rem;
+}
+
+.canvas-mode-help-section-title--second {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .canvas-mode-help-row dt {

@@ -59,6 +59,18 @@ const MODES = [
   { key: "shape", label: "Shape", shortcut: "R", hint: "Click empty canvas to drop a card there" },
 ];
 
+// Every OTHER keyboard shortcut the editor responds to, for the same help
+// popover (CLAUDE-005) — modes aren't the only thing worth listing here;
+// without this, undo/redo/delete/zoom were only ever discoverable one at a
+// time via individual button tooltips, never as a single reference.
+const OTHER_SHORTCUTS = [
+  { label: "Undo", shortcut: "Ctrl/Cmd+Z", hint: "Undo the last structural change" },
+  { label: "Redo", shortcut: "Ctrl/Cmd+Shift+Z", hint: "Redo what you just undid" },
+  { label: "Delete node", shortcut: "Delete / Backspace", hint: "Remove the selected node" },
+  { label: "Zoom in / out", shortcut: "Scroll", hint: "Or the –/+ buttons in the bottom-left HUD" },
+  { label: "Deselect / cancel", shortcut: "Esc", hint: "Clears selection, exits mode/edit — press again to go home" },
+];
+
 function uid() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
   return `node-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -1074,6 +1086,17 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
                       {m.label} <span className="canvas-mode-btn-key mono">{m.shortcut}</span>
                     </dt>
                     <dd>{m.hint}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="canvas-inspector-section-title canvas-mode-help-section-title--second">Other shortcuts</p>
+              <dl className="canvas-mode-help-list">
+                {OTHER_SHORTCUTS.map((s) => (
+                  <div key={s.label} className="canvas-mode-help-row">
+                    <dt>
+                      {s.label} <span className="canvas-mode-btn-key mono">{s.shortcut}</span>
+                    </dt>
+                    <dd>{s.hint}</dd>
                   </div>
                 ))}
               </dl>
