@@ -9,7 +9,7 @@
   exists on this backend; see ProjectIntelligencePanel's own header
   comment for the route check).
 */
-export function buildProjectContextMessage(project, linkedNotes, canvases, workflows, tasks) {
+export function buildProjectContextMessage(project, linkedNotes, canvases, workflows, tasks, assets = []) {
   const activeWorkflows = workflows.filter((w) => w.status !== "done");
   const blockedSteps = workflows.flatMap((w) => (w.steps || []).filter((s) => s.status === "blocked").map((s) => `${s.title || "untitled step"} (${w.name})`));
   const openTasks = tasks.filter((t) => t.status !== "done");
@@ -34,6 +34,8 @@ export function buildProjectContextMessage(project, linkedNotes, canvases, workf
 
   lines.push(`- Kanban (${tasks.length} linked, ${openTasks.length} open, ${blockedTasks.length} blocked)`);
   if (blockedTasks.length) lines.push(`  Blocked tasks: ${blockedTasks.map((t) => `${t.id} — ${t.title}`).join("; ")}`);
+
+  lines.push(`- Assets (${assets.length}): ${assets.length ? assets.map((a) => a.name).join(", ") : "none uploaded"}`);
 
   if (project.description) lines.push("", project.description);
   lines.push("", "When answering, use this project as the active context.");

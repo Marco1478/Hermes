@@ -17,12 +17,12 @@ import { GlassButton } from "../ui/GlassButton.jsx";
 export function ProjectChatPanel({ project, notes }) {
   const { newChat, setDraft } = useChat();
   const { goTo } = useViewMode();
-  const { canvases, workflows, tasks, loading } = useProjectSignals(project);
+  const { canvases, workflows, tasks, assets, loading } = useProjectSignals(project);
 
   const linkedNotes = project.linkedNoteIds.map((id) => notes.find((n) => n.id === id)).filter(Boolean);
 
   const onStart = () => {
-    const message = buildProjectContextMessage(project, linkedNotes, canvases, workflows, tasks);
+    const message = buildProjectContextMessage(project, linkedNotes, canvases, workflows, tasks, assets);
     newChat();
     setDraft(message);
     goTo("chat");
@@ -39,7 +39,7 @@ export function ProjectChatPanel({ project, notes }) {
       </GlassButton>
       <div className="notes-editor-meta" style={{ marginTop: "0.5rem" }}>
         <span className="mono panel-empty">
-          {linkedNotes.length} notes · {canvases.length} canvases · {workflows.length} workflows · {tasks.length} tasks
+          {linkedNotes.length} notes · {canvases.length} canvases · {workflows.length} workflows · {tasks.length} tasks · {assets.length} assets
         </span>
       </div>
     </div>

@@ -9,7 +9,7 @@ import { ProjectIntelligencePanel } from "./ProjectIntelligencePanel.jsx";
 import { ProjectTagExplorer } from "./ProjectTagExplorer.jsx";
 
 const SECTIONS = [
-  { key: "overview", label: "Overview" },
+  { key: "overview", label: "Home" },
   { key: "notes", label: "Notes" },
   { key: "canvas", label: "Canvas" },
   { key: "workflows", label: "Workflows" },
@@ -99,7 +99,9 @@ export function ProjectWorkspace({ project, notes, vaultStatus, onBack, onUpdate
         {section === "overview" && (
           <ProjectOverviewPanel
             project={project}
+            notes={notes}
             vaultStatus={vaultStatus}
+            onNavigate={setSection}
             onUpdate={onUpdate}
             onDelete={onDelete}
             onToggleArchive={onToggleArchive}

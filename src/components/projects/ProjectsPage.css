@@ -654,3 +654,78 @@
 .project-workspace .overview-tile--bad .overview-tile-value {
   color: var(--bad);
 }
+
+/* ---- Project Home dashboard (CLAUDE-003) ----------------------------------
+   Tiles double as navigation: a state tile with an onClick becomes a real
+   <button>, so it needs its own reset (native buttons don't inherit font/
+   text-align/cursor the way a div does) plus a hover treatment that reads
+   as clickable, matching .canvas-list-item's hover language elsewhere in
+   the workspace. */
+button.overview-tile {
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+button.overview-tile:hover {
+  border-color: rgba(110, 231, 223, 0.3);
+  background: rgba(110, 231, 223, 0.05);
+  transform: translateY(-1px);
+}
+
+.project-home-timestamps {
+  margin: -0.3rem 0 0;
+}
+
+.project-home-empty {
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.project-home-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.project-home-recent-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  cursor: pointer;
+  color: var(--silver);
+  font-size: 0.82rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.project-home-recent-row:hover {
+  border-color: rgba(110, 231, 223, 0.3);
+  background: rgba(110, 231, 223, 0.05);
+}
+
+.project-home-recent-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-home-recent-time {
+  color: var(--silver-dim);
+  opacity: 0.65;
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+.project-home-hint {
+  margin-top: 0.5rem !important;
+  font-size: 0.7rem !important;
+  opacity: 0.5;
+}
