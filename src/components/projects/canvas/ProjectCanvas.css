@@ -402,6 +402,31 @@
   font-size: 0.74rem;
 }
 
+/* ---- Toasts (CLAUDE-007) — stacked bottom-left, just above the HUD so ----
+   neither one ever overlaps the other. */
+.canvas-toast-stack {
+  left: 0.85rem;
+  bottom: 4.4rem;
+}
+
+/* ---- Save-state label (CLAUDE-007) ---------------------------------------- */
+
+.canvas-save-state {
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
+  opacity: 0.75;
+  color: var(--silver-dim);
+}
+
+.canvas-save-state--saved {
+  color: var(--ok);
+}
+
+.canvas-save-state--error {
+  color: var(--bad);
+  opacity: 1;
+}
+
 /* ---- Edges (V2) ----------------------------------------------------------- */
 
 .canvas-edge-layer {

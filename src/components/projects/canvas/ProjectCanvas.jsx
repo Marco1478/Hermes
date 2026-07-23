@@ -5,6 +5,7 @@ import { fetchVaultCanvases, writeVaultCanvas, archiveVaultCanvas, fetchProjectA
 import { parseTagsInput } from "../../../lib/tags.js";
 import { GlassButton } from "../../ui/GlassButton.jsx";
 import { GlassToolbar } from "../../ui/GlassToolbar.jsx";
+import { useToasts, ToastStack } from "../../ui/Toast.jsx";
 import "./ProjectCanvas.css";
 
 const NODE_TYPES = [
@@ -572,24 +573,40 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
   const panRef = useRef(null);
   const viewportRef = useRef(null);
   const saveTimer = useRef(null);
+  const saveStateTimer = useRef(null);
   const undoStack = useRef([]);
   const redoStack = useRef([]);
+  const { toasts, push: pushToast, dismiss: dismissToast } = useToasts();
 
   const selected = nodes.find((n) => n.id === selectedId) || null;
+
+  // "idle" | "saving" | "saved" | "error" — a persistent, non-spammy
+  // status label near the toolbar (CLAUDE-007) instead of a toast per
+  // save, since edits (and their debounced saves) can fire far more often
+  // than a toast queue should ever show. "saved" reverts to "idle" after
+  // a couple seconds; "error" deliberately does NOT auto-clear — it's the
+  // one state that must stay visible until the next save actually
+  // succeeds, per the "persistence failure" feedback requirement.
+  const [saveState, setSaveState] = useState("idle");
 
   const scheduleSave = useCallback(
     (nextNodes, nextEdges) => {
       clearTimeout(saveTimer.current);
+      clearTimeout(saveStateTimer.current);
       saveTimer.current = setTimeout(async () => {
+        setSaveState("saving");
         try {
           const res = await writeVaultCanvas(projectId, canvas.id, { ...canvas, nodes: nextNodes, edges: nextEdges });
           onSaved(res.data);
+          setSaveState("saved");
+          saveStateTimer.current = setTimeout(() => setSaveState("idle"), 2000);
         } catch {
-          /* transient — next edit retries */
+          setSaveState("error");
+          pushToast("Couldn't save canvas — will retry on next edit", { tone: "error", duration: 5000 });
         }
       }, 600);
     },
-    [projectId, canvas, onSaved]
+    [projectId, canvas, onSaved, pushToast]
   );
 
   // Undo/redo covers structural actions (add/delete/duplicate node, drag,
@@ -619,7 +636,8 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
     setNodes(prev.nodes);
     setEdges(prev.edges);
     scheduleSave(prev.nodes, prev.edges);
-  }, [nodes, edges, scheduleSave]);
+    pushToast("Undone", { duration: 1400 });
+  }, [nodes, edges, scheduleSave, pushToast]);
 
   const redo = useCallback(() => {
     const next = redoStack.current.pop();
@@ -628,7 +646,8 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
     setNodes(next.nodes);
     setEdges(next.edges);
     scheduleSave(next.nodes, next.edges);
-  }, [nodes, edges, scheduleSave]);
+    pushToast("Redone", { duration: 1400 });
+  }, [nodes, edges, scheduleSave, pushToast]);
 
   // Inspector field edits AND inline node editing (title/body/ref/color/
   // checklist) intentionally don't push undo history — undo covers
@@ -660,6 +679,7 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
     const node = newNode(type, snap(centerX, snapEnabled), snap(centerY, snapEnabled));
     commit([...nodes, node], edges);
     setSelectedId(node.id);
+    pushToast(`${NODE_TYPES.find((t) => t.key === type)?.label || "Node"} added`, { duration: 1600 });
   };
 
   // Text/Shape modes place the new node exactly where the user clicked
@@ -673,6 +693,7 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
     const node = { ...newNode(type, snap(p.x - 110, snapEnabled), snap(p.y - 40, snapEnabled)), ...patch };
     commit([...nodes, node], edges);
     setSelectedId(node.id);
+    pushToast(`${NODE_TYPES.find((t) => t.key === type)?.label || "Node"} added`, { duration: 1600 });
     return node;
   };
 
@@ -681,6 +702,7 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
     const copy = { ...selected, id: uid(), x: selected.x + 24, y: selected.y + 24, checklist: selected.checklist.map((c) => ({ ...c })) };
     commit([...nodes, copy], edges);
     setSelectedId(copy.id);
+    pushToast("Node duplicated", { duration: 1600 });
   };
 
   const deleteNode = () => {
@@ -690,10 +712,12 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
       edges.filter((e) => e.from !== selected.id && e.to !== selected.id)
     );
     setSelectedId(null);
+    pushToast("Node deleted", { duration: 1600 });
   };
 
   const deleteEdge = (edgeId) => {
     commit(nodes, edges.filter((e) => e.id !== edgeId));
+    pushToast("Connection removed", { duration: 1600 });
   };
 
   // One consolidated keyboard handler for the whole editor: undo/redo (was
@@ -841,7 +865,10 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
       window.removeEventListener("pointerup", onUp);
       if (target && target.id !== fromId) {
         const exists = edges.some((e) => (e.from === fromId && e.to === target.id) || (e.from === target.id && e.to === fromId));
-        if (!exists) commit(nodes, [...edges, { id: uid(), from: fromId, to: target.id }]);
+        if (!exists) {
+          commit(nodes, [...edges, { id: uid(), from: fromId, to: target.id }]);
+          pushToast("Nodes connected", { duration: 1600 });
+        }
       }
     };
     window.addEventListener("pointermove", onMove);
@@ -934,6 +961,13 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
         <p className="panel-section-title" style={{ marginBottom: 0 }}>
           {canvas.name}
         </p>
+        {saveState !== "idle" && (
+          <span className={`canvas-save-state canvas-save-state--${saveState} mono`} role="status">
+            {saveState === "saving" && "saving…"}
+            {saveState === "saved" && "saved"}
+            {saveState === "error" && "save failed"}
+          </span>
+        )}
         <GlassToolbar className="canvas-history-toolbar">
           <GlassButton variant="secondary" size="sm" onClick={undo} disabled={undoStack.current.length === 0} title="Undo (Ctrl/Cmd+Z)">
             ↶ undo
@@ -941,7 +975,23 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
           <GlassButton variant="secondary" size="sm" onClick={redo} disabled={redoStack.current.length === 0} title="Redo (Ctrl/Cmd+Shift+Z)">
             ↷ redo
           </GlassButton>
-          <GlassButton variant={snapEnabled ? "primary" : "secondary"} size="sm" onClick={() => setSnapEnabled((s) => !s)} title="Snap to grid">
+          <GlassButton
+            variant={snapEnabled ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => {
+              // pushToast is a side effect — it must NOT live inside the
+              // setSnapEnabled updater function itself. React (in
+              // StrictMode/dev) invokes updater functions twice to verify
+              // they're pure, which double-fired the toast here until this
+              // was pulled out into a plain click-handler statement using
+              // the outer-scope `snapEnabled` (still correct: this closure
+              // captures the value from BEFORE the toggle, so `!snapEnabled`
+              // is exactly the new state).
+              setSnapEnabled((s) => !s);
+              pushToast(!snapEnabled ? "Snap to grid on" : "Snap to grid off", { duration: 1400 });
+            }}
+            title="Snap to grid"
+          >
             # snap
           </GlassButton>
         </GlassToolbar>
@@ -1096,6 +1146,8 @@ function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
               ⤾
             </button>
           </div>
+
+          <ToastStack toasts={toasts} onDismiss={dismissToast} className="canvas-toast-stack" />
 
           {/* Floats ON TOP of the viewport instead of sharing a grid column
               with it — the board's own box size never changes whether or
