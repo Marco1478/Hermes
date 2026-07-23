@@ -560,8 +560,13 @@ function EdgeLayer({ nodes, edges, connecting, onDeleteEdge }) {
 
 function CanvasEditor({ projectId, canvas, onBack, onSaved }) {
   const { notes } = useNotes();
-  const [nodes, setNodes] = useState(canvas.nodes || []);
-  const [edges, setEdges] = useState(canvas.edges || []);
+  // Array.isArray, not just `|| []` — the backend already guarantees this
+  // shape (see sanitizeCanvasRecord in hermesBridge.js), but a truthy
+  // non-array here (an old cached response, a future schema change) would
+  // otherwise reach nodes.map/.find below and crash the whole editor
+  // instead of just opening as empty.
+  const [nodes, setNodes] = useState(Array.isArray(canvas.nodes) ? canvas.nodes : []);
+  const [edges, setEdges] = useState(Array.isArray(canvas.edges) ? canvas.edges : []);
   const [selectedId, setSelectedId] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -1279,7 +1284,7 @@ export function ProjectCanvas({ project, tagFilter }) {
                 {c.name} {(c.tags || []).map((t) => <span key={t} className="tag-badge">#{t}</span>)}
               </span>
               <span className="mono canvas-list-meta">
-                {c.nodes?.length || 0} nodes · {c.edges?.length || 0} edges
+                {c.error ? <span className="canvas-list-error">⚠ {c.error} — opens as empty</span> : `${c.nodes?.length || 0} nodes · ${c.edges?.length || 0} edges`}
               </span>
             </button>
             <button type="button" className="btn-pill" onClick={() => onArchive(c.id)}>

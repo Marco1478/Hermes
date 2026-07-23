@@ -356,14 +356,37 @@ async function checkProjectWorkspaces() {
     const canvasWrite = await obsidian.writeFile(canvasDir, canvasRel, JSON.stringify(canvas, null, 2));
     record("obsidian", "create test canvas", canvasWrite.ok, canvasWrite.error);
 
-    const canvasUpdated = { ...canvas, nodes: [{ id: "smoke-node", type: "card", x: 0, y: 0, w: 220, h: 130, title: "smoke", body: "", color: "teal", tags: [], checklist: [], ref: null }] };
+    // Two nodes (one plain, one with an asset ref — CLAUDE-006/008) plus the
+    // edge connecting them, so update/reread covers nodes, edges, AND refs
+    // in one pass instead of three separate near-duplicate writes.
+    const canvasUpdated = {
+      ...canvas,
+      nodes: [
+        { id: "smoke-node", type: "card", x: 0, y: 0, w: 220, h: 130, title: "smoke", body: "", color: "teal", tags: [], checklist: [], ref: null },
+        { id: "smoke-node-2", type: "image", x: 260, y: 0, w: 220, h: 130, title: "smoke ref", body: "", color: "teal", tags: [], checklist: [], ref: { url: "assets/_HERMES_UI_SMOKE_DELETE_ME.png" } },
+      ],
+      edges: [{ id: "smoke-edge", from: "smoke-node", to: "smoke-node-2" }],
+    };
     const canvasUpdate = await obsidian.writeFile(canvasDir, canvasRel, JSON.stringify(canvasUpdated, null, 2));
     const canvasReread = await obsidian.readFile(canvasDir, canvasRel);
     const canvasParsed = canvasReread.ok ? JSON.parse(canvasReread.raw) : null;
-    record("obsidian", "update test canvas", Boolean(canvasUpdate.ok && canvasParsed?.nodes?.length === 1), canvasUpdate.error);
+    record(
+      "obsidian",
+      "update test canvas (nodes/edges/asset ref)",
+      Boolean(canvasUpdate.ok && canvasParsed?.nodes?.length === 2 && canvasParsed?.edges?.length === 1 && canvasParsed?.nodes?.[1]?.ref?.url),
+      canvasUpdate.error
+    );
 
     const canvasList = await obsidian.listFiles(canvasDir, "flat-json");
     record("obsidian", "search/list finds test canvas", Boolean(canvasList.ok && canvasList.files.some((f) => f.relPath === canvasRel)), canvasList.error);
+
+    // assets/ is scaffolded for every project at creation time (see
+    // projects/write) — listDir (CLAUDE-006) is a real, filenames-only
+    // directory read, so an empty project's assets/ should list ok with no
+    // files rather than erroring.
+    const assetsDir = `${obsidian.dirs.projects}/${projectRel}/assets`;
+    const assetsList = await obsidian.listDir(assetsDir);
+    record("obsidian", "list project assets/ (empty, real)", Boolean(assetsList.ok && Array.isArray(assetsList.files)), assetsList.error);
 
     const canvasArchive = await obsidian.move(canvasDir, canvasRel, `${obsidian.dirs.archive}/${projectRel}/canvases`, canvasRel);
     record("obsidian", "archive test canvas", canvasArchive.ok, canvasArchive.error);

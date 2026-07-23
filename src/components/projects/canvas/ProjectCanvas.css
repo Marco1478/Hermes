@@ -48,6 +48,11 @@
   font-size: 0.62rem;
 }
 
+.canvas-list-error {
+  color: var(--bad);
+  opacity: 0.9;
+}
+
 /* ---- Editor shell ------------------------------------------------------- */
 
 .project-canvas-editor {

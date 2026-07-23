@@ -55,6 +55,52 @@ function sendJson(res, status, obj) {
   res.end(JSON.stringify(obj));
 }
 
+// Canvas JSON shape guard (CLAUDE-008) — used on BOTH the write path (so a
+// malformed request body from the client can't corrupt the file on disk)
+// and the read/list path (so a file that's already malformed — hand-edited,
+// half-written, or from an older/different schema — can't crash the React
+// tree, which only ever expects nodes/edges to be real arrays it can .map()
+// over). A canvas record that fails JSON.parse entirely is handled by the
+// caller (see canvases/list) since that never reaches this function at all.
+function isPlainRecord(v) {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+function sanitizeCanvasNode(n) {
+  if (!isPlainRecord(n) || typeof n.id !== "string" || typeof n.type !== "string") return null;
+  const num = (v, fallback) => (typeof v === "number" && Number.isFinite(v) ? v : fallback);
+  return {
+    ...n,
+    id: n.id,
+    type: n.type,
+    x: num(n.x, 0),
+    y: num(n.y, 0),
+    w: num(n.w, 220),
+    h: num(n.h, 130),
+    title: typeof n.title === "string" ? n.title : "",
+    body: typeof n.body === "string" ? n.body : "",
+    color: typeof n.color === "string" ? n.color : "teal",
+    tags: Array.isArray(n.tags) ? n.tags.filter((t) => typeof t === "string") : [],
+    checklist: Array.isArray(n.checklist) ? n.checklist : [],
+    ref: isPlainRecord(n.ref) ? n.ref : null,
+  };
+}
+function sanitizeCanvasEdge(e) {
+  if (!isPlainRecord(e) || typeof e.id !== "string" || typeof e.from !== "string" || typeof e.to !== "string") return null;
+  return { id: e.id, from: e.from, to: e.to };
+}
+function sanitizeCanvasRecord(input) {
+  const src = isPlainRecord(input) ? input : {};
+  return {
+    version: 1,
+    type: "hermes-project-canvas",
+    name: typeof src.name === "string" && src.name ? src.name : "Untitled canvas",
+    description: typeof src.description === "string" ? src.description : "",
+    tags: Array.isArray(src.tags) ? src.tags.filter((t) => typeof t === "string") : [],
+    nodes: Array.isArray(src.nodes) ? src.nodes.map(sanitizeCanvasNode).filter(Boolean) : [],
+    edges: Array.isArray(src.edges) ? src.edges.map(sanitizeCanvasEdge).filter(Boolean) : [],
+  };
+}
+
 export function hermesBridgePlugin({
   gatewayBaseUrl,
   gatewayApiKey,
@@ -996,11 +1042,19 @@ export function hermesBridgePlugin({
           return;
         }
         const data = result.files.map((f) => {
+          let parsed;
           try {
-            return { ...JSON.parse(f.raw), id: f.relPath };
+            parsed = JSON.parse(f.raw);
           } catch {
-            return { id: f.relPath, name: f.relPath, error: "invalid JSON in file", version: 1, type: "hermes-project-canvas", nodes: [], edges: [] };
+            // Corrupt/unparseable file on disk — surface it as an empty,
+            // clearly-flagged canvas instead of crashing the projects list
+            // (or worse, the editor, if Marco then opens it). `error` isn't
+            // part of the normal schema; the UI can check for it to show a
+            // "this file is corrupt" state instead of pretending it's just
+            // an empty canvas someone made on purpose.
+            return { ...sanitizeCanvasRecord({}), id: f.relPath, name: f.relPath, error: "invalid JSON in file" };
           }
+          return { ...sanitizeCanvasRecord(parsed), id: f.relPath };
         });
         sendJson(res, 200, { ok: true, data });
       });
@@ -1045,15 +1099,7 @@ export function hermesBridgePlugin({
           }
           relPath = candidate;
         }
-        const record = {
-          version: 1,
-          type: "hermes-project-canvas",
-          name: canvas.name || "Untitled canvas",
-          description: canvas.description || "",
-          tags: canvas.tags || [],
-          nodes: canvas.nodes || [],
-          edges: canvas.edges || [],
-        };
+        const record = sanitizeCanvasRecord(canvas);
         const result = await obsidian.writeFile(dir, relPath, JSON.stringify(record, null, 2));
         if (!result.ok) {
           sendJson(res, 502, result);
