@@ -9,6 +9,7 @@ import { plainTextPreview } from "../../lib/markdownLite.js";
 import { parseTagsInput } from "../../lib/tags.js";
 import { PROJECT_TEMPLATES } from "../../lib/projectTemplates.js";
 import { writeVaultWorkflow, writeVaultCanvas } from "../../lib/obsidianBridge.js";
+import { createKanbanTask } from "../../lib/kanbanBridge.js";
 import { GlassButton } from "../ui/GlassButton.jsx";
 import { GlassSegmented, GlassSegmentedOption } from "../ui/GlassSegmented.jsx";
 import "./ProjectsPage.css";
@@ -80,7 +81,7 @@ function ProjectCard({ project, onOpen }) {
   );
 }
 
-function NewProjectModal({ onCreate, onClose, vaultStatus }) {
+function NewProjectModal({ onCreate, onClose, vaultStatus, onCreateNote, onLinkNote, onLinkTask }) {
   const [templateKey, setTemplateKey] = useState("generic");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -89,6 +90,8 @@ function NewProjectModal({ onCreate, onClose, vaultStatus }) {
   const [tagsText, setTagsText] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  const activeTemplate = PROJECT_TEMPLATES.find((t) => t.key === templateKey);
 
   const applyTemplate = (key) => {
     setTemplateKey(key);
@@ -111,8 +114,9 @@ function NewProjectModal({ onCreate, onClose, vaultStatus }) {
       const id = await onCreate({ name: name.trim(), description, status, color, tags });
       const template = PROJECT_TEMPLATES.find((t) => t.key === templateKey);
       // Best-effort scaffold: the project itself is already created and
-      // usable even if these fail (e.g. vault not connected), so a
-      // workflow/canvas write failure here never blocks project creation.
+      // usable even if any of these fail (e.g. vault not connected), so no
+      // single starter-content write here ever blocks project creation —
+      // each is its own try/catch instead of one that aborts the rest.
       if (id && vaultStatus === "connected" && template) {
         if (template.workflow) {
           try {
@@ -126,6 +130,24 @@ function NewProjectModal({ onCreate, onClose, vaultStatus }) {
             await writeVaultCanvas(id, null, { ...template.canvas, tags: [], edges: [] });
           } catch {
             /* starter canvas is a bonus, not required */
+          }
+        }
+        for (const note of template.notes || []) {
+          try {
+            const noteId = await onCreateNote({ title: note.title, body: note.body });
+            if (noteId) onLinkNote(id, noteId, note.title);
+          } catch {
+            /* starter note is a bonus, not required */
+          }
+        }
+        for (const taskTitle of template.kanbanTasks || []) {
+          try {
+            const res = await createKanbanTask({ title: taskTitle, triage: false });
+            const taskId = res.data?.id || res.data?.task?.id;
+            if (taskId) onLinkTask(id, taskId, taskTitle);
+          } catch {
+            /* starter Kanban task is a bonus, not required — if Kanban is
+               unavailable, the template's own steps/notes still landed. */
           }
         }
       }
@@ -167,11 +189,17 @@ function NewProjectModal({ onCreate, onClose, vaultStatus }) {
             </button>
           ))}
         </div>
-        {templateKey !== "generic" && (
+        {templateKey !== "generic" && activeTemplate && (
           <p className="panel-empty" style={{ margin: 0 }}>
-            {PROJECT_TEMPLATES.find((t) => t.key === templateKey)?.summary} Pre-fills description/color/tags below — all editable now and after creation.
-            {PROJECT_TEMPLATES.find((t) => t.key === templateKey)?.workflow && " Adds a starter workflow once created."}
-            {PROJECT_TEMPLATES.find((t) => t.key === templateKey)?.canvas && " Adds a starter canvas once created."}
+            {activeTemplate.summary} Pre-fills description/color/tags below — all editable now and after creation.
+            {(() => {
+              const scaffolds = [];
+              if (activeTemplate.workflow) scaffolds.push("a starter workflow");
+              if (activeTemplate.canvas) scaffolds.push("a starter canvas");
+              if (activeTemplate.notes?.length) scaffolds.push(`${activeTemplate.notes.length} starter note${activeTemplate.notes.length === 1 ? "" : "s"}`);
+              if (activeTemplate.kanbanTasks?.length) scaffolds.push(`${activeTemplate.kanbanTasks.length} starter Kanban task${activeTemplate.kanbanTasks.length === 1 ? "" : "s"}`);
+              return scaffolds.length ? ` Adds ${scaffolds.join(", ")} once created.` : null;
+            })()}
           </p>
         )}
 
@@ -429,6 +457,9 @@ export function ProjectsPage() {
             if (id) setOpenId(id);
             return id;
           }}
+          onCreateNote={createNote}
+          onLinkNote={linkNote}
+          onLinkTask={linkTask}
           onClose={() => setCreating(false)}
         />
       )}
