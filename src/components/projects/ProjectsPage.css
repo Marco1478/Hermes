@@ -431,6 +431,49 @@
   line-height: 1.35;
 }
 
+/* Home sits between the identity heading and the section tab list —
+   visually its own row, not one more entry in .project-workspace-tabs —
+   so opening a project reads as "arrive at Home, then pick a section"
+   instead of Home competing with Notes/Canvas/etc at the same weight
+   (CLAUDE-005 of Instructions 010). Color comes from the project's own
+   swatch (projectColorVar) via the --home-accent custom property set
+   inline, same value KanbanCard's project chip and the Home hero glow
+   use, so "this project's color" reads consistently everywhere. */
+.project-workspace-home {
+  --home-accent: var(--teal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  margin-bottom: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--silver-dim);
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.project-workspace-home:hover {
+  color: var(--white);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.project-workspace-home--active {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--home-accent) 20%, transparent), rgba(255, 255, 255, 0.03));
+  border-color: color-mix(in srgb, var(--home-accent) 45%, transparent);
+  color: var(--white);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--home-accent) 18%, transparent);
+}
+
+.project-workspace--nav-collapsed .project-workspace-home {
+  font-size: 1.1rem;
+  padding: 0.6rem;
+}
+
 .project-workspace-tabs {
   display: flex;
   flex-direction: column;
@@ -607,6 +650,25 @@
   font-size: 0.82rem;
 }
 
+.project-kanban-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.project-kanban-tags {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.project-kanban-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
 /* Overview/Intelligence state tiles — this pass also fixes a confirmed bug
    from the CLAUDE-001 audit: ProjectIntelligencePanel.jsx has always
    rendered these classes, but they were only ever defined in
@@ -734,6 +796,65 @@ button.overview-tile:hover {
   margin-top: 0.5rem !important;
   font-size: 0.7rem !important;
   opacity: 0.5;
+}
+
+/* ---- Cozy Project Home hero (CLAUDE-005 of Instructions 010) -------------
+   The identity block (name/status/color/tags), Today/Next, and primary
+   actions all live inside one warmer panel with a soft radial glow tinted
+   by the project's own color (--home-accent, set inline from
+   projectColorVar) — a calmer landing area than the raw metrics grid
+   below it, which stays as-is since that density is still genuinely
+   useful, just no longer the first thing a project shows. */
+.project-home-hero {
+  --home-accent: var(--teal);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.4rem 1.5rem;
+  border-radius: 20px;
+  background: radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, var(--home-accent) 10%, transparent), rgba(255, 255, 255, 0.02) 60%),
+    rgba(255, 255, 255, 0.02);
+  border: 1px solid color-mix(in srgb, var(--home-accent) 20%, rgba(255, 255, 255, 0.08));
+  box-shadow: 0 0 40px color-mix(in srgb, var(--home-accent) 10%, transparent);
+  overflow: hidden;
+}
+
+.project-home-today {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.project-home-today-label {
+  color: var(--home-accent);
+  opacity: 0.85;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.project-home-today-text {
+  margin: 0;
+  color: var(--white);
+  font-size: 0.98rem;
+  line-height: 1.4;
+}
+
+.project-home-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.project-home-mini-activity {
+  gap: 0.3rem;
+}
+
+.project-home-mini-activity .project-home-recent-row {
+  font-size: 0.78rem;
+  padding: 0.5rem 0.75rem;
+  opacity: 0.9;
 }
 
 /* ---- Contextual Hermes actions (CLAUDE-005) ------------------------------- */

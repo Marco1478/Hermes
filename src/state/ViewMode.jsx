@@ -12,6 +12,11 @@ const ViewModeContext = createContext(null);
 */
 export function ViewModeProvider({ children }) {
   const [mode, setMode] = useState("hero");
+  // Set by a project's "open Main Kanban filtered to this project" link
+  // (ProjectKanbanPanel) and consumed once by KanbanPage on arrival — same
+  // one-shot handoff pattern as ProjectWorkspace's pendingCanvasId, just
+  // crossing the top-level mode boundary instead of a project-internal tab.
+  const [kanbanFilterProjectId, setKanbanFilterProjectId] = useState(null);
 
   const value = useMemo(
     () => ({
@@ -24,11 +29,17 @@ export function ViewModeProvider({ children }) {
       isSystem: mode === "system",
       isKanban: mode === "kanban",
       goTo: (m) => setMode(m),
+      goToKanban: (projectId) => {
+        setKanbanFilterProjectId(projectId);
+        setMode("kanban");
+      },
+      kanbanFilterProjectId,
+      consumeKanbanFilter: () => setKanbanFilterProjectId(null),
       enterChat: () => setMode("chat"),
       enterHero: () => setMode("hero"),
       toggle: () => setMode((m) => (m === "hero" ? "chat" : "hero")),
     }),
-    [mode]
+    [mode, kanbanFilterProjectId]
   );
 
   return <ViewModeContext.Provider value={value}>{children}</ViewModeContext.Provider>;

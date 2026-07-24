@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchProjectActivity } from "../../lib/obsidianBridge.js";
 
-const TYPE_GLYPH = {
+// Exported for ProjectOverviewPanel's cozy "Latest activity" mini-list —
+// one glyph vocabulary for activity entries, not two.
+export const TYPE_GLYPH = {
   project: "●",
   note: "🔗",
   canvas: "▭",
@@ -9,6 +11,7 @@ const TYPE_GLYPH = {
   kanban: "▤",
   asset: "📎",
   hermes: "✦",
+  claude_code: "▶",
 };
 
 function relTimeAgo(ms) {
@@ -31,8 +34,17 @@ function relTimeAgo(ms) {
   from existing metadata alone. This reads a real, vault-backed,
   append-only log (Hermes/Projects/<Project>/activity.json, written by
   logProjectActivity — see its call sites: project creation, note link/
-  unlink, canvas/workflow creation, asset upload, Hermes actions launched)
-  instead of inventing one. Read-only here — nothing on this tab writes.
+  unlink, canvas/workflow creation, asset upload, Hermes actions launched,
+  Kanban task completed/blocked) instead of inventing one. Read-only here —
+  nothing on this tab writes.
+
+  `claude_code` (CLAUDE-007 of Instructions 010) is real render support
+  for an event type nothing currently emits: this build has no per-project
+  Claude Code runner, so there's no honest way to attribute a run to one
+  project. If/when a server-side runner starts calling this same append
+  API with that type, it renders here with no further UI change needed —
+  see ProjectOverviewPanel's "Claude Code" action for the site-wide (not
+  project-scoped) view that exists today instead.
 */
 export function ProjectActivityPanel({ project }) {
   const [entries, setEntries] = useState(null);
@@ -69,8 +81,8 @@ export function ProjectActivityPanel({ project }) {
       {!sorted && !error && <p className="panel-empty">Loading…</p>}
       {sorted && sorted.length === 0 && (
         <p className="panel-empty">
-          Nothing logged yet — activity appears here as you link notes, create canvases/workflows, upload assets, or
-          launch Hermes actions on this project.
+          Nothing logged yet — activity appears here as you link notes, create canvases/workflows, upload assets,
+          complete/block Kanban tasks, or launch Hermes actions on this project.
         </p>
       )}
 

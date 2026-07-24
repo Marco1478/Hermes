@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { projectColorVar } from "../../lib/projectColor.js";
 import { ProjectOverviewPanel } from "./ProjectOverviewPanel.jsx";
 import { ProjectNotesPanel } from "./ProjectNotesPanel.jsx";
 import { ProjectCanvas } from "./canvas/ProjectCanvas.jsx";
@@ -9,8 +10,10 @@ import { ProjectIntelligencePanel } from "./ProjectIntelligencePanel.jsx";
 import { ProjectActivityPanel } from "./ProjectActivityPanel.jsx";
 import { ProjectTagExplorer } from "./ProjectTagExplorer.jsx";
 
+// "Home" isn't in this list — CLAUDE-005 of Instructions 010 wants it to
+// sit above the section list, not read as just another same-weight tab
+// (see the dedicated project-workspace-home button below).
 const SECTIONS = [
-  { key: "overview", label: "Home" },
   { key: "notes", label: "Notes" },
   { key: "canvas", label: "Canvas" },
   { key: "workflows", label: "Workflows" },
@@ -94,6 +97,16 @@ export function ProjectWorkspace({ project, notes, vaultStatus, onBack, onUpdate
           {project.color && <span className={`note-color-dot note-color-dot--${project.color}`} />}
           {!navCollapsed && <span className="project-workspace-name">{project.name || "Untitled project"}</span>}
         </div>
+        <button
+          type="button"
+          className={`project-workspace-home${section === "overview" ? " project-workspace-home--active" : ""}`}
+          style={{ "--home-accent": projectColorVar(project.color) }}
+          onClick={() => setSection("overview")}
+          title={navCollapsed ? "Home" : undefined}
+        >
+          <span aria-hidden="true">⌂</span>
+          {!navCollapsed && "Home"}
+        </button>
         <nav className="project-workspace-tabs">
           {SECTIONS.map((s) => (
             <button

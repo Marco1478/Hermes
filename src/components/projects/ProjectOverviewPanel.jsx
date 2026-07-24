@@ -1,8 +1,12 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { STATUSES, PRIORITIES } from "../../state/Projects.jsx";
 import { normalizeTag } from "../../lib/tags.js";
 import { useProjectSignals } from "../../lib/useProjectSignals.js";
+import { projectColorVar } from "../../lib/projectColor.js";
+import { useViewMode } from "../../state/ViewMode.jsx";
+import { fetchProjectActivity } from "../../lib/obsidianBridge.js";
+import { TYPE_GLYPH } from "./ProjectActivityPanel.jsx";
 
 const STATUS_LABEL = { planning: "Planning", active: "Active", on_hold: "On hold", done: "Done" };
 
@@ -56,8 +60,28 @@ export function ProjectOverviewPanel({ project, notes, vaultStatus, onNavigate, 
   const [newMilestone, setNewMilestone] = useState("");
   const [newTag, setNewTag] = useState("");
   const progress = progressOf(project);
+  const { goTo } = useViewMode();
 
   const { canvases, workflows, tasks, assets, loading, error: loadError } = useProjectSignals(project);
+
+  // Cozy Home's "latest meaningful activity" (CLAUDE-005 of Instructions
+  // 010) reads the same real vault-backed log ProjectActivityPanel does —
+  // not the notes-only "Latest changes" section below, which has always
+  // been limited to notes since canvases/workflows/assets carry no
+  // modification timestamp in this build. Best-effort: a failed fetch just
+  // leaves this mini-list empty, same as any other optional Home tile.
+  const [recentActivity, setRecentActivity] = useState(null);
+  const loadActivity = useCallback(async () => {
+    try {
+      const res = await fetchProjectActivity(project.id);
+      setRecentActivity((res.data || []).slice(-3).reverse());
+    } catch {
+      setRecentActivity([]);
+    }
+  }, [project.id]);
+  useEffect(() => {
+    loadActivity();
+  }, [loadActivity]);
   const linkedNotes = useMemo(() => project.linkedNoteIds.map((id) => notes.find((n) => n.id === id)).filter((n) => n && !n.archived), [project.linkedNoteIds, notes]);
   const recentNotes = useMemo(() => [...linkedNotes].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 3), [linkedNotes]);
 
@@ -87,100 +111,142 @@ export function ProjectOverviewPanel({ project, notes, vaultStatus, onNavigate, 
 
   return (
     <div className="project-overview-panel">
-      <div className="notes-editor-top">
-        <input className="notes-title-input" value={project.name} onChange={(e) => onUpdate({ name: e.target.value })} placeholder="Untitled project" />
-        <div className="notes-editor-actions">
-          <button type="button" className="btn-pill" onClick={onToggleArchive}>
-            {project.archived ? "unarchive" : "archive"}
-          </button>
-          {vaultStatus !== "connected" && (
-            <button
-              type="button"
-              className="btn-pill btn-pill--danger"
-              onClick={() => {
-                if (window.confirm("Delete this project? Linked notes are kept, just unlinked.")) onDelete();
-              }}
-            >
-              delete project
+      <div className="project-home-hero" style={{ "--home-accent": projectColorVar(project.color) }}>
+        <div className="notes-editor-top">
+          <input className="notes-title-input" value={project.name} onChange={(e) => onUpdate({ name: e.target.value })} placeholder="Untitled project" />
+          <div className="notes-editor-actions">
+            <button type="button" className="btn-pill" onClick={onToggleArchive}>
+              {project.archived ? "unarchive" : "archive"}
             </button>
-          )}
+            {vaultStatus !== "connected" && (
+              <button
+                type="button"
+                className="btn-pill btn-pill--danger"
+                onClick={() => {
+                  if (window.confirm("Delete this project? Linked notes are kept, just unlinked.")) onDelete();
+                }}
+              >
+                delete project
+              </button>
+            )}
+          </div>
         </div>
-      </div>
 
-      <div className="project-drawer-row">
-        <label className="notes-meta-label mono">
-          status
-          <select className="notes-meta-select mono" value={project.status} onChange={(e) => onUpdate({ status: e.target.value })}>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {STATUS_LABEL[s]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="notes-meta-label mono">
-          priority
-          <select className="notes-meta-select mono" value={project.priority} onChange={(e) => onUpdate({ priority: e.target.value })}>
-            {PRIORITIES.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="notes-meta-label mono">
-          due
-          <input
-            type="date"
-            className="notes-meta-select mono"
-            value={project.dueDate ? new Date(project.dueDate).toISOString().slice(0, 10) : ""}
-            onChange={(e) => onUpdate({ dueDate: e.target.value ? new Date(e.target.value).getTime() : null })}
-          />
-        </label>
-      </div>
-
-      <div className="notes-meta-label mono">
-        color
-        <div className="notes-color-row">
-          {COLORS.map((c) => (
-            <button
-              key={c.label}
-              type="button"
-              className={`note-color-swatch note-color-swatch--${c.key || "none"}${project.color === c.key ? " note-color-swatch--active" : ""}`}
-              title={c.label}
-              aria-label={c.label}
-              onClick={() => onUpdate({ color: c.key })}
+        <div className="project-drawer-row">
+          <label className="notes-meta-label mono">
+            status
+            <select className="notes-meta-select mono" value={project.status} onChange={(e) => onUpdate({ status: e.target.value })}>
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {STATUS_LABEL[s]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="notes-meta-label mono">
+            priority
+            <select className="notes-meta-select mono" value={project.priority} onChange={(e) => onUpdate({ priority: e.target.value })}>
+              {PRIORITIES.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="notes-meta-label mono">
+            due
+            <input
+              type="date"
+              className="notes-meta-select mono"
+              value={project.dueDate ? new Date(project.dueDate).toISOString().slice(0, 10) : ""}
+              onChange={(e) => onUpdate({ dueDate: e.target.value ? new Date(e.target.value).getTime() : null })}
             />
-          ))}
+          </label>
         </div>
-      </div>
 
-      <div className="notes-tags-row">
-        {project.tags.map((t) => (
-          <span key={t} className="tag-badge notes-tag-chip">
-            #{t}
-            <button type="button" onClick={() => onUpdate({ tags: project.tags.filter((x) => x !== t) })} aria-label={`Remove tag ${t}`}>
-              ×
-            </button>
-          </span>
-        ))}
-        <input
-          className="notes-tag-input mono"
-          value={newTag}
-          onChange={(e) => setNewTag(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              addTag();
-            }
-          }}
-          placeholder="+ tag"
-        />
-      </div>
+        <div className="notes-meta-label mono">
+          color
+          <div className="notes-color-row">
+            {COLORS.map((c) => (
+              <button
+                key={c.label}
+                type="button"
+                className={`note-color-swatch note-color-swatch--${c.key || "none"}${project.color === c.key ? " note-color-swatch--active" : ""}`}
+                title={c.label}
+                aria-label={c.label}
+                onClick={() => onUpdate({ color: c.key })}
+              />
+            ))}
+          </div>
+        </div>
 
-      <p className="project-home-timestamps mono panel-empty">
-        created {new Date(project.createdAt).toLocaleDateString()} · updated {relTimeAgo(project.updatedAt)}
-      </p>
+        <div className="notes-tags-row">
+          {project.tags.map((t) => (
+            <span key={t} className="tag-badge notes-tag-chip">
+              #{t}
+              <button type="button" onClick={() => onUpdate({ tags: project.tags.filter((x) => x !== t) })} aria-label={`Remove tag ${t}`}>
+                ×
+              </button>
+            </span>
+          ))}
+          <input
+            className="notes-tag-input mono"
+            value={newTag}
+            onChange={(e) => setNewTag(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addTag();
+              }
+            }}
+            placeholder="+ tag"
+          />
+        </div>
+
+        <p className="project-home-timestamps mono panel-empty">
+          created {new Date(project.createdAt).toLocaleDateString()} · updated {relTimeAgo(project.updatedAt)}
+        </p>
+
+        <div className="project-home-today">
+          <span className="project-home-today-label mono">Today / Next</span>
+          <p className="project-home-today-text">{loading ? "Loading…" : nextAction}</p>
+        </div>
+
+        <div className="project-home-actions">
+          <button type="button" className="btn-pill" onClick={() => onNavigate("chat")}>
+            Ask Hermes
+          </button>
+          <button type="button" className="btn-pill" onClick={() => onNavigate("kanban")}>
+            Open Kanban
+          </button>
+          <button type="button" className="btn-pill" onClick={() => onNavigate("notes")}>
+            + Note
+          </button>
+          <button type="button" className="btn-pill" onClick={() => onNavigate("canvas")}>
+            + Canvas
+          </button>
+          <button
+            type="button"
+            className="btn-pill"
+            title="Claude Code has no per-project launcher yet — this opens the real, site-wide Agent Activity Center (git commits + docs/claude status reports), not a project-scoped view."
+            onClick={() => goTo("system")}
+          >
+            Claude Code activity ↗
+          </button>
+        </div>
+
+        {recentActivity && recentActivity.length > 0 && (
+          <div className="project-home-recent-list project-home-mini-activity">
+            {recentActivity.map((entry, i) => (
+              <button key={`${entry.ts}-${i}`} type="button" className="project-home-recent-row" onClick={() => onNavigate("activity")}>
+                <span aria-hidden="true">{TYPE_GLYPH[entry.type] || "•"}</span>
+                <span className="project-home-recent-title">{entry.label}</span>
+                <span className="project-home-recent-time mono">{relTimeAgo(entry.ts)}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {loadError && <p className="panel-error">Couldn't load full project state: {loadError}</p>}
 
@@ -273,15 +339,6 @@ export function ProjectOverviewPanel({ project, notes, vaultStatus, onNavigate, 
               </div>
             </div>
           )}
-
-          <div className="panel-section">
-            <p className="panel-section-title" style={{ marginBottom: "0.3rem" }}>
-              Suggested next action
-            </p>
-            <p className="panel-empty" style={{ margin: 0 }}>
-              {nextAction}
-            </p>
-          </div>
         </>
       )}
 

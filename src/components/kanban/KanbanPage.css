@@ -8,6 +8,28 @@
    there are columns, otherwise leftover tracks and space; wrap to a second
    row only kicks in below the sidebar breakpoint, where a fixed 6-wide row
    would otherwise be crushed. */
+.kanban-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0 0 0.7rem;
+}
+
+.kanban-filter-select {
+  min-height: 36px;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--silver-dim);
+  font-size: 0.78rem;
+}
+
+.kanban-filter-select:hover {
+  color: var(--white);
+}
+
 .kanban-board {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -198,6 +220,16 @@
   align-self: flex-start;
   color: var(--teal);
   opacity: 0.85;
+  font-size: 0.62rem;
+}
+
+/* Neutral, deliberately un-colored — General/Inbox tasks are a real bucket
+   (no project relation), not "waiting to be categorized", so this reads as
+   calm/normal rather than a warning or an empty state. */
+.kanban-card-general-chip {
+  align-self: flex-start;
+  color: var(--silver-dim);
+  opacity: 0.6;
   font-size: 0.62rem;
 }
 

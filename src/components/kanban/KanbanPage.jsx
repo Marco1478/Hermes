@@ -11,14 +11,30 @@ import {
   completeKanbanTasks,
 } from "../../lib/kanbanBridge.js";
 import { useProjects } from "../../state/Projects.jsx";
+import { useViewMode } from "../../state/ViewMode.jsx";
 import { PageShell } from "../PageShell.jsx";
 import { DiagnosticCard } from "../DiagnosticCard.jsx";
 import { KanbanColumn } from "./KanbanColumn.jsx";
 import { KanbanDetailDrawer } from "./KanbanDetailDrawer.jsx";
 import { KanbanTaskActions } from "./KanbanTaskActions.jsx";
 import { KanbanObsidianLinks } from "./KanbanObsidianLinks.jsx";
+import { KanbanProjectAssign } from "./KanbanProjectAssign.jsx";
 import { GlassButton } from "../ui/GlassButton.jsx";
+import { GlassSegmented, GlassSegmentedOption } from "../ui/GlassSegmented.jsx";
 import "./KanbanPage.css";
+
+// Real, checkable buckets only — no "assigned to X" classifier beyond the
+// two assignee presets this UI itself offers (NewTaskModal's "Hermes
+// default"/"Claude" buttons write exactly "default"/"claude"), and no
+// per-task tag filter since a real Kanban task has no tag field (only a
+// project does — see the separate project-tag select below).
+const FILTER_BUCKETS = [
+  { key: "all", label: "All" },
+  { key: "general", label: "General / Inbox" },
+  { key: "blocked", label: "Blocked" },
+  { key: "hermes", label: "Hermes" },
+  { key: "claude", label: "Claude" },
+];
 
 function NewTaskModal({ preset, onClose, onCreated }) {
   const [title, setTitle] = useState("");
@@ -175,7 +191,8 @@ function loadColumnOrder() {
   localStorage for that specifically is honest, not a fake.
 */
 export function KanbanPage() {
-  const { projects } = useProjects();
+  const { projects, allTags } = useProjects();
+  const { kanbanFilterProjectId, consumeKanbanFilter } = useViewMode();
   const [status, setStatus] = useState(null);
   const [tasks, setTasks] = useState(null);
   const [error, setError] = useState(null);
@@ -188,6 +205,29 @@ export function KanbanPage() {
   const [dropState, setDropState] = useState(null); // { overColumn, allowed } | null
   const [dropError, setDropError] = useState(null);
   const dropErrorTimer = useRef(null);
+  const [filterBucket, setFilterBucket] = useState("all"); // all|general|project|tag|blocked|hermes|claude
+  const [filterProjectId, setFilterProjectId] = useState("");
+  const [filterTag, setFilterTag] = useState("");
+  const [sortRecent, setSortRecent] = useState(false);
+
+  // A project's "open in main board, filtered" link arrives here as a
+  // one-shot pending value (see ViewMode.jsx) rather than a URL param —
+  // this app has no router. Consumed immediately so navigating to Kanban
+  // again later (via the rail) starts unfiltered, not stuck on the last
+  // project.
+  useEffect(() => {
+    if (kanbanFilterProjectId) {
+      setFilterBucket("project");
+      setFilterProjectId(kanbanFilterProjectId);
+      consumeKanbanFilter();
+    }
+  }, [kanbanFilterProjectId, consumeKanbanFilter]);
+
+  const selectBucket = (key) => {
+    setFilterBucket(key);
+    setFilterProjectId("");
+    setFilterTag("");
+  };
 
   const onReorder = useCallback((next) => {
     setColumnOrder(next);
@@ -220,30 +260,48 @@ export function KanbanPage() {
     return () => clearInterval(timer);
   }, [load]);
 
-  const columns = useMemo(() => {
-    const byKey = Object.fromEntries(COLUMNS.map((c) => [c.key, []]));
-    for (const t of tasks || []) {
-      const col = COLUMNS.find((c) => c.statuses.includes(t.status));
-      (byKey[col?.key || "backlog"] || byKey.backlog).push(t);
-    }
-    return byKey;
-  }, [tasks]);
-
-  const orderedColumns = useMemo(
-    () => columnOrder.map((key) => COLUMNS.find((c) => c.key === key)).filter(Boolean),
-    [columnOrder]
-  );
-
   // Project<->task relation lives on the project side (linkedKanbanIds in
   // its Obsidian frontmatter) — there's no projectId field on a real
   // Kanban task (verified against the CLI's actual create/update args), so
   // this doesn't invent one. One pass over the already-loaded projects
-  // builds the reverse lookup a card needs to show its project chip.
+  // builds the reverse lookup a card needs to show its project chip, and
+  // that the filter bar below needs for General/Project/Tag buckets.
   const projectByTaskId = useMemo(() => {
     const map = new Map();
     for (const p of projects) for (const taskId of p.linkedKanbanIds || []) map.set(taskId, p);
     return map;
   }, [projects]);
+
+  // One task list, filtered — never a second fetch or a separate store, so
+  // there's no way for this to drift into a duplicate/phantom task. Sort
+  // and bucket both operate on the same already-loaded `tasks`.
+  const visibleTasks = useMemo(() => {
+    let list = tasks || [];
+    if (filterBucket === "general") list = list.filter((t) => !projectByTaskId.has(t.id));
+    else if (filterBucket === "project" && filterProjectId) list = list.filter((t) => projectByTaskId.get(t.id)?.id === filterProjectId);
+    else if (filterBucket === "tag" && filterTag) list = list.filter((t) => (projectByTaskId.get(t.id)?.tags || []).includes(filterTag));
+    else if (filterBucket === "blocked") list = list.filter((t) => t.status === "blocked");
+    else if (filterBucket === "hermes") list = list.filter((t) => (t.assignee || "").toLowerCase() === "default");
+    else if (filterBucket === "claude") list = list.filter((t) => (t.assignee || "").toLowerCase() === "claude");
+    if (sortRecent) {
+      list = [...list].sort((a, b) => (b.completed_at || b.started_at || b.created_at || 0) - (a.completed_at || a.started_at || a.created_at || 0));
+    }
+    return list;
+  }, [tasks, filterBucket, filterProjectId, filterTag, sortRecent, projectByTaskId]);
+
+  const columns = useMemo(() => {
+    const byKey = Object.fromEntries(COLUMNS.map((c) => [c.key, []]));
+    for (const t of visibleTasks) {
+      const col = COLUMNS.find((c) => c.statuses.includes(t.status));
+      (byKey[col?.key || "backlog"] || byKey.backlog).push(t);
+    }
+    return byKey;
+  }, [visibleTasks]);
+
+  const orderedColumns = useMemo(
+    () => columnOrder.map((key) => COLUMNS.find((c) => c.key === key)).filter(Boolean),
+    [columnOrder]
+  );
 
   const openTask = useCallback(async (id) => {
     setOpenId(id);
@@ -346,6 +404,60 @@ export function KanbanPage() {
       {dropError && <p className="panel-error kanban-drop-error">{dropError}</p>}
 
       {status?.configured && !error && (
+        <div className="kanban-filter-bar">
+          <GlassSegmented>
+            {FILTER_BUCKETS.map((b) => (
+              <GlassSegmentedOption key={b.key} active={filterBucket === b.key} onClick={() => selectBucket(b.key)}>
+                {b.label}
+              </GlassSegmentedOption>
+            ))}
+          </GlassSegmented>
+          <select
+            className="kanban-filter-select mono"
+            value={filterBucket === "project" ? filterProjectId : ""}
+            onChange={(e) => {
+              const id = e.target.value;
+              setFilterBucket(id ? "project" : "all");
+              setFilterProjectId(id);
+              setFilterTag("");
+            }}
+          >
+            <option value="">by project…</option>
+            {projects
+              .filter((p) => !p.archived && (p.linkedKanbanIds || []).length > 0)
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name || "Untitled project"}
+                </option>
+              ))}
+          </select>
+          {allTags.length > 0 && (
+            <select
+              className="kanban-filter-select mono"
+              value={filterBucket === "tag" ? filterTag : ""}
+              onChange={(e) => {
+                const tag = e.target.value;
+                setFilterBucket(tag ? "tag" : "all");
+                setFilterTag(tag);
+                setFilterProjectId("");
+              }}
+              title="Filters by the tag on a task's linked project — a real Kanban task has no tag field of its own."
+            >
+              <option value="">by project tag…</option>
+              {allTags.map((t) => (
+                <option key={t} value={t}>
+                  #{t}
+                </option>
+              ))}
+            </select>
+          )}
+          <button type="button" className={`btn-pill${sortRecent ? " btn-pill--active" : ""}`} onClick={() => setSortRecent((v) => !v)}>
+            {sortRecent ? "✓ recently updated" : "recently updated"}
+          </button>
+        </div>
+      )}
+
+      {status?.configured && !error && (
         <Reorder.Group
           as="div"
           axis="x"
@@ -380,6 +492,7 @@ export function KanbanPage() {
             actions={
               detail && (
                 <>
+                  <KanbanProjectAssign task={detail.task} project={projectByTaskId.get(detail.task.id)} />
                   <KanbanTaskActions task={detail.task} onChanged={onTaskChanged} />
                   <KanbanObsidianLinks task={detail.task} onChanged={onTaskChanged} />
                 </>

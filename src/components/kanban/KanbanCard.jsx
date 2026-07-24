@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { motion, useMotionValue } from "framer-motion";
+import { projectColorVar } from "../../lib/projectColor.js";
 
 /*
   KanbanCard — one task tile on the mission board. Only ever shows fields
@@ -108,7 +109,13 @@ export function KanbanCard({ task, onOpen, project, onDragChange, onDrop }) {
         <span className="kanban-card-id mono">{task.id}</span>
         {task.priority > 0 && <span className="tag-badge">P{task.priority}</span>}
       </div>
-      {project && <span className="tag-badge kanban-card-project-chip">◆ {project.name}</span>}
+      {project ? (
+        <span className="tag-badge kanban-card-project-chip" style={{ color: projectColorVar(project.color) }}>
+          ◆ {project.name}
+        </span>
+      ) : (
+        <span className="tag-badge kanban-card-general-chip">○ General</span>
+      )}
       <p className="kanban-card-title">{task.title}</p>
       <div className="kanban-card-meta mono">
         <span className="kanban-card-owner">{task.assignee || "unassigned"}</span>
